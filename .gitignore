@@ -32,3 +32,4 @@ Plugins/*/PluginModifyWorkFiles/
 # --- Misc ---
 *.log
 .p4ignore
+p4config.txt
