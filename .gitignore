@@ -1,0 +1,34 @@
+# --- Assets (Managed by Perforce) ---
+Content/
+Samples/
+FeaturePacks/
+
+# --- Generated / Intermediate ---
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+Build/
+
+# --- IDE / Editor ---
+.idea/
+.vscode/
+.vs/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.xcodeproj
+*.xcworkspace
+*.DotSettings.user
+
+# --- Plugins (Split) ---
+# Ignore Plugin Content and Binaries (P4 or Generated)
+Plugins/*/Content/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+Plugins/*/PluginModifyWorkFiles/
+
+# --- Misc ---
+*.log
+.p4ignore
