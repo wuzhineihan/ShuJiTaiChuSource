@@ -23,6 +23,8 @@ public:
 
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
 
+
+	UFUNCTION(BlueprintPure, Category = "GameMode")
 	bool GetIsVRMode();
 private:
 	bool bIsVRMode = false;

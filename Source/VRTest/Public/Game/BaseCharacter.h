@@ -43,4 +43,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "AI")
 	virtual USceneComponent* GetTrackOrigin() const;
+
+	UFUNCTION(BlueprintNativeEvent, Category = "Character")
+	void OnDeath();
 };

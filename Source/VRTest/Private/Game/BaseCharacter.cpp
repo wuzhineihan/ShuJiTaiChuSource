@@ -17,6 +17,10 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	if (AliveComponent)
+	{
+		AliveComponent->OnDead.AddDynamic(this, &ABaseCharacter::OnDeath);
+	}
 }
 
 // Called every frame
@@ -86,6 +90,11 @@ void ABaseCharacter::TakeFireEffect(const FEffect& Effect)
 }
 
 void ABaseCharacter::TakeStasisEffect(const FEffect& Effect)
+{
+	// Default implementation
+}
+
+void ABaseCharacter::OnDeath_Implementation()
 {
 	// Default implementation
 }
