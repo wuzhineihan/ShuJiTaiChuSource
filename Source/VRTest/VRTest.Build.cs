@@ -8,7 +8,7 @@ public class VRTest : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" ,"AIModule","GameplayTags","NavigationSystem",});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore" ,"AIModule","GameplayTags","NavigationSystem", "HeadMountedDisplay", "XRBase" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayDebugger" });
 		

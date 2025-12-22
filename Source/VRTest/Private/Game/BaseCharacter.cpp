@@ -9,6 +9,7 @@ ABaseCharacter::ABaseCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	AliveComponent = CreateDefaultSubobject<UAliveComponent>(TEXT("AliveComponent"));
 }
 
 // Called when the game starts or when spawned
@@ -32,3 +33,59 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 }
 
+USceneComponent* ABaseCharacter::GetTrackOrigin() const
+{
+	return GetRootComponent();
+}
+
+void ABaseCharacter::ApplyEffect_Implementation(const FEffect& Effect)
+{
+	for (const EEffectType& Type : Effect.EffectTypes)
+	{
+		switch (Type)
+		{
+		case EEffectType::Arrow:
+			TakeArrowEffect(Effect);
+			break;
+		case EEffectType::Smash:
+			TakeSmashEffect(Effect);
+			break;
+		case EEffectType::Melee:
+			TakeMeleeEffect(Effect);
+			break;
+		case EEffectType::Fire:
+			TakeFireEffect(Effect);
+			break;
+		case EEffectType::Stasis:
+			TakeStasisEffect(Effect);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void ABaseCharacter::TakeArrowEffect(const FEffect& Effect)
+{
+	// Default implementation
+}
+
+void ABaseCharacter::TakeSmashEffect(const FEffect& Effect)
+{
+	// Default implementation
+}
+
+void ABaseCharacter::TakeMeleeEffect(const FEffect& Effect)
+{
+	// Default implementation
+}
+
+void ABaseCharacter::TakeFireEffect(const FEffect& Effect)
+{
+	// Default implementation
+}
+
+void ABaseCharacter::TakeStasisEffect(const FEffect& Effect)
+{
+	// Default implementation
+}

@@ -3,7 +3,6 @@
 
 #include "Jar_Base.h"
 
-#include "AssetTypeCategories.h"
 #include "Enemy_Base.h"
 // Sets default values
 AJar_Base::AJar_Base()

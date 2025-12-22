@@ -33,3 +33,6 @@ Plugins/*/PluginModifyWorkFiles/
 *.log
 .p4ignore
 p4config.txt
+
+# configs
+Config/
