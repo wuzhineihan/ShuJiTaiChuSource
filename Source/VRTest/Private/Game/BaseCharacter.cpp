@@ -10,6 +10,7 @@ ABaseCharacter::ABaseCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 
 	AliveComponent = CreateDefaultSubobject<UAliveComponent>(TEXT("AliveComponent"));
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 }
 
 // Called when the game starts or when spawned

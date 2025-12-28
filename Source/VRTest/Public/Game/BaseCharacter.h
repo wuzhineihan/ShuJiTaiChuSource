@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Effect/Effectable.h"
 #include "Effect/AliveComponent.h"
+#include "Game/InventoryComponent.h"
 #include "BaseCharacter.generated.h"
 
 UCLASS()
@@ -30,6 +31,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UAliveComponent* AliveComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UInventoryComponent* InventoryComponent;
 
 	// IEffectable Interface
 	virtual void ApplyEffect_Implementation(const FEffect& Effect) override;

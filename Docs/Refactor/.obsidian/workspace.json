@@ -6,7 +6,7 @@
       {
         "id": "817e8fc664b6609a",
         "type": "tabs",
-        "dimension": 79.83870967741935,
+        "dimension": 79.83870967741936,
         "children": [
           {
             "id": "ed25f42c4dbcb122",
@@ -21,13 +21,28 @@
               "icon": "lucide-file",
               "title": "Effectable&Character"
             }
+          },
+          {
+            "id": "1ccd8e1d4fa8653a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Grab.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Grab"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
         "id": "98c575f0532bf32e",
         "type": "tabs",
-        "dimension": 20.161290322580644,
+        "dimension": 20.161290322580648,
         "children": [
           {
             "id": "fd9c930aa9f150dc",
@@ -201,9 +216,10 @@
       "bases:创建新数据库": false
     }
   },
-  "active": "ed25f42c4dbcb122",
+  "active": "1ccd8e1d4fa8653a",
   "lastOpenFiles": [
-    "欢迎.md",
-    "Effectable&Character.md"
+    "Effectable&Character.md",
+    "Grab.md",
+    "欢迎.md"
   ]
 }
