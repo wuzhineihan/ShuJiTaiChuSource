@@ -145,11 +145,6 @@ AGrabbeeObject* UPlayerGrabHand::FindTarget_Implementation()
 	return nullptr;
 }
 
-bool UPlayerGrabHand::IsInBackpackArea_Implementation() const
-{
-	// 基类返回 false，VR 子类重写
-	return false;
-}
 
 // ==================== 抓取实现 ====================
 
@@ -188,7 +183,7 @@ void UPlayerGrabHand::GrabObject(AGrabbeeObject* Target)
 		GrabHumanBody(Target);
 		break;
 	case EGrabType::Custom:
-		GrabCustom(Target);
+		// 啥都不做，自定义逻辑放在OnGrabbed里面实现
 		break;
 	default:
 		return;
@@ -227,7 +222,8 @@ void UPlayerGrabHand::ReleaseObject()
 		ReleaseAttach();
 		break;
 	case EGrabType::Custom:
-		ReleasedObj->CustomRelease(this);
+		// Custom 类型不做额外物理处理
+		// 子类在 OnReleased 中实现自定义逻辑
 		break;
 	default:
 		break;
@@ -360,12 +356,6 @@ void UPlayerGrabHand::GrabHumanBody(AGrabbeeObject* Target)
 	// HumanBody 逻辑与 Free 类似，但可能需要指定骨骼
 	// 目前使用与 Free 相同的实现
 	GrabFree(Target);
-}
-
-void UPlayerGrabHand::GrabCustom(AGrabbeeObject* Target)
-{
-	// 调用物体的自定义抓取函数
-	Target->CustomGrab(this);
 }
 
 void UPlayerGrabHand::ReleasePhysicsControl()

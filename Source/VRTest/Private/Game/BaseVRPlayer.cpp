@@ -96,48 +96,12 @@ void ABaseVRPlayer::Tick(float DeltaTime)
 
 void ABaseVRPlayer::HandleLeftGrip(bool bPressed)
 {
-	// 弓箭模式下，左手持弓，无视Grip操作
-	if (bIsBowArmed)
-	{
-		return;
-	}
-
-	if (bPressed)
-	{
-		// 检查是否在背包区域
-		if (LeftHand->IsInBackpackArea())
-		{
-			LeftHand->TryGrab(true); // 从背包取物
-		}
-		else
-		{
-			LeftHand->TryGrab(false); // 正常抓取
-		}
-	}
-	else
-	{
-		LeftHand->TryRelease();
-	}
+	HandleGrip(LeftHand, bPressed, true);
 }
 
 void ABaseVRPlayer::HandleRightGrip(bool bPressed)
 {
-	if (bPressed)
-	{
-		// 检查是否在背包区域
-		if (RightHand->IsInBackpackArea())
-		{
-			RightHand->TryGrab(true); // 从背包取物
-		}
-		else
-		{
-			RightHand->TryGrab(false); // 正常抓取
-		}
-	}
-	else
-	{
-		RightHand->TryRelease();
-	}
+	HandleGrip(RightHand, bPressed, false);
 }
 
 // ==================== 内部函数 ====================
@@ -151,6 +115,31 @@ void ABaseVRPlayer::SetupHandBackpackReferences()
 	if (RightHand)
 	{
 		RightHand->BackpackCollision = BackpackCollision;
+	}
+}
+
+void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
+{
+	if (!Hand)
+	{
+		return;
+	}
+
+	// 弓箭模式下，左手持弓，无视Grip操作
+	if (bIsLeft && bIsBowArmed)
+	{
+		return;
+	}
+
+	if (bPressed)
+	{
+		// 检查是否在背包区域
+		const bool bFromBackpack = Hand->IsInBackpackArea();
+		Hand->TryGrab(bFromBackpack);
+	}
+	else
+	{
+		Hand->TryRelease();
 	}
 }
 

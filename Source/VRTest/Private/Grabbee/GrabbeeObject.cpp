@@ -3,6 +3,7 @@
 #include "Grabbee/GrabbeeObject.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -31,6 +32,12 @@ void AGrabbeeObject::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
 	bIsHeld = true;
 	HoldingHand = Hand;
+	
+	// 被抓取时取消选中状态
+	if (bIsSelected)
+	{
+		bIsSelected = false;
+	}
 }
 
 void AGrabbeeObject::OnReleased_Implementation(UPlayerGrabHand* Hand)
@@ -39,14 +46,47 @@ void AGrabbeeObject::OnReleased_Implementation(UPlayerGrabHand* Hand)
 	HoldingHand = nullptr;
 }
 
-void AGrabbeeObject::CustomGrab_Implementation(UPlayerGrabHand* Hand)
+void AGrabbeeObject::OnSelected_Implementation()
 {
-	// 默认空实现，子类重写
+	bIsSelected = true;
+	// 子类可重写添加高亮、音效等
 }
 
-void AGrabbeeObject::CustomRelease_Implementation(UPlayerGrabHand* Hand)
+void AGrabbeeObject::OnDeselected_Implementation()
 {
-	// 默认空实现，子类重写
+	bIsSelected = false;
+	// 子类可重写移除高亮等
+}
+
+bool AGrabbeeObject::LaunchTowards(const FVector& TargetLocation, float ArcParam)
+{
+	UPrimitiveComponent* Primitive = GetGrabPrimitive();
+	if (!Primitive)
+	{
+		return false;
+	}
+
+	FVector StartLocation = GetActorLocation();
+	FVector OutLaunchVelocity;
+
+	// 使用 SuggestProjectileVelocity_CustomArc 计算发射速度
+	bool bSuccess = UGameplayStatics::SuggestProjectileVelocity_CustomArc(
+		this,
+		OutLaunchVelocity,
+		StartLocation,
+		TargetLocation,
+		0.0f,  // OverrideGravityZ - 使用世界重力
+		ArcParam  // ArcParam - 抛物线弧度
+	);
+
+	if (bSuccess)
+	{
+		// 使用 VelChange = true，直接设置速度而非施加力
+		Primitive->AddImpulse(OutLaunchVelocity, NAME_None, true);
+		return true;
+	}
+
+	return false;
 }
 
 UPrimitiveComponent* AGrabbeeObject::GetGrabPrimitive_Implementation() const

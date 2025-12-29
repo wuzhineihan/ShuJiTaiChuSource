@@ -19,14 +19,18 @@ UVRGrabHand::UVRGrabHand()
 void UVRGrabHand::BeginPlay()
 {
 	Super::BeginPlay();
+	LastHandLocation = GetComponentLocation();
 }
 
 void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// 更新手部速度
+	UpdateHandVelocity(DeltaTime);
+
 	// 更新 Gravity Gloves
-	if (bEnableGravityGloves && !bIsHolding)
+	if (bEnableGravityGloves)
 	{
 		UpdateGravityGloves(DeltaTime);
 	}
@@ -37,26 +41,10 @@ void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 AGrabbeeObject* UVRGrabHand::FindTarget_Implementation()
 {
 	// 优先检测近距离球形重叠
-	if (AGrabbeeObject* NearTarget = PerformSphereOverlap())
-	{
-		return NearTarget;
-	}
-
-	// 如果有 Gravity Gloves 目标正在拉取中
-	if (bIsGravityGlovesDragging && GravityGlovesTarget)
-	{
-		// 检查目标是否已经到达近距离范围
-		float Distance = FVector::Dist(GetComponentLocation(), GravityGlovesTarget->GetActorLocation());
-		if (Distance < GrabSphereRadius * 2.0f)
-		{
-			return GravityGlovesTarget;
-		}
-	}
-
-	return nullptr;
+	return PerformSphereOverlap();
 }
 
-bool UVRGrabHand::IsInBackpackArea_Implementation() const
+bool UVRGrabHand::IsInBackpackArea() const
 {
 	if (!BackpackCollision)
 	{
@@ -71,8 +59,44 @@ bool UVRGrabHand::IsInBackpackArea_Implementation() const
 	return Distance <= 0.0f; // 在碰撞体内部时距离为负或零
 }
 
+void UVRGrabHand::TryGrab(bool bFromBackpack)
+{
+	// 如果已经持有物体，不再抓取
+	if (bIsHolding)
+	{
+		return;
+	}
+
+	// 优先处理近距离抓取
+	AGrabbeeObject* NearTarget = FindTarget();
+	if (NearTarget)
+	{
+		// 正常抓取流程
+		Super::TryGrab(bFromBackpack);
+		return;
+	}
+
+	// 如果有 Gravity Gloves 选中的目标，进行虚拟抓取
+	if (bEnableGravityGloves && GravityGlovesTarget)
+	{
+		VirtualGrab(GravityGlovesTarget);
+	}
+	else if (bFromBackpack)
+	{
+		// 从背包取物
+		Super::TryGrab(true);
+	}
+}
+
 void UVRGrabHand::TryRelease(bool bToBackpack)
 {
+	// 如果是虚拟抓取状态，进行虚拟释放（不发射）
+	if (bIsVirtualGrabbing)
+	{
+		VirtualRelease(false);
+		return;
+	}
+
 	if (!bIsHolding || !HeldObject)
 	{
 		return;
@@ -185,68 +209,129 @@ AGrabbeeObject* UVRGrabHand::FindAngleClosestTarget()
 	return ClosestTarget;
 }
 
-void UVRGrabHand::StartGravityGlovesPull(AGrabbeeObject* Target)
+void UVRGrabHand::VirtualGrab(AGrabbeeObject* Target)
 {
 	if (!Target)
 	{
 		return;
 	}
 
-	GravityGlovesTarget = Target;
-	bIsGravityGlovesDragging = true;
+	// 设置虚拟抓取状态（与真实抓取相同的状态变量）
+	HeldObject = Target;
+	bIsHolding = true;
+	bIsVirtualGrabbing = true;
 
-	// 可以在这里添加视觉/音效反馈
+	// 清除选中状态（物体从"选中"变为"虚拟抓取"）
+	if (GravityGlovesTarget == Target)
+	{
+		GravityGlovesTarget = nullptr;
+	}
+
+	// 通知物体被选中变为抓取（但不是真正的物理抓取）
+	// 不调用 OnGrabbed，因为物体还没到手
 }
 
-void UVRGrabHand::StopGravityGlovesPull()
+void UVRGrabHand::VirtualRelease(bool bLaunch)
 {
-	GravityGlovesTarget = nullptr;
-	bIsGravityGlovesDragging = false;
+	if (!bIsVirtualGrabbing || !HeldObject)
+	{
+		return;
+	}
+
+	AGrabbeeObject* ReleasedTarget = HeldObject;
+
+	// 如果需要发射物体
+	if (bLaunch)
+	{
+		ReleasedTarget->LaunchTowards(GetComponentLocation(), LaunchArcParam);
+	}
+
+	// 清除状态
+	HeldObject = nullptr;
+	bIsHolding = false;
+	bIsVirtualGrabbing = false;
 }
 
 // ==================== 内部函数 ====================
 
 void UVRGrabHand::UpdateGravityGloves(float DeltaTime)
 {
-	// 如果正在拉取
-	if (bIsGravityGlovesDragging && GravityGlovesTarget)
+	// 如果正在虚拟抓取，检测向后拉动手势
+	if (bIsVirtualGrabbing && HeldObject)
 	{
 		// 检查目标是否仍然有效
-		if (!IsValid(GravityGlovesTarget) || !GravityGlovesTarget->CanBeGrabbedBy(this))
+		if (!IsValid(HeldObject))
 		{
-			StopGravityGlovesPull();
+			VirtualRelease(false);
 			return;
 		}
 
-		// 计算拉取方向
-		FVector ToHand = GetComponentLocation() - GravityGlovesTarget->GetActorLocation();
-		float Distance = ToHand.Size();
-
-		if (Distance < GrabSphereRadius)
+		// 检测向后拉动手势
+		if (CheckPullBackGesture())
 		{
-			// 已到达，停止拉取
-			StopGravityGlovesPull();
-			return;
+			// 发射物体并释放
+			VirtualRelease(true);
 		}
-
-		// 应用拉取力
-		FVector PullDirection = ToHand.GetSafeNormal();
-		FVector Velocity = PullDirection * GravityGlovesPullSpeed;
-
-		if (UPrimitiveComponent* Primitive = GravityGlovesTarget->GetGrabPrimitive())
-		{
-			Primitive->SetPhysicsLinearVelocity(Velocity);
-		}
+		return;
 	}
-	else
+
+	// 如果没有抓取物体，寻找新的目标
+	if (!bIsHolding)
 	{
-		// 寻找新的 Gravity Gloves 目标
 		AGrabbeeObject* NewTarget = FindAngleClosestTarget();
-		
-		// 这里只设置目标，实际拉取需要通过输入触发
-		// GravityGlovesTarget = NewTarget;
-		// 可以添加高亮显示等视觉反馈
+
+		// 目标发生变化
+		if (NewTarget != GravityGlovesTarget)
+		{
+			// 取消选中旧目标
+			if (GravityGlovesTarget)
+			{
+				GravityGlovesTarget->OnDeselected();
+			}
+
+			// 选中新目标
+			GravityGlovesTarget = NewTarget;
+			if (GravityGlovesTarget)
+			{
+				GravityGlovesTarget->OnSelected();
+			}
+		}
 	}
+}
+
+void UVRGrabHand::UpdateHandVelocity(float DeltaTime)
+{
+	if (DeltaTime > 0.0f)
+	{
+		FVector CurrentLocation = GetComponentLocation();
+		HandVelocity = (CurrentLocation - LastHandLocation) / DeltaTime;
+		LastHandLocation = CurrentLocation;
+	}
+}
+
+bool UVRGrabHand::CheckPullBackGesture() const
+{
+	if (!HeldObject)
+	{
+		return false;
+	}
+
+	// 计算从物体指向手的方向
+	FVector ToHand = (GetComponentLocation() - HeldObject->GetActorLocation()).GetSafeNormal();
+
+	// 计算手部速度与该方向的点积（向后拉 = 负值）
+	// 我们需要的是向后拉，即手部向着远离物体的方向移动
+	// 但用户说的是"向后拉"，意思是手往自己身体方向拉，物体在前方
+	// 所以应该是手部速度与 ToHand 方向的点积为负（手往物体相反方向移动）
+	
+	// 或者理解为：手往后拉 = 手速度与 -ToHand（指向物体的方向）点积为负
+	// 即手速度与从手指向物体的方向点积为负
+	FVector ToObject = -ToHand;
+	float DotProduct = FVector::DotProduct(HandVelocity.GetSafeNormal(), ToObject);
+
+	// 当点积为负且速度足够大时，触发发射
+	// DotProduct < 0 表示手在远离物体
+	return DotProduct < -PullBackThreshold && HandVelocity.Size() > 100.0f;
 }
 
 AGrabbeeObject* UVRGrabHand::PerformSphereOverlap() const

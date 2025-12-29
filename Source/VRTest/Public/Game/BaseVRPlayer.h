@@ -103,4 +103,7 @@ protected:
 	
 	/** 设置手部的背包碰撞引用 */
 	void SetupHandBackpackReferences();
+
+	/** 通用的抓取处理逻辑 */
+	void HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bCheckBowArmed = false);
 };

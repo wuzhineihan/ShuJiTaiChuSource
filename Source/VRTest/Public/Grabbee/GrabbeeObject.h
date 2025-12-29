@@ -59,6 +59,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	UPlayerGrabHand* HoldingHand = nullptr;
 
+	/** 当前是否被选中（Gravity Gloves） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	bool bIsSelected = false;
+
 	// ==================== 抓取接口 ====================
 	
 	/**
@@ -85,20 +89,29 @@ public:
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand);
 
 	/**
-	 * Custom 类型的自定义抓取逻辑
-	 * 子类重写此函数实现特殊抓取行为
+	 * 当被选中时调用（Gravity Gloves 瞄准）
+	 * 用于切换高亮、播放音效等
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Grab")
-	void CustomGrab(UPlayerGrabHand* Hand);
-	virtual void CustomGrab_Implementation(UPlayerGrabHand* Hand);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
+	void OnSelected();
+	virtual void OnSelected_Implementation();
 
 	/**
-	 * Custom 类型的自定义释放逻辑
-	 * 子类重写此函数实现特殊释放行为
+	 * 当取消选中时调用
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "Grab")
-	void CustomRelease(UPlayerGrabHand* Hand);
-	virtual void CustomRelease_Implementation(UPlayerGrabHand* Hand);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
+	void OnDeselected();
+	virtual void OnDeselected_Implementation();
+
+	/**
+	 * 向目标位置发射物体（Gravity Gloves 用）
+	 * 使用抛物线轨迹计算速度并施加冲量
+	 * @param TargetLocation 目标位置（通常是手的位置）
+	 * @param ArcParam 抛物线弧度参数（0.0-1.0，越小越平）
+	 * @return 是否成功施加冲量
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Grab")
+	bool LaunchTowards(const FVector& TargetLocation, float ArcParam = 0.5f);
 
 	// ==================== 辅助函数 ====================
 	

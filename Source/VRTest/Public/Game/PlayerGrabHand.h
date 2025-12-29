@@ -113,13 +113,6 @@ public:
 	AGrabbeeObject* FindTarget();
 	virtual AGrabbeeObject* FindTarget_Implementation();
 
-	/**
-	 * 检查是否在背包区域（VR 用）
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	bool IsInBackpackArea() const;
-	virtual bool IsInBackpackArea_Implementation() const;
-
 	// ==================== 抓取实现 ====================
 	
 	/**
@@ -155,10 +148,7 @@ protected:
 
 	/** HumanBody 类型抓取 - 使用 PhysicsControl 控制骨骼 */
 	virtual void GrabHumanBody(AGrabbeeObject* Target);
-
-	/** Custom 类型抓取 - 调用物体的自定义函数 */
-	virtual void GrabCustom(AGrabbeeObject* Target);
-
+	
 	/** 释放 PhysicsControl */
 	virtual void ReleasePhysicsControl();
 
