@@ -1,0 +1,348 @@
+@startuml GrabSystem
+
+' ==================== 样式配置 ====================
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+' ==================== 枚举定义 ====================
+package "Enums (GrabTypes.h)" {
+    enum EGrabType {
+        None
+        Free
+        Snap
+        WeaponSnap
+        HumanBody
+        Custom
+    }
+    
+    enum EWeaponType {
+        None
+        Bow
+        Arrow
+    }
+    
+    enum EArrowState {
+        Idle
+        Nocked
+        Flying
+        Stuck
+    }
+}
+
+' ==================== Grabbee 侧 ====================
+package "Grabbee Side" {
+    class AGrabbeeObject <<Actor>> {
+        ' 组件
+        + UStaticMeshComponent* MeshComponent
+        
+        ' 抓取配置
+        + EGrabType GrabType
+        + bool bCanGrab
+        + FTransform SnapOffset
+        
+        ' 抓取状态
+        + bool bIsHeld
+        + UPlayerGrabHand* HoldingHand
+        
+        ' 抓取接口
+        + {abstract} CanBeGrabbedBy(Hand): bool
+        + {abstract} OnGrabbed(Hand): void
+        + {abstract} OnReleased(Hand): void
+        + {abstract} CustomGrab(Hand): void
+        + {abstract} CustomRelease(Hand): void
+        
+        ' 辅助函数
+        + {abstract} GetGrabPrimitive(): UPrimitiveComponent*
+        + SetSimulatePhysics(bSimulate): void
+        + ForceRelease(): void
+    }
+    
+    class AGrabbeeWeapon <<Actor>> {
+        ' 武器配置
+        + EWeaponType WeaponType
+        
+        ' 重写
+        + OnGrabbed_Implementation(Hand): void
+        + OnReleased_Implementation(Hand): void
+    }
+    
+    AGrabbeeObject <|-- AGrabbeeWeapon
+    AGrabbeeObject ..> EGrabType
+    AGrabbeeWeapon ..> EWeaponType
+}
+
+' ==================== Grabber 侧 ====================
+package "Grabber Side" {
+    abstract class UPlayerGrabHand <<SceneComponent>> {
+        ' 配置
+        + bool bIsRightHand
+        + UPlayerGrabHand* OtherHand
+        + TMap<EWeaponType, FTransform> WeaponGrabOffsets
+        
+        ' PhysicsControl 配置
+        + float FreeGrabStrength
+        + float FreeGrabDamping
+        + float SnapGrabStrength
+        + float SnapGrabDamping
+        
+        ' 状态
+        + AGrabbeeObject* HeldObject
+        + bool bIsHolding
+        + FName CurrentControlName
+        
+        ' 委托
+        + FOnObjectGrabbed OnObjectGrabbed
+        + FOnObjectReleased OnObjectReleased
+        
+        ' 核心接口
+        + TryGrab(bFromBackpack): void
+        + TryRelease(bToBackpack): void
+        + {abstract} FindTarget(): AGrabbeeObject*
+        + {abstract} IsInBackpackArea(): bool
+        + GrabObject(Target): void
+        + ReleaseObject(): void
+        + ReleaseAttachOnly(): void
+        
+        ' 内部实现
+        # GrabFree(Target): void
+        # GrabSnap(Target): void
+        # GrabWeaponSnap(Weapon): void
+        # GrabHumanBody(Target): void
+        # GrabCustom(Target): void
+        # ReleasePhysicsControl(): void
+        # ReleaseAttach(): void
+        
+        ' 辅助函数
+        # GetInventoryComponent(): UInventoryComponent*
+        # GetPhysicsControlComponent(): UPhysicsControlComponent*
+        # GenerateControlName(): FName
+        # ValidateGrab(Target): bool
+        # ValidateRelease(): bool
+        # HandleOtherHandHolding(Target): void
+    }
+    
+    class UPCGrabHand <<SceneComponent>> {
+        ' 配置
+        + float MaxGrabDistance
+        + float MaxDropDistance
+        + ECollisionChannel GrabTraceChannel
+        
+        ' Interp 配置
+        + float HandInterpSpeed
+        + FTransform TargetRelativeTransform
+        + FTransform DefaultRelativeTransform
+        + bool bIsInterping
+        
+        ' 重写
+        + FindTarget_Implementation(): AGrabbeeObject*
+        
+        ' PC 专用接口
+        + TryGrabOrRelease(): void
+        + DropToRaycastTarget(): void
+        + InterpToTransform(RelativeTransform): void
+        + InterpToDefaultTransform(): void
+        
+        ' 内部函数
+        # GetOwnerCamera(): UCameraComponent*
+        # PerformLineTrace(OutHit, MaxDistance): bool
+        # UpdateHandInterp(DeltaTime): void
+    }
+    
+    class UVRGrabHand <<SceneComponent>> {
+        ' 配置
+        + float GrabSphereRadius
+        + TArray<EObjectTypeQuery> GrabObjectTypes
+        + UBoxComponent* BackpackCollision
+        
+        ' Gravity Gloves 配置
+        + bool bEnableGravityGloves
+        + float GravityGlovesDistance
+        + float GravityGlovesAngle
+        + float GravityGlovesPullSpeed
+        
+        ' Gravity Gloves 状态
+        + AGrabbeeObject* GravityGlovesTarget
+        + bool bIsGravityGlovesDragging
+        
+        ' 重写
+        + FindTarget_Implementation(): AGrabbeeObject*
+        + IsInBackpackArea_Implementation(): bool
+        + TryRelease(bToBackpack): void
+        
+        ' VR 专用接口
+        + FindAngleClosestTarget(): AGrabbeeObject*
+        + StartGravityGlovesPull(Target): void
+        + StopGravityGlovesPull(): void
+        
+        ' 内部函数
+        # UpdateGravityGloves(DeltaTime): void
+        # PerformSphereOverlap(): AGrabbeeObject*
+        # IsInGravityGlovesAngle(Target): bool
+    }
+    
+    UPlayerGrabHand <|-- UPCGrabHand
+    UPlayerGrabHand <|-- UVRGrabHand
+    UPlayerGrabHand --> AGrabbeeObject : HeldObject
+    UPlayerGrabHand ..> EWeaponType
+}
+
+' ==================== Player 类 ====================
+package "Player Side" {
+    class ABasePlayer <<Character>> {
+        ' 组件
+        + UFallDamageComponent* FallDamageComponent
+        + UAutoRecoverComponent* AutoRecoverComponent
+        + UPhysicsControlComponent* PhysicsControlComponent
+        
+        ' 弓相关
+        + bool bHasBow
+        + bool bIsBowArmed
+        + TSubclassOf<AGrabbeeWeapon> BowClass
+        + AGrabbeeWeapon* CurrentBow
+        + FOnBowArmedChanged OnBowArmedChanged
+        
+        ' 弓接口
+        + OnBowFirstPickedUp(): void
+        + SetBowArmed(bArmed): void
+        + ToggleBowArmed(): void
+        
+        ' 内部函数
+        # SpawnBow(): AGrabbeeWeapon*
+        # DestroyBow(): void
+    }
+    
+    class ABasePCPlayer <<Character>> {
+        ' 组件
+        + UCameraComponent* FirstPersonCamera
+        + UPCGrabHand* LeftHand
+        + UPCGrabHand* RightHand
+        
+        ' 弓箭模式配置
+        + FTransform AimingLeftHandTransform
+        + float MaxShootDistance
+        + float MinDrawDistance
+        + float MaxDrawDistance
+        
+        ' 弓箭状态
+        + bool bIsAiming
+        + bool bIsDrawingBow
+        
+        ' 重写基类
+        + SetBowArmed(bArmed): void <<override>>
+        
+        ' 输入处理
+        + HandleLeftTrigger(bPressed): void
+        + HandleRightTrigger(bPressed): void
+        + HandleModeSwitch(bToBowMode): void
+        
+        ' 弓箭操作
+        + StartAiming(): void
+        + StopAiming(): void
+        + StartDrawBow(): void
+        + ReleaseBowString(): void
+        
+        ' 内部函数
+        # CalculateDrawDistance(): float
+        # PlayNoArrowSound(): void
+    }
+    
+    class ABaseVRPlayer <<Character>> {
+        ' VR 组件
+        + USceneComponent* VROrigin
+        + UCameraComponent* VRCamera
+        + UBoxComponent* BackpackCollision
+        + UMotionControllerComponent* MotionControllerLeft
+        + UMotionControllerComponent* MotionControllerRight
+        + UMotionControllerComponent* MotionControllerLeftAim
+        + UMotionControllerComponent* MotionControllerRightAim
+        + UVRGrabHand* LeftHand
+        + UVRGrabHand* RightHand
+        + UWidgetInteractionComponent* WidgetInteractionLeft
+        + UWidgetInteractionComponent* WidgetInteractionRight
+        
+        ' 输入处理
+        + HandleLeftGrip(bPressed): void
+        + HandleRightGrip(bPressed): void
+        + SetBowArmed(bArmed): void <<override>>
+        
+        ' 内部函数
+        # SetupHandBackpackReferences(): void
+    }
+    
+    ABasePlayer <|-- ABasePCPlayer
+    ABasePlayer <|-- ABaseVRPlayer
+    ABasePCPlayer *-- UPCGrabHand : LeftHand/RightHand
+    ABaseVRPlayer *-- UVRGrabHand : LeftHand/RightHand
+    ABasePlayer --> AGrabbeeWeapon : CurrentBow
+}
+
+' ==================== InventoryComponent ====================
+package "Components" {
+    class UInventoryComponent <<ActorComponent>> {
+        ' 配置
+        + int32 MaxArrowCount
+        + TSubclassOf<AGrabbeeObject> ArrowClass
+        
+        ' 状态
+        + int32 ArrowCount
+        
+        ' 委托
+        + FOnArrowCountChanged OnArrowCountChanged
+        
+        ' 箭操作
+        + TryStoreArrow(): bool
+        + TryRetrieveArrow(SpawnTransform): AGrabbeeObject*
+        + HasArrow(): bool
+        + IsArrowFull(): bool
+        + GetArrowCount(): int32
+        
+        ' 直接设置
+        + SetArrowCount(NewCount): void
+        + AddArrows(Amount): void
+    }
+    
+    UInventoryComponent --> AGrabbeeObject : Spawn/Destroy
+    UPlayerGrabHand ..> UInventoryComponent : Use
+}
+
+' ==================== 注释 ====================
+note right of UPlayerGrabHand
+  <b>Grabber 基类</b>
+  
+  负责所有抓取逻辑：
+  - PhysicsControl (Free/Snap/HumanBody)
+  - Attach (WeaponSnap)
+  - Custom (调用物体回调)
+end note
+
+note right of AGrabbeeObject
+  <b>Grabbee 基类</b>
+  
+  EGrabType 决定抓取方式：
+  - Free: 物理跟随
+  - Snap: 吸附到位置
+  - WeaponSnap: Attach到手
+  - HumanBody: 控制骨骼
+  - Custom: 自定义逻辑
+end note
+
+note bottom of ABasePCPlayer
+  <b>PC 模式特点</b>
+  
+  - 射线检测抓取
+  - 程序化手部动画
+  - 战斗模式切换
+  - 弓箭程序化控制
+end note
+
+note bottom of ABaseVRPlayer
+  <b>VR 模式特点</b>
+  
+  - 球形检测抓取
+  - Gravity Gloves
+  - MotionController 结构
+  - 背包碰撞区域
+end note
+
+@enduml
