@@ -3,6 +3,7 @@
 
 #include "Game/BaseEnemy.h"
 #include "Game/GrabTypes.h"
+#include "Game/PlayerGrabHand.h"
 #include "Components/SkeletalMeshComponent.h"
 
 // ==================== IGrabbable 接口实现 ====================
@@ -20,13 +21,13 @@ UPrimitiveComponent* ABaseEnemy::GetGrabPrimitive_Implementation() const
 bool ABaseEnemy::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
 {
 	// 只有死亡后才能被抓取
-	return bIsDead;
-}
-
-FTransform ABaseEnemy::GetSnapOffset_Implementation() const
-{
-	// HumanBody 类型不使用 SnapOffset
-	return FTransform::Identity;
+	if (!bIsDead)
+	{
+		return false;
+	}
+	
+	// 不能被同一只手重复抓取
+	return !ControllingHands.Contains(const_cast<UPlayerGrabHand*>(Hand));
 }
 
 bool ABaseEnemy::SupportsDualHandGrab_Implementation() const
@@ -37,12 +38,18 @@ bool ABaseEnemy::SupportsDualHandGrab_Implementation() const
 
 void ABaseEnemy::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
-	// 尸体不需要状态管理，空实现
+	if (Hand)
+	{
+		ControllingHands.Add(Hand);
+	}
 }
 
 void ABaseEnemy::OnReleased_Implementation(UPlayerGrabHand* Hand)
 {
-	// 尸体不需要状态管理，空实现
+	if (Hand)
+	{
+		ControllingHands.Remove(Hand);
+	}
 }
 
 void ABaseEnemy::OnGrabSelected_Implementation()

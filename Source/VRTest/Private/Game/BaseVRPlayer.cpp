@@ -152,8 +152,8 @@ void ABaseVRPlayer::SetBowArmed(bool bArmed)
 	{
 		if (LeftHand && LeftHand->bIsHolding && LeftHand->HeldActor == CurrentBow)
 		{
-			// 释放附加但不触发 OnReleased（弓会被销毁）
-			LeftHand->ReleaseAttachOnly();
+			// 使用 ReleaseObject 统一释放
+			LeftHand->ReleaseObject();
 		}
 	}
 

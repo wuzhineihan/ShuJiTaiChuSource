@@ -8,10 +8,19 @@
 #include "PhysicsControlData.h"
 #include "GameFramework/Character.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SphereComponent.h"
 
 UPlayerGrabHand::UPlayerGrabHand()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	// 创建手部碰撞体
+	HandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("HandCollision"));
+	HandCollision->SetupAttachment(this);
+	HandCollision->SetSphereRadius(5.0f);
+	HandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	HandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	HandCollision->ComponentTags.Add(FName("player_hand"));
 }
 
 void UPlayerGrabHand::BeginPlay()
@@ -62,8 +71,8 @@ void UPlayerGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 					CachedPhysicsControl->SetControlTarget(CurrentControlName, ControlTarget, true);
 				}
 				break;
-			case EGrabType::Snap:
-				// Snap: 对齐到预设的目标位置（GrabOffset 在 GrabSnap 时已保存）
+			case EGrabType::WeaponSnap:
+				// WeaponSnap: 对齐到武器偏移位置
 				{
 					FTransform TargetTransform = GetComponentTransform() * GrabOffset;
 					ControlTarget.TargetPosition = TargetTransform.GetLocation();
@@ -110,8 +119,8 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 		return;
 	}
 
-	// Step 4: 验证是否可抓取
-	if (ValidateGrab(Grabbable))
+	// Step 4: 验证是否可抓取（通过接口 CanBeGrabbedBy）
+	if (IGrabbable::Execute_CanBeGrabbedBy(TargetActor, this))
 	{
 		GrabObject(TargetActor, BoneName);
 	}
@@ -136,9 +145,8 @@ void UPlayerGrabHand::TryRelease(bool bToBackpack)
 				{
 					if (CachedInventory->TryStoreArrow())
 					{
-						// 先释放物理/Attach
+						// 先释放物理控制
 						ReleasePhysicsControl();
-						ReleaseAttach();
 						
 						// 通知物体被释放（通过接口）
 						if (IGrabbable* Grabbable = Cast<IGrabbable>(HeldActor))
@@ -203,6 +211,13 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 		return;
 	}
 
+	// 在 GrabObject 开头统一检查 CanBeGrabbedBy
+	if (!IGrabbable::Execute_CanBeGrabbedBy(TargetActor, this))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GrabObject: Target cannot be grabbed by this hand"));
+		return;
+	}
+
 	// 获取抓取类型
 	EGrabType GrabType = IGrabbable::Execute_GetGrabType(TargetActor);
 
@@ -222,9 +237,6 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 	{
 	case EGrabType::Free:
 		GrabFree(Grabbable, TargetActor);
-		break;
-	case EGrabType::Snap:
-		GrabSnap(Grabbable, TargetActor);
 		break;
 	case EGrabType::WeaponSnap:
 		if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(TargetActor))
@@ -268,16 +280,13 @@ void UPlayerGrabHand::ReleaseObject()
 	AActor* ReleasedActor = HeldActor;
 	EGrabType GrabType = HeldGrabType;
 
-	// 根据抓取类型执行释放
+	// 根据抓取类型执行释放 - 现在所有类型都使用 PhysicsControl
 	switch (GrabType)
 	{
 	case EGrabType::Free:
-	case EGrabType::Snap:
+	case EGrabType::WeaponSnap:
 	case EGrabType::HumanBody:
 		ReleasePhysicsControl();
-		break;
-	case EGrabType::WeaponSnap:
-		ReleaseAttach();
 		break;
 	case EGrabType::Custom:
 		// Custom 类型不做额外物理处理
@@ -301,32 +310,6 @@ void UPlayerGrabHand::ReleaseObject()
 
 	// 广播委托
 	OnObjectReleased.Broadcast(ReleasedActor);
-}
-
-void UPlayerGrabHand::ReleaseAttachOnly()
-{
-	if (!HeldActor)
-	{
-		return;
-	}
-
-	// 释放附加但不触发 OnReleased
-	HeldActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	
-	// 尝试恢复物理模拟
-	if (IGrabbable* Grabbable = Cast<IGrabbable>(HeldActor))
-	{
-		if (UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(HeldActor))
-		{
-			Primitive->SetSimulatePhysics(true);
-		}
-	}
-
-	// 更新状态
-	HeldActor = nullptr;
-	HeldGrabType = EGrabType::None;
-	bIsHolding = false;
-	CurrentControlName = NAME_None;
 }
 
 // ==================== 内部实现 ====================
@@ -377,32 +360,42 @@ void UPlayerGrabHand::GrabFree(IGrabbable* Grabbable, AActor* TargetActor)
 	}
 }
 
-void UPlayerGrabHand::GrabSnap(IGrabbable* Grabbable, AActor* TargetActor)
+void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
 {
-	if (!CachedPhysicsControl || !Grabbable || !TargetActor)
+	if (!CachedPhysicsControl || !Weapon)
 	{
 		return;
 	}
 
-	UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(TargetActor);
+	// 查找此武器类型的偏移
+	FTransform* Offset = WeaponGrabOffsets.Find(Weapon->WeaponType);
+	FTransform FinalOffset = Offset ? *Offset : FTransform::Identity;
+	GrabOffset = FinalOffset;
+
+	// 获取 Primitive
+	UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(Weapon);
 	if (!Primitive)
 	{
 		return;
 	}
 
-	// 获取 SnapOffset（通过接口）
-	FTransform SnapOffset = IGrabbable::Execute_GetSnapOffset(TargetActor);
-	GrabOffset = SnapOffset;
+	// 禁用物理模拟（PhysicsControl 会控制位置）
+	Primitive->SetSimulatePhysics(false);
 
-	// 准备控制数据
+	// 计算目标变换
+	FTransform TargetTransform = GetComponentTransform() * FinalOffset;
+
+	// 设置物体初始位置
+	Weapon->SetActorTransform(TargetTransform);
+
+	// 准备控制数据 - 使用高强度使武器紧跟手部
 	FPhysicsControlData ControlData;
-	ControlData.LinearStrength = SnapGrabStrength;
-	ControlData.LinearDampingRatio = SnapGrabDamping;
-	ControlData.AngularStrength = SnapGrabStrength;
-	ControlData.AngularDampingRatio = SnapGrabDamping;
+	ControlData.LinearStrength = WeaponSnapStrength;
+	ControlData.LinearDampingRatio = WeaponSnapDamping;
+	ControlData.AngularStrength = WeaponSnapStrength;
+	ControlData.AngularDampingRatio = WeaponSnapDamping;
 
-	// 计算 Snap 目标位置
-	FTransform TargetTransform = GetComponentTransform() * SnapOffset;
+	// 准备初始目标
 	FPhysicsControlTarget ControlTarget;
 	ControlTarget.TargetPosition = TargetTransform.GetLocation();
 	ControlTarget.TargetOrientation = TargetTransform.Rotator();
@@ -410,6 +403,9 @@ void UPlayerGrabHand::GrabSnap(IGrabbable* Grabbable, AActor* TargetActor)
 	UMeshComponent* MeshComp = Cast<UMeshComponent>(Primitive);
 	if (MeshComp)
 	{
+		// 先启用物理模拟（PhysicsControl 需要）
+		Primitive->SetSimulatePhysics(true);
+		
 		CurrentControlName = CachedPhysicsControl->CreateControl(
 			nullptr,
 			NAME_None,
@@ -420,28 +416,6 @@ void UPlayerGrabHand::GrabSnap(IGrabbable* Grabbable, AActor* TargetActor)
 			NAME_None
 		);
 	}
-}
-
-void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
-{
-	if (!Weapon)
-	{
-		return;
-	}
-
-	// 查找此武器类型的偏移
-	FTransform* Offset = WeaponGrabOffsets.Find(Weapon->WeaponType);
-	FTransform FinalOffset = Offset ? *Offset : FTransform::Identity;
-
-	// 计算目标变换
-	FTransform TargetTransform = GetComponentTransform() * FinalOffset;
-
-	// 设置物体位置并附加
-	Weapon->SetActorTransform(TargetTransform);
-	Weapon->AttachToComponent(this, FAttachmentTransformRules::KeepWorldTransform);
-
-	// 禁用物理模拟
-	Weapon->SetSimulatePhysics(false);
 }
 
 void UPlayerGrabHand::GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, FName BoneName)
@@ -539,23 +513,6 @@ void UPlayerGrabHand::ReleasePhysicsControl()
 	CurrentControlName = NAME_None;
 }
 
-void UPlayerGrabHand::ReleaseAttach()
-{
-	if (HeldActor)
-	{
-		HeldActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-		
-		// 恢复物理模拟
-		if (IGrabbable* Grabbable = Cast<IGrabbable>(HeldActor))
-		{
-			if (UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(HeldActor))
-			{
-				Primitive->SetSimulatePhysics(true);
-			}
-		}
-	}
-}
-
 // ==================== 辅助函数 ====================
 
 UInventoryComponent* UPlayerGrabHand::GetInventoryComponent() const
@@ -574,23 +531,6 @@ UPhysicsControlComponent* UPlayerGrabHand::GetPhysicsControlComponent() const
 		return Owner->FindComponentByClass<UPhysicsControlComponent>();
 	}
 	return nullptr;
-}
-
-bool UPlayerGrabHand::ValidateGrab(IGrabbable* Grabbable) const
-{
-	if (!Grabbable)
-	{
-		return false;
-	}
-
-	// 通过接口调用 CanBeGrabbedBy（需要获取 Actor）
-	AActor* GrabbableActor = Cast<AActor>(Grabbable);
-	if (!GrabbableActor)
-	{
-		return false;
-	}
-
-	return IGrabbable::Execute_CanBeGrabbedBy(GrabbableActor, this);
 }
 
 bool UPlayerGrabHand::ValidateRelease() const

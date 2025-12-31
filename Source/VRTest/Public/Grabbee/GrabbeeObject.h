@@ -46,10 +46,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	bool bCanGrab = true;
 
-	/** Snap 类型的目标相对变换（相对于手） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab", meta = (EditCondition = "GrabType == EGrabType::Snap"))
-	FTransform SnapOffset;
-
 	/** 是否支持双手同时抓取（仅 HumanBody 类型默认支持） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	bool bSupportsDualHandGrab = false;
@@ -77,7 +73,6 @@ public:
 	virtual EGrabType GetGrabType_Implementation() const override;
 	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
 	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
-	virtual FTransform GetSnapOffset_Implementation() const override;
 	virtual bool SupportsDualHandGrab_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;

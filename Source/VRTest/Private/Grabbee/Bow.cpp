@@ -225,78 +225,11 @@ void ABow::FireArrow()
 	}
 }
 
-void ABow::SetPullAmount(float PullAmount)
-{
-	// 限制范围
-	PullAmount = FMath::Clamp(PullAmount, 0.0f, 1.0f);
-
-	// 计算目标拉弦位置
-	FVector RestPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
-	FVector PullDirection = -GetActorForwardVector(); // 向后拉
-	FVector TargetPos = RestPos + PullDirection * MaxPullDistance * PullAmount;
-
-	CurrentGrabSpot = TargetPos;
-	CurrentPullLength = MaxPullDistance * PullAmount;
-
-	// 更新弓弦材质参数
-	if (StringMID)
-	{
-		StringMID->SetScalarParameterValue(FName("Grabbed"), PullAmount > 0.01f ? 1.0f : 0.0f);
-		StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
-	}
-}
-
 void ABow::ResetStringState()
 {
 	bStringHeld = false;
 	StringHoldingHand = nullptr;
 	bHasPlayedStringSFX = false;
-}
-
-void ABow::UpdateStringFromHandPosition(const FVector& HandWorldLocation)
-{
-	// 计算弓弦目标位置（手部位置 + 抓取时的偏移）
-	FVector TargetPos = HandWorldLocation + InitialStringGrabOffset;
-
-	// 获取弓弦默认位置
-	FVector RestPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
-	
-	// 计算拉弦向量和距离
-	FVector PullVector = TargetPos - RestPos;
-	float PullDist = PullVector.Size();
-
-	// 限制最大拉弦距离
-	if (PullDist > MaxPullDistance)
-	{
-		TargetPos = RestPos + PullVector.GetSafeNormal() * MaxPullDistance;
-		PullDist = MaxPullDistance;
-	}
-
-	CurrentGrabSpot = TargetPos;
-	CurrentPullLength = PullDist;
-
-	// 更新弓弦材质参数（顶点动画驱动）
-	if (StringMID)
-	{
-		StringMID->SetScalarParameterValue(FName("Grabbed"), PullDist > 0.1f ? 1.0f : 0.0f);
-		StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
-	}
-
-	// 播放弓弦音效
-	if (CurrentPullLength > StringSFXThreshold && !bHasPlayedStringSFX)
-	{
-		if (StringAudio)
-		{
-			StringAudio->Play();
-		}
-		bHasPlayedStringSFX = true;
-	}
-
-	// 更新轨迹预览
-	if (NockedArrow)
-	{
-		UpdateTrajectoryPreview();
-	}
 }
 
 float ABow::CalculateFiringSpeed() const
@@ -379,11 +312,6 @@ bool ABow::SupportsDualHandGrab_Implementation() const
 	return true;  // 弓支持双手抓取（弓身 + 弓弦）
 }
 
-void ABow::SetHandInStringArea(bool bInArea)
-{
-	bHandInStringCollision = bInArea;
-}
-
 bool ABow::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
 {
 	if (!Hand)
@@ -398,8 +326,8 @@ bool ABow::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
 	}
 
 	// 弓身已被抓取，检查是否可以抓弓弦
-	// 弓弦未被抓取 且 不是同一只手 且 手在弓弦区域内
-	if (!bStringHeld && Hand != BodyHoldingHand && bHandInStringCollision)
+	// 弓弦未被抓取 且 不是同一只手
+	if (!bStringHeld && Hand != BodyHoldingHand)
 	{
 		return true;
 	}
@@ -467,6 +395,22 @@ void ABow::OnReleased_Implementation(UPlayerGrabHand* Hand)
 
 // ==================== 内部函数 ====================
 
+UPlayerGrabHand* ABow::GetHandFromCollision(UPrimitiveComponent* Comp) const
+{
+	if (!Comp)
+	{
+		return nullptr;
+	}
+	
+	// HandCollision 是 PlayerGrabHand 的子组件
+	if (UPlayerGrabHand* Hand = Cast<UPlayerGrabHand>(Comp->GetAttachParent()))
+	{
+		return Hand;
+	}
+	
+	return nullptr;
+}
+
 void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -474,23 +418,47 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 	if (OtherComp->ComponentHasTag(FName("player_hand")))
 	{
 		bHandInStringCollision = true;
-
-		// 如果弓身已被抓取，可以抓弦
-		// 实际的抓弦逻辑由 VRGrabHand 处理
+		
+		// 获取手组件
+		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
+		if (!Hand || Hand == BodyHoldingHand)
+		{
+			return;
+		}
+		
+		// 弓身必须已被抓取
+		if (!bBodyHeld)
+		{
+			return;
+		}
+		
+		// 弓弦已被抓取则跳过
+		if (bStringHeld)
+		{
+			return;
+		}
+		
+		// 检查手是否持有箭
+		if (AArrow* Arrow = Cast<AArrow>(Hand->HeldActor))
+		{
+			// 手释放箭
+			Hand->ReleaseObject();
+			// 搭箭
+			NockArrow(Arrow);
+		}
+		
+		// 手抓弓弦
+		Hand->GrabObject(this);
+		return;
 	}
 
-	// 检查是否是箭
+	// 检查是否是箭（保留旧逻辑用于没有手持的箭）
 	if (AArrow* Arrow = Cast<AArrow>(OtherActor))
 	{
 		// 如果箭在 Idle 状态且弓身已被抓取，自动搭箭
-		if (Arrow->ArrowState == EArrowState::Idle && bBodyHeld && !NockedArrow)
+		if (Arrow->ArrowState == EArrowState::Idle && bBodyHeld && !NockedArrow && !Arrow->bIsHeld)
 		{
-			// 如果箭被某只手持有，需要先让手释放
-			if (Arrow->bIsHeld && Arrow->HoldingHand)
-			{
-				// 由 VR 玩家的输入系统处理
-				// 这里只标记箭进入了弓弦区域
-			}
+			NockArrow(Arrow);
 		}
 	}
 }

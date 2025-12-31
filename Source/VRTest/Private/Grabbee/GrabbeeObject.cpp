@@ -61,11 +61,6 @@ bool AGrabbeeObject::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) 
 	return !bIsHeld;
 }
 
-FTransform AGrabbeeObject::GetSnapOffset_Implementation() const
-{
-	return SnapOffset;
-}
-
 bool AGrabbeeObject::SupportsDualHandGrab_Implementation() const
 {
 	return bSupportsDualHandGrab;

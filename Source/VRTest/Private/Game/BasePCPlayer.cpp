@@ -67,12 +67,8 @@ void ABasePCPlayer::Tick(float DeltaTime)
 		UpdateTargetDetection();
 	}
 
-	// 弓箭模式：拉弓时更新弓弦位置
-	if (bIsDrawingBow && CurrentBow)
-	{
-		// 用右手位置驱动弓弦材质
-		CurrentBow->UpdateStringFromHandPosition(RightHand->GetComponentLocation());
-	}
+	// 弓箭模式：拉弓时弓弦跟随 StringHoldingHand，由 Bow::Tick 处理
+	// 不再需要在这里手动调用 UpdateStringFromHandPosition
 }
 
 // ==================== 重写基类 ====================
@@ -242,9 +238,6 @@ void ABasePCPlayer::StartDrawBow()
 	}
 
 	bIsDrawingBow = true;
-
-	// 设置弓弦区域标志（告诉弓：右手在弓弦区域）
-	CurrentBow->SetHandInStringArea(true);
 	
 	// 设置初始偏移：弓弦位置相对于右手的偏移
 	FVector StringRestPos = CurrentBow->StringRestPosition ? 
@@ -252,7 +245,7 @@ void ABasePCPlayer::StartDrawBow()
 		CurrentBow->StringMesh->GetComponentLocation();
 	CurrentBow->InitialStringGrabOffset = StringRestPos - RightHand->GetComponentLocation();
 	
-	// 通过抓取系统抓弓弦
+	// 通过抓取系统抓弓弦（触发 OnGrabbed → StartPullingString）
 	RightHand->GrabObject(CurrentBow);
 }
 
@@ -279,12 +272,6 @@ void ABasePCPlayer::ReleaseBowString()
 	if (RightHand && RightHand->bIsHolding && RightHand->HeldActor == CurrentBow)
 	{
 		RightHand->ReleaseObject();
-	}
-	
-	// 重置弓弦区域标志
-	if (CurrentBow)
-	{
-		CurrentBow->SetHandInStringArea(false);
 	}
 
 	// 右手回到默认位置

@@ -19,7 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArrowNocked, AArrow*, NockedArrow
 /**
  * 弓 - 可抓取武器
  * 
- * 支持 VR 和 PC 两种操作模式：
+ * 不关心是VR还是PC
+ * 对外仅暴露抓取接口
  * 
  * VR模式：
  * - 一只手抓弓身（BodyHeld）
@@ -167,13 +168,6 @@ public:
 	// ==================== 核心接口 ====================
 	
 	/**
-	 * 开始拉弦（VR模式：另一只手抓弦 / PC模式：程序化调用）
-	 * @param Hand 抓弦的手（VR）或 nullptr（PC）
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void StartPullingString(UPlayerGrabHand* Hand = nullptr);
-
-	/**
 	 * 停止拉弦并发射（如果有箭）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
@@ -207,24 +201,10 @@ public:
 	void FireArrow();
 
 	/**
-	 * 设置弓弦拉伸程度（PC模式程序化控制）
-	 * @param PullAmount 拉伸量（0.0 - 1.0）
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void SetPullAmount(float PullAmount);
-
-	/**
 	 * 重置弓弦状态（释放但不发射）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void ResetStringState();
-
-	/**
-	 * 更新弓弦位置（PC模式，由右手位置驱动）
-	 * @param HandWorldLocation 右手世界坐标
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void UpdateStringFromHandPosition(const FVector& HandWorldLocation);
 
 	/**
 	 * 计算当前发射速度
@@ -238,13 +218,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void UpdateTrajectoryPreview();
 
-	/**
-	 * 设置手是否在弓弦区域内（PC模式使用）
-	 * @param bInArea true=手在弓弦区域，false=手离开弓弦区域
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void SetHandInStringArea(bool bInArea);
-
 	// ==================== 重写 ====================
 	
 	virtual EGrabType GetGrabType_Implementation() const override;
@@ -257,6 +230,19 @@ public:
 protected:
 	// ==================== 内部函数 ====================
 	
+	/**
+	 * 开始拉弦（内部调用，由OnGrabbed触发）
+	 * @param Hand 抓弦的手
+	 */
+	void StartPullingString(UPlayerGrabHand* Hand);
+
+	/**
+	 * 从碰撞组件获取对应的手部组件
+	 * @param Comp 碰撞到的组件（应该是HandCollision）
+	 * @return 找到的手部组件，或nullptr
+	 */
+	UPlayerGrabHand* GetHandFromCollision(UPrimitiveComponent* Comp) const;
+
 	/** 弓弦碰撞开始 */
 	UFUNCTION()
 	void OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 

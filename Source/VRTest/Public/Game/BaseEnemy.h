@@ -18,12 +18,17 @@ class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable
 	GENERATED_BODY()
 
 public:
-	// ==================== IGrabbable 接口实现 ====================
+	// ==================== 状态 ====================
+	
+	/** 当前控制此物体的所有手（双手抓取用） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	TSet<UPlayerGrabHand*> ControllingHands;
+
+	// ==================== IGrabbable 接口实现 ======================================
 	
 	virtual EGrabType GetGrabType_Implementation() const override;
 	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
 	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
-	virtual FTransform GetSnapOffset_Implementation() const override;
 	virtual bool SupportsDualHandGrab_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;

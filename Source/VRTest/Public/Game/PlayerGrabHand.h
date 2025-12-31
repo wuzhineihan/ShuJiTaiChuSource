@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
 #include "Game/GrabTypes.h"
 #include "PlayerGrabHand.generated.h"
 
@@ -11,6 +12,7 @@ class IGrabbable;
 class AGrabbeeWeapon;
 class UInventoryComponent;
 class UPhysicsControlComponent;
+class USphereComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectGrabbed, AActor*, GrabbedActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectReleased, AActor*, ReleasedActor);
@@ -51,6 +53,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Weapon")
 	TMap<EWeaponType, FTransform> WeaponGrabOffsets;
 
+	// ==================== 组件 ====================
+	
+	/** 手部碰撞体 - 用于检测与弓弦的 overlap */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* HandCollision;
+
 	// ==================== PhysicsControl 配置 ====================
 	
 	/** Free 类型的物理控制强度 */
@@ -61,13 +69,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
 	float FreeGrabDamping = 1.0f;
 
-	/** Snap 类型的物理控制强度 */
+	/** WeaponSnap 类型的物理控制强度 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float SnapGrabStrength = 2.0f;
+	float WeaponSnapStrength = 50.0f;
 
-	/** Snap 类型的物理控制阻尼 */
+	/** WeaponSnap 类型的物理控制阻尼 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float SnapGrabDamping = 1.5f;
+	float WeaponSnapDamping = 5.0f;
 
 	// ==================== 状态 ====================
 	
@@ -154,23 +162,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	virtual void ReleaseObject();
 
-	/**
-	 * 仅释放附加，不触发 OnReleased 回调
-	 * 用于武器模式切换等场景
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
-	virtual void ReleaseAttachOnly();
-
 protected:
 	// ==================== 内部实现 ====================
 	
 	/** Free 类型抓取 - 使用 PhysicsControl */
 	virtual void GrabFree(IGrabbable* Grabbable, AActor* TargetActor);
 
-	/** Snap 类型抓取 - 使用 PhysicsControl + 目标位置 */
-	virtual void GrabSnap(IGrabbable* Grabbable, AActor* TargetActor);
-
-	/** WeaponSnap 类型抓取 - 使用 Attach */
+	/** WeaponSnap 类型抓取 - 使用 PhysicsControl */
 	virtual void GrabWeaponSnap(AGrabbeeWeapon* Weapon);
 
 	/** HumanBody 类型抓取 - 使用 PhysicsControl 控制骨骼 
@@ -183,9 +181,6 @@ protected:
 	/** 释放 PhysicsControl */
 	virtual void ReleasePhysicsControl();
 
-	/** 释放 Attach (内部实现) */
-	virtual void ReleaseAttach();
-
 	// ==================== 辅助函数 ====================
 	
 	/** 获取 InventoryComponent */
@@ -195,9 +190,6 @@ protected:
 	/** 获取 PhysicsControlComponent */
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	UPhysicsControlComponent* GetPhysicsControlComponent() const;
-
-	/** 抓取前的验证（使用接口） */
-	virtual bool ValidateGrab(IGrabbable* Grabbable) const;
 
 	/** 释放前的验证 */
 	virtual bool ValidateRelease() const;

@@ -13,8 +13,7 @@ enum class EGrabType : uint8
 {
 	None,        // 不可抓取或抓取被禁用
 	Free,        // 自由抓取，物理跟随手部（PhysicsControl）
-	Snap,        // 吸附抓取，对齐到固定位置/旋转（PhysicsControl）
-	WeaponSnap,  // 武器吸附，使用 GrabPoint 定位（Attach）
+	WeaponSnap,  // 武器吸附，使用 PhysicsControl 对齐到武器偏移
 	HumanBody,   // 人体拖拽，控制指定骨骼（PhysicsControl）
 	Custom       // 完全自定义，由子类重写 OnGrab/OnRelease
 };

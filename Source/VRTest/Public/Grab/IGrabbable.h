@@ -48,13 +48,6 @@ public:
 	bool CanBeGrabbedBy(const UPlayerGrabHand* Hand) const;
 
 	/**
-	 * 获取 Snap 类型的目标变换（相对于手）
-	 * 其他类型可返回 Identity
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	FTransform GetSnapOffset() const;
-
-	/**
 	 * 是否支持双手同时抓取
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
