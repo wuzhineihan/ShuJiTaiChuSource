@@ -61,7 +61,7 @@ public:
 
 	// ==================== 重写 ====================
 	
-	virtual AGrabbeeObject* FindTarget_Implementation() override;
+	virtual AGrabbeeObject* FindTarget_Implementation(bool bFromBackpack) override;
 
 	// ==================== PC 专用接口 ====================
 	

@@ -107,11 +107,12 @@ public:
 
 	/**
 	 * 查找抓取目标（子类实现）
+	 * @param bFromBackpack 是否从背包取物
 	 * @return 找到的可抓取物体，或 nullptr
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	AGrabbeeObject* FindTarget();
-	virtual AGrabbeeObject* FindTarget_Implementation();
+	AGrabbeeObject* FindTarget(bool bFromBackpack = false);
+	virtual AGrabbeeObject* FindTarget_Implementation(bool bFromBackpack);
 
 	// ==================== 抓取实现 ====================
 	

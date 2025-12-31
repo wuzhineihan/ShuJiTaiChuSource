@@ -83,8 +83,8 @@ public:
 
 	// ==================== 重写 ====================
 	
-	virtual AGrabbeeObject* FindTarget_Implementation() override;
-	virtual void TryGrab(bool bFromBackpack = false) override;
+	virtual AGrabbeeObject* FindTarget_Implementation(bool bFromBackpack) override;
+	virtual void GrabObject(AGrabbeeObject* Target) override;
 	virtual void TryRelease(bool bToBackpack = false) override;
 
 	// ==================== VR 专用接口 ====================

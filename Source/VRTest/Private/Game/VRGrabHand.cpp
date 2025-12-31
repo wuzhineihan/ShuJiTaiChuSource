@@ -38,10 +38,63 @@ void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 // ==================== 重写 ====================
 
-AGrabbeeObject* UVRGrabHand::FindTarget_Implementation()
+AGrabbeeObject* UVRGrabHand::FindTarget_Implementation(bool bFromBackpack)
 {
-	// 优先检测近距离球形重叠
-	return PerformSphereOverlap();
+	// 优先从背包取物
+	if (bFromBackpack)
+	{
+		AGrabbeeObject* BackpackTarget = Super::FindTarget_Implementation(bFromBackpack);
+		if (BackpackTarget)
+		{
+			return BackpackTarget;
+		}
+	}
+
+	// 优先近距离球形检测
+	AGrabbeeObject* NearTarget = PerformSphereOverlap();
+	if (NearTarget)
+	{
+		return NearTarget;
+	}
+
+	// 如果有 Gravity Gloves 选中的目标，返回作为虚拟抓取目标
+	if (bEnableGravityGloves && GravityGlovesTarget)
+	{
+		return GravityGlovesTarget;
+	}
+
+	return nullptr;
+}
+
+void UVRGrabHand::GrabObject(AGrabbeeObject* Target)
+{
+	// 注意：调用此函数前应先通过 ValidateGrab 验证
+	// 判断是近距离目标还是 Gravity Gloves 目标
+	// 近距离目标：直接抓取
+	// Gravity Gloves 目标：虚拟抓取
+	
+	bool bIsNearTarget = false;
+	AGrabbeeObject* NearCheck = PerformSphereOverlap();
+	if (NearCheck == Target)
+	{
+		bIsNearTarget = true;
+	}
+
+	if (bIsNearTarget)
+	{
+		// 近距离目标：正常抓取流程
+		Super::GrabObject(Target);
+	}
+	else if (bEnableGravityGloves && Target == GravityGlovesTarget)
+	{
+		// Gravity Gloves 目标：虚拟抓取
+		VirtualGrab(Target);
+	}
+	else
+	{
+		// 其他情况（如从背包取物）：正常抓取
+		Super::GrabObject(Target);
+	}
 }
 
 bool UVRGrabHand::IsInBackpackArea() const
@@ -57,35 +110,6 @@ bool UVRGrabHand::IsInBackpackArea() const
 	float Distance = BackpackCollision->GetDistanceToCollision(HandLocation, ClosestPoint);
 
 	return Distance <= 0.0f; // 在碰撞体内部时距离为负或零
-}
-
-void UVRGrabHand::TryGrab(bool bFromBackpack)
-{
-	// 如果已经持有物体，不再抓取
-	if (bIsHolding)
-	{
-		return;
-	}
-
-	// 优先处理近距离抓取
-	AGrabbeeObject* NearTarget = FindTarget();
-	if (NearTarget)
-	{
-		// 正常抓取流程
-		Super::TryGrab(bFromBackpack);
-		return;
-	}
-
-	// 如果有 Gravity Gloves 选中的目标，进行虚拟抓取
-	if (bEnableGravityGloves && GravityGlovesTarget)
-	{
-		VirtualGrab(GravityGlovesTarget);
-	}
-	else if (bFromBackpack)
-	{
-		// 从背包取物
-		Super::TryGrab(true);
-	}
 }
 
 void UVRGrabHand::TryRelease(bool bToBackpack)

@@ -31,8 +31,19 @@ void UPCGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 // ==================== 重写 ====================
 
-AGrabbeeObject* UPCGrabHand::FindTarget_Implementation()
+AGrabbeeObject* UPCGrabHand::FindTarget_Implementation(bool bFromBackpack)
 {
+	// 优先从背包取物
+	if (bFromBackpack)
+	{
+		AGrabbeeObject* BackpackTarget = Super::FindTarget_Implementation(bFromBackpack);
+		if (BackpackTarget)
+		{
+			return BackpackTarget;
+		}
+	}
+
+	// 射线检测寻找目标
 	FHitResult Hit;
 	if (PerformLineTrace(Hit, MaxGrabDistance))
 	{

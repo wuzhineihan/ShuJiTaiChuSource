@@ -65,28 +65,17 @@ void UPlayerGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 
 void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 {
+	// Step 1: 有效性检验
 	if (bIsHolding)
 	{
 		return;
 	}
 
-	AGrabbeeObject* Target = nullptr;
+	// Step 2: 查找抓取目标（所有找目标的逻辑统一在 FindTarget 中处理）
+	AGrabbeeObject* Target = FindTarget(bFromBackpack);
 
-	if (bFromBackpack)
-	{
-		// 从背包取箭
-		if (UInventoryComponent* Inventory = GetInventoryComponent())
-		{
-			Target = Inventory->TryRetrieveArrow(GetComponentTransform());
-		}
-	}
-	else
-	{
-		// 检测抓取目标
-		Target = FindTarget();
-	}
-
-	if (Target && ValidateGrab(Target))
+	// Step 3: 验证并执行抓取（ValidateGrab 内部处理所有有效性检查）
+	if (ValidateGrab(Target))
 	{
 		GrabObject(Target);
 	}
@@ -94,11 +83,7 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 
 void UPlayerGrabHand::TryRelease(bool bToBackpack)
 {
-	if (!bIsHolding || !HeldObject)
-	{
-		return;
-	}
-
+	// ValidateRelease 内部处理所有有效性检查
 	if (!ValidateRelease())
 	{
 		return;
@@ -139,9 +124,22 @@ void UPlayerGrabHand::TryRelease(bool bToBackpack)
 	ReleaseObject();
 }
 
-AGrabbeeObject* UPlayerGrabHand::FindTarget_Implementation()
+AGrabbeeObject* UPlayerGrabHand::FindTarget_Implementation(bool bFromBackpack)
 {
-	// 基类不实现，由子类重写
+	// 优先从背包取物
+	if (bFromBackpack)
+	{
+		if (UInventoryComponent* Inventory = GetInventoryComponent())
+		{
+			AGrabbeeObject* ArrowFromBackpack = Inventory->TryRetrieveArrow(GetComponentTransform());
+			if (ArrowFromBackpack)
+			{
+				return ArrowFromBackpack;
+			}
+		}
+	}
+
+	// 基类不实现物理检测，由子类重写
 	return nullptr;
 }
 
@@ -150,11 +148,7 @@ AGrabbeeObject* UPlayerGrabHand::FindTarget_Implementation()
 
 void UPlayerGrabHand::GrabObject(AGrabbeeObject* Target)
 {
-	if (!Target)
-	{
-		return;
-	}
-
+	// 注意：调用此函数前应先通过 ValidateGrab 验证
 	// 处理另一只手持有的情况
 	HandleOtherHandHolding(Target);
 
