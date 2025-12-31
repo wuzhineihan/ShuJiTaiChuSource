@@ -4,6 +4,7 @@
 #include "Game/VRGrabHand.h"
 #include "Game/InventoryComponent.h"
 #include "Grabbee/GrabbeeWeapon.h"
+#include "Grabbee/Bow.h"
 #include "Camera/CameraComponent.h"
 #include "MotionControllerComponent.h"
 #include "Components/BoxComponent.h"
@@ -133,9 +134,8 @@ void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
 
 	if (bPressed)
 	{
-		// 检查是否在背包区域
-		const bool bFromBackpack = Hand->IsInBackpackArea();
-		Hand->TryGrab(bFromBackpack);
+		// 检查是否在背包区域（逻辑已迁移到 VRGrabHand::TryGrab）
+		Hand->TryGrab();
 	}
 	else
 	{
@@ -150,7 +150,7 @@ void ABaseVRPlayer::SetBowArmed(bool bArmed)
 	// 退出弓箭模式时先释放左手
 	if (bIsBowArmed && !bArmed)
 	{
-		if (LeftHand && LeftHand->bIsHolding && LeftHand->HeldObject == CurrentBow)
+		if (LeftHand && LeftHand->bIsHolding && LeftHand->HeldActor == CurrentBow)
 		{
 			// 释放附加但不触发 OnReleased（弓会被销毁）
 			LeftHand->ReleaseAttachOnly();

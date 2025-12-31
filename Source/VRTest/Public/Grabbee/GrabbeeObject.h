@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Game/GrabTypes.h"
+#include "Grab/IGrabbable.h"
 #include "GrabbeeObject.generated.h"
 
 class UPlayerGrabHand;
@@ -18,7 +19,7 @@ class UPrimitiveComponent;
  * 包含抓取类型、抓取状态、以及抓取/释放时的回调。
  */
 UCLASS()
-class VRTEST_API AGrabbeeObject : public AActor
+class VRTEST_API AGrabbeeObject : public AActor, public IGrabbable
 {
 	GENERATED_BODY()
 	
@@ -49,59 +50,41 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab", meta = (EditCondition = "GrabType == EGrabType::Snap"))
 	FTransform SnapOffset;
 
+	/** 是否支持双手同时抓取（仅 HumanBody 类型默认支持） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	bool bSupportsDualHandGrab = false;
+
 	// ==================== 抓取状态 ====================
 	
 	/** 当前是否被抓取 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bIsHeld = false;
 
-	/** 当前抓取此物体的手 */
+	/** 当前抓取此物体的手（主手，兼容旧逻辑） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	UPlayerGrabHand* HoldingHand = nullptr;
+
+	/** 当前控制此物体的所有手（HumanBody 双手抓取用） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	TSet<UPlayerGrabHand*> ControllingHands;
 
 	/** 当前是否被选中（Gravity Gloves） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bIsSelected = false;
 
-	// ==================== 抓取接口 ====================
+	// ==================== IGrabbable 接口实现 ====================
 	
-	/**
-	 * 检查此物体是否可以被指定的手抓取
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	bool CanBeGrabbedBy(UPlayerGrabHand* Hand) const;
-	virtual bool CanBeGrabbedBy_Implementation(UPlayerGrabHand* Hand) const;
+	virtual EGrabType GetGrabType_Implementation() const override;
+	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
+	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+	virtual FTransform GetSnapOffset_Implementation() const override;
+	virtual bool SupportsDualHandGrab_Implementation() const override;
+	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
+	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
+	virtual void OnGrabSelected_Implementation() override;
+	virtual void OnGrabDeselected_Implementation() override;
 
-	/**
-	 * 当被抓取时调用
-	 * @param Hand 抓取此物体的手
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	void OnGrabbed(UPlayerGrabHand* Hand);
-	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand);
-
-	/**
-	 * 当被释放时调用
-	 * @param Hand 释放此物体的手
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	void OnReleased(UPlayerGrabHand* Hand);
-	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand);
-
-	/**
-	 * 当被选中时调用（Gravity Gloves 瞄准）
-	 * 用于切换高亮、播放音效等
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	void OnSelected();
-	virtual void OnSelected_Implementation();
-
-	/**
-	 * 当取消选中时调用
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	void OnDeselected();
-	virtual void OnDeselected_Implementation();
+	// ==================== 自有函数 ====================
 
 	/**
 	 * 向目标位置发射物体（Gravity Gloves 用）
@@ -112,15 +95,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	bool LaunchTowards(const FVector& TargetLocation, float ArcParam = 0.5f);
-
-	// ==================== 辅助函数 ====================
-	
-	/**
-	 * 获取用于物理控制的 PrimitiveComponent
-	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
-	UPrimitiveComponent* GetGrabPrimitive() const;
-	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const;
 
 	/**
 	 * 设置物理模拟状态

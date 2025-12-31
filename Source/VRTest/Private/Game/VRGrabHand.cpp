@@ -2,6 +2,7 @@
 
 #include "Game/VRGrabHand.h"
 #include "Game/InventoryComponent.h"
+#include "Grab/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/BoxComponent.h"
@@ -38,20 +39,34 @@ void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 // ==================== 重写 ====================
 
-AGrabbeeObject* UVRGrabHand::FindTarget_Implementation(bool bFromBackpack)
+void UVRGrabHand::TryGrab(bool bFromBackpack)
 {
+	// 如果调用者没有强制指定从背包抓取，则自动检测
+	if (!bFromBackpack)
+	{
+		bFromBackpack = IsInBackpackArea();
+	}
+
+	Super::TryGrab(bFromBackpack);
+}
+
+AActor* UVRGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
+{
+	OutBoneName = NAME_None;
+	
 	// 优先从背包取物
 	if (bFromBackpack)
 	{
-		AGrabbeeObject* BackpackTarget = Super::FindTarget_Implementation(bFromBackpack);
+		FName TempBone;
+		AActor* BackpackTarget = Super::FindTarget(bFromBackpack, TempBone);
 		if (BackpackTarget)
 		{
 			return BackpackTarget;
 		}
 	}
 
-	// 优先近距离球形检测
-	AGrabbeeObject* NearTarget = PerformSphereOverlap();
+	// 优先使用 SphereTrace 检测（可以获取骨骼名）
+	AActor* NearTarget = PerformSphereTrace(OutBoneName);
 	if (NearTarget)
 	{
 		return NearTarget;
@@ -66,7 +81,7 @@ AGrabbeeObject* UVRGrabHand::FindTarget_Implementation(bool bFromBackpack)
 	return nullptr;
 }
 
-void UVRGrabHand::GrabObject(AGrabbeeObject* Target)
+void UVRGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 {
 	// 注意：调用此函数前应先通过 ValidateGrab 验证
 	// 判断是近距离目标还是 Gravity Gloves 目标
@@ -74,26 +89,27 @@ void UVRGrabHand::GrabObject(AGrabbeeObject* Target)
 	// Gravity Gloves 目标：虚拟抓取
 	
 	bool bIsNearTarget = false;
-	AGrabbeeObject* NearCheck = PerformSphereOverlap();
-	if (NearCheck == Target)
+	FName TempBone;
+	AActor* NearCheck = PerformSphereTrace(TempBone);
+	if (NearCheck == TargetActor)
 	{
 		bIsNearTarget = true;
 	}
 
 	if (bIsNearTarget)
 	{
-		// 近距离目标：正常抓取流程
-		Super::GrabObject(Target);
+		// 近距离目标：正常抓取流程（传递骨骼名）
+		Super::GrabObject(TargetActor, BoneName);
 	}
-	else if (bEnableGravityGloves && Target == GravityGlovesTarget)
+	else if (bEnableGravityGloves && TargetActor == GravityGlovesTarget)
 	{
 		// Gravity Gloves 目标：虚拟抓取
-		VirtualGrab(Target);
+		VirtualGrab(TargetActor);
 	}
 	else
 	{
 		// 其他情况（如从背包取物）：正常抓取
-		Super::GrabObject(Target);
+		Super::GrabObject(TargetActor, BoneName);
 	}
 }
 
@@ -121,7 +137,7 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 		return;
 	}
 
-	if (!bIsHolding || !HeldObject)
+	if (!bIsHolding || !HeldActor)
 	{
 		return;
 	}
@@ -130,7 +146,7 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 	// 这里只处理箭和其他物品
 
 	// 箭的处理：在背包区域且未满则存入，否则掉落
-	if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(HeldObject))
+	if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(HeldActor))
 	{
 		if (Weapon->WeaponType == EWeaponType::Arrow)
 		{
@@ -143,20 +159,28 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 					if (!Inventory->IsArrowFull())
 					{
 						bShouldStore = true;
-						
-						// 先释放 Attach
-						ReleaseAttach();
-						
-						// 通知物体被释放
-						HeldObject->OnReleased(this);
-						OnObjectReleased.Broadcast(HeldObject);
-						
-						// 存入背包（会销毁Actor）
-						Inventory->TryStoreArrow();
-						
-						HeldObject = nullptr;
+
+						// 先保存要销毁的物体指针
+						AActor* ObjectToDestroy = HeldActor;
+
+						// 清空状态（避免悬空指针）
+						HeldActor = nullptr;
+						HeldGrabType = EGrabType::None;
 						bIsHolding = false;
 						CurrentControlName = NAME_None;
+
+						// 释放 Attach
+						ReleaseAttach();
+
+						// 通知物体被释放（通过接口）
+						if (IGrabbable* Grabbable = Cast<IGrabbable>(ObjectToDestroy))
+						{
+							IGrabbable::Execute_OnReleased(ObjectToDestroy, this);
+							OnObjectReleased.Broadcast(ObjectToDestroy);
+						}
+
+						// 最后存入背包（会销毁Actor）
+						Inventory->TryStoreArrow();
 					}
 				}
 			}
@@ -183,7 +207,7 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 
 // ==================== VR 专用接口 ====================
 
-AGrabbeeObject* UVRGrabHand::FindAngleClosestTarget()
+AActor* UVRGrabHand::FindAngleClosestTarget()
 {
 	TArray<AActor*> OverlapActors;
 	TArray<AActor*> IgnoreActors;
@@ -195,7 +219,7 @@ AGrabbeeObject* UVRGrabHand::FindAngleClosestTarget()
 		GetComponentLocation(),
 		GravityGlovesDistance,
 		GrabObjectTypes,
-		AGrabbeeObject::StaticClass(),
+		nullptr,  // 不限制类型，用接口检查
 		IgnoreActors,
 		OverlapActors
 	);
@@ -206,34 +230,40 @@ AGrabbeeObject* UVRGrabHand::FindAngleClosestTarget()
 	}
 
 	// 找到角度最近的目标
-	AGrabbeeObject* ClosestTarget = nullptr;
+	AActor* ClosestTarget = nullptr;
 	float SmallestAngle = GravityGlovesAngle;
 
 	FVector HandForward = GetForwardVector();
 
 	for (AActor* Actor : OverlapActors)
 	{
-		AGrabbeeObject* GrabbeeObj = Cast<AGrabbeeObject>(Actor);
-		if (!GrabbeeObj || !GrabbeeObj->CanBeGrabbedBy(this))
+		// 检查是否实现 IGrabbable 接口
+		IGrabbable* Grabbable = Cast<IGrabbable>(Actor);
+		if (!Grabbable)
+		{
+			continue;
+		}
+		
+		if (!IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
 		{
 			continue;
 		}
 
 		// 计算角度
-		FVector ToTarget = (GrabbeeObj->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
+		FVector ToTarget = (Actor->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
 		float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(HandForward, ToTarget)));
 
 		if (Angle < SmallestAngle)
 		{
 			SmallestAngle = Angle;
-			ClosestTarget = GrabbeeObj;
+			ClosestTarget = Actor;
 		}
 	}
 
 	return ClosestTarget;
 }
 
-void UVRGrabHand::VirtualGrab(AGrabbeeObject* Target)
+void UVRGrabHand::VirtualGrab(AActor* Target)
 {
 	if (!Target)
 	{
@@ -241,7 +271,18 @@ void UVRGrabHand::VirtualGrab(AGrabbeeObject* Target)
 	}
 
 	// 设置虚拟抓取状态（与真实抓取相同的状态变量）
-	HeldObject = Target;
+	HeldActor = Target;
+	
+	// 获取并缓存 GrabType
+	if (IGrabbable* Grabbable = Cast<IGrabbable>(Target))
+	{
+		HeldGrabType = IGrabbable::Execute_GetGrabType(Target);
+	}
+	else
+	{
+		HeldGrabType = EGrabType::Free; // 默认
+	}
+	
 	bIsHolding = true;
 	bIsVirtualGrabbing = true;
 
@@ -257,21 +298,26 @@ void UVRGrabHand::VirtualGrab(AGrabbeeObject* Target)
 
 void UVRGrabHand::VirtualRelease(bool bLaunch)
 {
-	if (!bIsVirtualGrabbing || !HeldObject)
+	if (!bIsVirtualGrabbing || !HeldActor)
 	{
 		return;
 	}
 
-	AGrabbeeObject* ReleasedTarget = HeldObject;
+	AActor* ReleasedTarget = HeldActor;
 
 	// 如果需要发射物体
 	if (bLaunch)
 	{
-		ReleasedTarget->LaunchTowards(GetComponentLocation(), LaunchArcParam);
+		// 只有 AGrabbeeObject 支持 LaunchTowards
+		if (AGrabbeeObject* GrabbeeObj = Cast<AGrabbeeObject>(ReleasedTarget))
+		{
+			GrabbeeObj->LaunchTowards(GetComponentLocation(), LaunchArcParam);
+		}
 	}
 
 	// 清除状态
-	HeldObject = nullptr;
+	HeldActor = nullptr;
+	HeldGrabType = EGrabType::None;
 	bIsHolding = false;
 	bIsVirtualGrabbing = false;
 }
@@ -281,10 +327,10 @@ void UVRGrabHand::VirtualRelease(bool bLaunch)
 void UVRGrabHand::UpdateGravityGloves(float DeltaTime)
 {
 	// 如果正在虚拟抓取，检测向后拉动手势
-	if (bIsVirtualGrabbing && HeldObject)
+	if (bIsVirtualGrabbing && HeldActor)
 	{
 		// 检查目标是否仍然有效
-		if (!IsValid(HeldObject))
+		if (!IsValid(HeldActor))
 		{
 			VirtualRelease(false);
 			return;
@@ -302,22 +348,28 @@ void UVRGrabHand::UpdateGravityGloves(float DeltaTime)
 	// 如果没有抓取物体，寻找新的目标
 	if (!bIsHolding)
 	{
-		AGrabbeeObject* NewTarget = FindAngleClosestTarget();
+		AActor* NewTarget = FindAngleClosestTarget();
 
 		// 目标发生变化
 		if (NewTarget != GravityGlovesTarget)
 		{
-			// 取消选中旧目标
+			// 取消选中旧目标（通过接口）
 			if (GravityGlovesTarget)
 			{
-				GravityGlovesTarget->OnDeselected();
+				if (IGrabbable* OldGrabbable = Cast<IGrabbable>(GravityGlovesTarget))
+				{
+					IGrabbable::Execute_OnGrabDeselected(GravityGlovesTarget);
+				}
 			}
 
-			// 选中新目标
+			// 选中新目标（通过接口）
 			GravityGlovesTarget = NewTarget;
 			if (GravityGlovesTarget)
 			{
-				GravityGlovesTarget->OnSelected();
+				if (IGrabbable* NewGrabbable = Cast<IGrabbable>(GravityGlovesTarget))
+				{
+					IGrabbable::Execute_OnGrabSelected(GravityGlovesTarget);
+				}
 			}
 		}
 	}
@@ -335,30 +387,24 @@ void UVRGrabHand::UpdateHandVelocity(float DeltaTime)
 
 bool UVRGrabHand::CheckPullBackGesture() const
 {
-	if (!HeldObject)
+	if (!HeldActor)
 	{
 		return false;
 	}
 
-	// 计算从物体指向手的方向
-	FVector ToHand = (GetComponentLocation() - HeldObject->GetActorLocation()).GetSafeNormal();
+	// 计算从物体指向手的方向（向后拉的方向）
+	FVector ObjectToHand = (GetComponentLocation() - HeldActor->GetActorLocation()).GetSafeNormal();
 
-	// 计算手部速度与该方向的点积（向后拉 = 负值）
-	// 我们需要的是向后拉，即手部向着远离物体的方向移动
-	// 但用户说的是"向后拉"，意思是手往自己身体方向拉，物体在前方
-	// 所以应该是手部速度与 ToHand 方向的点积为负（手往物体相反方向移动）
-	
-	// 或者理解为：手往后拉 = 手速度与 -ToHand（指向物体的方向）点积为负
-	// 即手速度与从手指向物体的方向点积为负
-	FVector ToObject = -ToHand;
-	float DotProduct = FVector::DotProduct(HandVelocity.GetSafeNormal(), ToObject);
+	// 计算手部速度与该方向的点积
+	// 点积 > 0 表示手在远离物体（向后拉）
+	FVector NormalizedVelocity = HandVelocity.GetSafeNormal();
+	float DotProduct = FVector::DotProduct(NormalizedVelocity, ObjectToHand);
 
-	// 当点积为负且速度足够大时，触发发射
-	// DotProduct < 0 表示手在远离物体
-	return DotProduct < -PullBackThreshold && HandVelocity.Size() > 100.0f;
+	// 当点积超过阈值且速度足够大时，触发发射
+	return DotProduct > PullBackThreshold && HandVelocity.Size() > MinPullVelocity;
 }
 
-AGrabbeeObject* UVRGrabHand::PerformSphereOverlap() const
+AActor* UVRGrabHand::PerformSphereOverlap() const
 {
 	TArray<AActor*> OverlapActors;
 	TArray<AActor*> IgnoreActors;
@@ -369,22 +415,20 @@ AGrabbeeObject* UVRGrabHand::PerformSphereOverlap() const
 		GetComponentLocation(),
 		GrabSphereRadius,
 		GrabObjectTypes,
-		AGrabbeeObject::StaticClass(),
+		nullptr,  // 不限制类型，用接口检查
 		IgnoreActors,
 		OverlapActors
 	);
 
 	if (bHit && OverlapActors.Num() > 0)
 	{
-		// 返回第一个有效的可抓取物体
+		// 返回第一个有效的可抓取物体（实现 IGrabbable 接口）
 		for (AActor* Actor : OverlapActors)
 		{
-			if (AGrabbeeObject* GrabbeeObj = Cast<AGrabbeeObject>(Actor))
+			IGrabbable* Grabbable = Cast<IGrabbable>(Actor);
+			if (Grabbable && IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
 			{
-				if (GrabbeeObj->CanBeGrabbedBy(const_cast<UVRGrabHand*>(this)))
-				{
-					return GrabbeeObj;
-				}
+				return Actor;
 			}
 		}
 	}
@@ -392,7 +436,7 @@ AGrabbeeObject* UVRGrabHand::PerformSphereOverlap() const
 	return nullptr;
 }
 
-bool UVRGrabHand::IsInGravityGlovesAngle(AGrabbeeObject* Target) const
+bool UVRGrabHand::IsInGravityGlovesAngle(AActor* Target) const
 {
 	if (!Target)
 	{
@@ -404,4 +448,45 @@ bool UVRGrabHand::IsInGravityGlovesAngle(AGrabbeeObject* Target) const
 	float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(HandForward, ToTarget)));
 
 	return Angle <= GravityGlovesAngle;
+}
+
+AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
+{
+	OutBoneName = NAME_None;
+	
+	TArray<AActor*> IgnoreActors;
+	IgnoreActors.Add(GetOwner());
+
+	FHitResult HitResult;
+	FVector Start = GetComponentLocation();
+	FVector End = Start; // 原地球形扫描
+	
+	// 使用 SphereTraceSingleForObjects 来获取精确的 Hit 信息
+	bool bHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+		this,
+		Start,
+		End,
+		GrabSphereRadius,
+		GrabObjectTypes,
+		false,  // bTraceComplex
+		IgnoreActors,
+		EDrawDebugTrace::None,
+		HitResult,
+		true    // bIgnoreSelf
+	);
+
+	if (bHit && HitResult.GetActor())
+	{
+		AActor* HitActor = HitResult.GetActor();
+		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
+		if (Grabbable && IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
+		{
+			// 从 HitResult 获取骨骼名
+			OutBoneName = HitResult.BoneName;
+			return HitActor;
+		}
+	}
+
+	// 回退到 Overlap 检测（不返回骨骼名，用于非骨骼网格体）
+	return PerformSphereOverlap();
 }

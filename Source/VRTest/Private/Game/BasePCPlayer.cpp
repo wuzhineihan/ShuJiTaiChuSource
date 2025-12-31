@@ -3,7 +3,11 @@
 #include "Game/BasePCPlayer.h"
 #include "Game/PCGrabHand.h"
 #include "Game/InventoryComponent.h"
+#include "Grab/IGrabbable.h"
 #include "Grabbee/GrabbeeWeapon.h"
+#include "Grabbee/GrabbeeObject.h"
+#include "Grabbee/Bow.h"
+#include "Grabbee/Arrow.h"
 #include "Camera/CameraComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
@@ -34,6 +38,16 @@ ABasePCPlayer::ABasePCPlayer()
 void ABasePCPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 绑定手的抓取/释放委托，用于同步目标检测状态
+	if (LeftHand)
+	{
+		LeftHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
+	}
+	if (RightHand)
+	{
+		RightHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
+	}
 }
 
 void ABasePCPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -46,6 +60,19 @@ void ABasePCPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 void ABasePCPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// 每帧检测瞄准目标（只在徒手模式且未持有物体时检测）
+	if (!bIsBowArmed && !LeftHand->bIsHolding && !RightHand->bIsHolding)
+	{
+		UpdateTargetDetection();
+	}
+
+	// 弓箭模式：拉弓时更新弓弦位置
+	if (bIsDrawingBow && CurrentBow)
+	{
+		// 用右手位置驱动弓弦材质
+		CurrentBow->UpdateStringFromHandPosition(RightHand->GetComponentLocation());
+	}
 }
 
 // ==================== 重写基类 ====================
@@ -55,22 +82,24 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	// 退出弓箭模式时的清理
 	if (bIsBowArmed && !bArmed)
 	{
-		// 停止瞄准和拉弓
+		// 如果正在拉弓，直接发射（不能取消拉弓）
+		if (bIsDrawingBow)
+		{
+			ReleaseBowString();
+		}
+		
+		// 停止瞄准
 		if (bIsAiming)
 		{
 			StopAiming();
 		}
-		if (bIsDrawingBow)
+
+		// 释放左手持有的弓
+		if (LeftHand && LeftHand->bIsHolding &&
+		    LeftHand->HeldActor && IsValid(LeftHand->HeldActor) &&
+		    LeftHand->HeldActor == CurrentBow)
 		{
-			// 取消拉弓但不发射
-			bIsDrawingBow = false;
-			RightHand->InterpToDefaultTransform();
-		}
-		
-		// 释放左手持有的弓（不触发 OnReleased，因为弓会被销毁）
-		if (LeftHand->bIsHolding && LeftHand->HeldObject == CurrentBow)
-		{
-			LeftHand->ReleaseAttachOnly();
+			LeftHand->ReleaseObject();
 		}
 	}
 
@@ -78,7 +107,7 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	Super::SetBowArmed(bArmed);
 
 	// 进入弓箭模式时使用 GrabHand 的抓取逻辑
-	if (bArmed && CurrentBow)
+	if (bArmed && CurrentBow && LeftHand)
 	{
 		LeftHand->GrabObject(CurrentBow);
 	}
@@ -134,11 +163,6 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 	}
 }
 
-void ABasePCPlayer::HandleModeSwitch(bool bToBowMode)
-{
-	SetBowArmed(bToBowMode);
-}
-
 // ==================== 弓箭操作 ====================
 
 void ABasePCPlayer::StartAiming()
@@ -152,14 +176,50 @@ void ABasePCPlayer::StartAiming()
 	
 	// 将左手平滑过渡到瞄准位置
 	LeftHand->InterpToTransform(AimingLeftHandTransform);
+
+	// 在开始瞄准时生成箭并搭在弓弦上
+	if (CurrentBow)
+	{
+		// 检查是否有箭
+		if (InventoryComponent && InventoryComponent->HasArrow())
+		{
+			// 消耗一支箭并生成
+			InventoryComponent->ConsumeArrow();
+			CurrentBow->SpawnAndNockArrow();
+		}
+		else
+		{
+			// 没有箭，播放音效提示
+			PlayNoArrowSound();
+		}
+	}
 }
 
 void ABasePCPlayer::StopAiming()
 {
+	// 如果正在拉弓，直接发射（不能取消拉弓）
+	if (bIsDrawingBow)
+	{
+		ReleaseBowString();
+	}
+
 	bIsAiming = false;
 	
 	// 左手回到默认位置
 	LeftHand->InterpToDefaultTransform();
+
+	// 清理未发射的箭（只有在没拉弓时才会有未发射的箭）
+	if (CurrentBow && CurrentBow->NockedArrow)
+	{
+		// 退还箭到背包
+		if (InventoryComponent)
+		{
+			InventoryComponent->AddArrow();
+		}
+		// 销毁生成的箭 Actor
+		CurrentBow->NockedArrow->Destroy();
+		CurrentBow->NockedArrow = nullptr;
+	}
 }
 
 void ABasePCPlayer::StartDrawBow()
@@ -169,8 +229,13 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 检查是否有箭
-	if (!InventoryComponent || !InventoryComponent->HasArrow())
+	if (!CurrentBow)
+	{
+		return;
+	}
+
+	// 检查是否有箭搭在弓上
+	if (!CurrentBow->NockedArrow)
 	{
 		PlayNoArrowSound();
 		return;
@@ -178,19 +243,27 @@ void ABasePCPlayer::StartDrawBow()
 
 	bIsDrawingBow = true;
 
-	// 1. 计算目标拉弓距离
-	float TargetDistance = CalculateDrawDistance();
-
-	// 2. 计算右手目标位置（相对于摄像机）
-	// 拉弓时右手在弓弦位置向后拉
-	FTransform DrawTransform;
-	DrawTransform.SetLocation(FVector(-TargetDistance, 0.0f, 0.0f)); // 向后拉
+	// 设置弓弦区域标志（告诉弓：右手在弓弦区域）
+	CurrentBow->SetHandInStringArea(true);
 	
-	// 3. 程序化拉弓
-	RightHand->InterpToTransform(DrawTransform);
+	// 设置初始偏移：弓弦位置相对于右手的偏移
+	FVector StringRestPos = CurrentBow->StringRestPosition ? 
+		CurrentBow->StringRestPosition->GetComponentLocation() : 
+		CurrentBow->StringMesh->GetComponentLocation();
+	CurrentBow->InitialStringGrabOffset = StringRestPos - RightHand->GetComponentLocation();
+	
+	// 通过抓取系统抓弓弦
+	RightHand->GrabObject(CurrentBow);
+}
 
-	// 4. 消耗一支箭（实际发射时生成）
-	// 箭的消耗在 ReleaseBowString 时处理
+void ABasePCPlayer::StopDrawBow()
+{
+	// DEPRECATED: 一旦开始拉弓就不能取消，松手或切换模式都会直接发射
+	// 此函数保留用于兼容，但内部直接调用 ReleaseBowString
+	if (bIsDrawingBow)
+	{
+		ReleaseBowString();
+	}
 }
 
 void ABasePCPlayer::ReleaseBowString()
@@ -202,15 +275,16 @@ void ABasePCPlayer::ReleaseBowString()
 
 	bIsDrawingBow = false;
 
-	// TODO: 发射箭矢
-	// 这里需要调用弓的 FireArrow 函数
-	// CurrentBow->ReleaseString();
-
-	// 消耗箭
-	if (InventoryComponent)
+	// 释放弓弦（触发 OnReleased → 发射）
+	if (RightHand && RightHand->bIsHolding && RightHand->HeldActor == CurrentBow)
 	{
-		// 箭已在 StartDrawBow 标记，这里实际生成并发射
-		// InventoryComponent->TryRetrieveArrow(...);
+		RightHand->ReleaseObject();
+	}
+	
+	// 重置弓弦区域标志
+	if (CurrentBow)
+	{
+		CurrentBow->SetHandInStringArea(false);
 	}
 
 	// 右手回到默认位置
@@ -218,6 +292,107 @@ void ABasePCPlayer::ReleaseBowString()
 }
 
 // ==================== 内部函数 ====================
+
+void ABasePCPlayer::UpdateTargetDetection()
+{
+	// 执行射线检测
+	FHitResult Hit;
+	AActor* NewTarget = nullptr;
+	FName NewBoneName = NAME_None;
+
+	if (PerformLineTrace(Hit, MaxGrabDistance))
+	{
+		AActor* HitActor = Hit.GetActor();
+		
+		// 检查是否实现 IGrabbable 接口
+		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
+
+		// 验证是否可以被抓取（检查左手或右手，取第一只空闲的手）
+		if (Grabbable)
+		{
+			UPCGrabHand* CheckHand = !LeftHand->bIsHolding ? LeftHand : RightHand;
+			if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, CheckHand))
+			{
+				NewTarget = nullptr;
+			}
+			else
+			{
+				NewTarget = HitActor;
+				// 保存骨骼名（如果有）
+				NewBoneName = Hit.BoneName;
+			}
+		}
+	}
+
+	// 检查目标是否发生变化
+	if (NewTarget != TargetedObject)
+	{
+		AActor* OldTarget = TargetedObject;
+		TargetedObject = NewTarget;
+		TargetedBoneName = NewBoneName;
+
+		// 触发委托
+		OnGrabTargetChanged.Broadcast(NewTarget, OldTarget);
+
+		// 调用物体的 OnGrabSelected / OnGrabDeselected（用于高亮等效果）
+		// 添加有效性检查，防止物体已被销毁
+		if (OldTarget && IsValid(OldTarget))
+		{
+			if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+			{
+				IGrabbable::Execute_OnGrabDeselected(OldTarget);
+			}
+		}
+		if (NewTarget && IsValid(NewTarget))
+		{
+			if (IGrabbable* NewGrabbable = Cast<IGrabbable>(NewTarget))
+			{
+				IGrabbable::Execute_OnGrabSelected(NewTarget);
+			}
+		}
+	}
+	else
+	{
+		// 目标相同但骨骼名可能变化
+		TargetedBoneName = NewBoneName;
+	}
+}
+
+bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) const
+{
+	if (!FirstPersonCamera)
+	{
+		return false;
+	}
+
+	FVector Start = FirstPersonCamera->GetComponentLocation();
+	FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxDistance;
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, GrabTraceChannel, QueryParams);
+}
+
+void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
+{
+	// 当任一只手抓取物体时，立即清空瞄准目标
+	if (TargetedObject && IsValid(TargetedObject))
+	{
+		AActor* OldTarget = TargetedObject;
+		TargetedObject = nullptr;
+		TargetedBoneName = NAME_None;
+
+		// 触发委托
+		OnGrabTargetChanged.Broadcast(nullptr, OldTarget);
+
+		// 取消选中状态（通过接口）
+		if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+		{
+			IGrabbable::Execute_OnGrabDeselected(OldTarget);
+		}
+	}
+}
 
 float ABasePCPlayer::CalculateDrawDistance() const
 {

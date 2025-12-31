@@ -45,6 +45,30 @@ AGrabbeeObject* UInventoryComponent::TryRetrieveArrow(const FTransform& SpawnTra
 	return GetWorld()->SpawnActor<AGrabbeeObject>(ArrowClass, SpawnTransform, SpawnParams);
 }
 
+bool UInventoryComponent::ConsumeArrow()
+{
+	if (ArrowCount <= 0)
+	{
+		return false;
+	}
+
+	ArrowCount--;
+	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
+	return true;
+}
+
+bool UInventoryComponent::AddArrow()
+{
+	if (ArrowCount >= MaxArrowCount)
+	{
+		return false;
+	}
+
+	ArrowCount++;
+	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
+	return true;
+}
+
 // ==================== 直接设置 ====================
 
 void UInventoryComponent::SetArrowCount(int32 NewCount)

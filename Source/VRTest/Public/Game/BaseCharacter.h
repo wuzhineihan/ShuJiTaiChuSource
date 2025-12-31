@@ -35,6 +35,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UInventoryComponent* InventoryComponent;
 
+	/** 角色是否已死亡 */
+	UPROPERTY(BlueprintReadOnly, Category = "Character")
+	bool bIsDead = false;
+
 	// IEffectable Interface
 	virtual void ApplyEffect_Implementation(const FEffect& Effect) override;
 

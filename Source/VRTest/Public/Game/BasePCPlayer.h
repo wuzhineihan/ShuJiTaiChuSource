@@ -8,10 +8,13 @@
 
 class UPCGrabHand;
 class UCameraComponent;
+class IGrabbable;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGrabTargetChanged, AActor*, NewTarget, AActor*, OldTarget);
 
 /**
  * PC 模式玩家基类
- * 
+ *
  * 包含第一人称摄像机和双手抓取逻辑。
  * 弓箭模式由基类 bIsBowArmed 控制。
  */
@@ -43,6 +46,30 @@ public:
 	/** 右手 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* RightHand;
+
+	// ==================== 目标检测配置 ====================
+
+	/** 抓取射线最大距离 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	float MaxGrabDistance = 300.0f;
+
+	/** 抓取检测通道 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
+
+	// ==================== 目标检测状态 ====================
+
+	/** 当前瞄准的可抓取物体 */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	AActor* TargetedObject = nullptr;
+
+	/** 当前瞄准的骨骼名（如果目标是骨骼网格体） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	FName TargetedBoneName;
+
+	/** 当瞄准目标变化时触发 */
+	UPROPERTY(BlueprintAssignable, Category = "Grab")
+	FOnGrabTargetChanged OnGrabTargetChanged;
 
 	// ==================== 弓箭模式配置 ====================
 	
@@ -91,12 +118,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleRightTrigger(bool bPressed);
 
-	/**
-	 * 处理模式切换输入
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	void HandleModeSwitch(bool bToBowMode);
-
 	// ==================== 弓箭操作 ====================
 	
 	/**
@@ -118,6 +139,12 @@ public:
 	void StartDrawBow();
 
 	/**
+	 * 停止拉弓（已废弃：一旦开始拉弓不能取消，会直接发射）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Bow", meta = (DeprecatedFunction, DeprecationMessage = "StopDrawBow is deprecated. Once drawing starts, releasing will always fire the arrow."))
+	void StopDrawBow();
+
+	/**
 	 * 释放弓弦
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
@@ -125,6 +152,16 @@ public:
 
 protected:
 	// ==================== 内部函数 ====================
+
+	/** 更新瞄准目标检测（每帧执行） */
+	void UpdateTargetDetection();
+
+	/** 执行射线检测 */
+	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance) const;
+
+	/** 当手抓取物体时的回调 */
+	UFUNCTION()
+	void OnHandGrabbedObject(AActor* GrabbedObject);
 
 	/** 计算拉弓距离 */
 	float CalculateDrawDistance() const;

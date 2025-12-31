@@ -4,6 +4,7 @@
 #include "Game/BasePlayer.h"
 #include "PhysicsControlComponent.h"
 #include "Grabbee/GrabbeeWeapon.h"
+#include "Grabbee/Bow.h"
 
 ABasePlayer::ABasePlayer()
 {
@@ -55,7 +56,7 @@ void ABasePlayer::ToggleBowArmed()
 	SetBowArmed(!bIsBowArmed);
 }
 
-AGrabbeeWeapon* ABasePlayer::SpawnBow()
+ABow* ABasePlayer::SpawnBow()
 {
 	if (!BowClass)
 	{
@@ -66,7 +67,7 @@ AGrabbeeWeapon* ABasePlayer::SpawnBow()
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = this;
 
-	return GetWorld()->SpawnActor<AGrabbeeWeapon>(BowClass, GetActorTransform(), SpawnParams);
+	return GetWorld()->SpawnActor<ABow>(BowClass, GetActorTransform(), SpawnParams);
 }
 
 void ABasePlayer::DestroyBow()

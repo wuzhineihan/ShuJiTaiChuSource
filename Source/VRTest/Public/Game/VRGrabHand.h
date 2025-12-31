@@ -59,6 +59,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|GravityGloves")
 	float PullBackThreshold = 0.3f;
 
+	/** 触发发射的最小手部速度 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|GravityGloves")
+	float MinPullVelocity = 100.0f;
+
 	/** 发射物体的抛物线弧度参数 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|GravityGloves")
 	float LaunchArcParam = 0.5f;
@@ -67,7 +71,7 @@ public:
 	
 	/** 当前选中的远程目标（未抓取，仅瞄准） */
 	UPROPERTY(BlueprintReadOnly, Category = "VR|GravityGloves")
-	AGrabbeeObject* GravityGlovesTarget = nullptr;
+	AActor* GravityGlovesTarget = nullptr;
 
 	/** 是否正在虚拟抓取（Grip 按下但物体未到手） */
 	UPROPERTY(BlueprintReadOnly, Category = "VR|GravityGloves")
@@ -83,8 +87,9 @@ public:
 
 	// ==================== 重写 ====================
 	
-	virtual AGrabbeeObject* FindTarget_Implementation(bool bFromBackpack) override;
-	virtual void GrabObject(AGrabbeeObject* Target) override;
+	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
+	virtual void TryGrab(bool bFromBackpack = false) override;
+	virtual void GrabObject(AActor* TargetActor, FName BoneName = NAME_None) override;
 	virtual void TryRelease(bool bToBackpack = false) override;
 
 	// ==================== VR 专用接口 ====================
@@ -93,14 +98,14 @@ public:
 	 * 查找角度最近的可抓取物体（Gravity Gloves 用）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "VR|GravityGloves")
-	AGrabbeeObject* FindAngleClosestTarget();
+	AActor* FindAngleClosestTarget();
 
 	/**
 	 * 虚拟抓取（Gravity Gloves）
 	 * 设置状态但不实际附加物体
 	 */
 	UFUNCTION(BlueprintCallable, Category = "VR|GravityGloves")
-	void VirtualGrab(AGrabbeeObject* Target);
+	void VirtualGrab(AActor* Target);
 
 	/**
 	 * 虚拟释放（Gravity Gloves）
@@ -129,9 +134,15 @@ protected:
 	/** 检测向后拉动手势 */
 	bool CheckPullBackGesture() const;
 
-	/** 球形检测 */
-	AGrabbeeObject* PerformSphereOverlap() const;
+	/** 球形检测（使用 Overlap，用于非 HumanBody 类型） */
+	AActor* PerformSphereOverlap() const;
+
+	/** 球形追踪（使用 Trace，用于 HumanBody 类型获取骨骼名）
+	 * @param OutBoneName 输出参数：命中的骨骼名
+	 * @return 命中的可抓取物体
+	 */
+	AActor* PerformSphereTrace(FName& OutBoneName) const;
 
 	/** 检查物体是否在 Gravity Gloves 角度范围内 */
-	bool IsInGravityGlovesAngle(AGrabbeeObject* Target) const;
+	bool IsInGravityGlovesAngle(AActor* Target) const;
 };

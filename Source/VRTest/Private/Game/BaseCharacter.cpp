@@ -97,5 +97,5 @@ void ABaseCharacter::TakeStasisEffect(const FEffect& Effect)
 
 void ABaseCharacter::OnDeath_Implementation()
 {
-	// Default implementation
+	bIsDead = true;
 }

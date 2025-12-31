@@ -1,7 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Game/PCGrabHand.h"
+#include "Game/BasePCPlayer.h"
 #include "Camera/CameraComponent.h"
+#include "Grab/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "GameFramework/Character.h"
 
@@ -27,28 +29,35 @@ void UPCGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 	{
 		UpdateHandInterp(DeltaTime);
 	}
+
+	// 注意：目标检测现在由 BasePCPlayer 统一处理，这里不需要重复检测
 }
 
 // ==================== 重写 ====================
 
-AGrabbeeObject* UPCGrabHand::FindTarget_Implementation(bool bFromBackpack)
+AActor* UPCGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
 {
+	OutBoneName = NAME_None;
+	
 	// 优先从背包取物
 	if (bFromBackpack)
 	{
-		AGrabbeeObject* BackpackTarget = Super::FindTarget_Implementation(bFromBackpack);
+		FName TempBone;
+		AActor* BackpackTarget = Super::FindTarget(bFromBackpack, TempBone);
 		if (BackpackTarget)
 		{
 			return BackpackTarget;
 		}
 	}
 
-	// 射线检测寻找目标
-	FHitResult Hit;
-	if (PerformLineTrace(Hit, MaxGrabDistance))
+	// 使用 Player 的检测结果（避免重复检测）
+	if (ABasePCPlayer* PCPlayer = GetOwnerPCPlayer())
 	{
-		return Cast<AGrabbeeObject>(Hit.GetActor());
+		// 获取射线检测的骨骼名
+		OutBoneName = PCPlayer->TargetedBoneName;
+		return PCPlayer->TargetedObject;
 	}
+
 	return nullptr;
 }
 
@@ -56,7 +65,7 @@ AGrabbeeObject* UPCGrabHand::FindTarget_Implementation(bool bFromBackpack)
 
 void UPCGrabHand::TryGrabOrRelease()
 {
-	if (bIsHolding && HeldObject)
+	if (bIsHolding && HeldActor)
 	{
 		// 手里有东西 → 丢弃到射线目标位置
 		DropToRaycastTarget();
@@ -70,7 +79,7 @@ void UPCGrabHand::TryGrabOrRelease()
 
 void UPCGrabHand::DropToRaycastTarget()
 {
-	if (!bIsHolding || !HeldObject)
+	if (!bIsHolding || !HeldActor)
 	{
 		return;
 	}
@@ -79,7 +88,7 @@ void UPCGrabHand::DropToRaycastTarget()
 	if (PerformLineTrace(Hit, MaxDropDistance))
 	{
 		// 释放物体
-		AGrabbeeObject* DroppedObject = HeldObject;
+		AActor* DroppedObject = HeldActor;
 		ReleaseObject();
 
 		// 将物体瞬移到射线碰撞点
@@ -115,6 +124,11 @@ UCameraComponent* UPCGrabHand::GetOwnerCamera() const
 		return Owner->FindComponentByClass<UCameraComponent>();
 	}
 	return nullptr;
+}
+
+ABasePCPlayer* UPCGrabHand::GetOwnerPCPlayer() const
+{
+	return Cast<ABasePCPlayer>(GetOwner());
 }
 
 bool UPCGrabHand::PerformLineTrace(FHitResult& OutHit, float MaxDistance) const

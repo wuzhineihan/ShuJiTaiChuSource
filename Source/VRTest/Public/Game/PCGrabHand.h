@@ -7,10 +7,11 @@
 #include "PCGrabHand.generated.h"
 
 class UCameraComponent;
+class ABasePCPlayer;
 
 /**
  * PC 模式手部组件
- * 
+ *
  * 使用射线检测进行抓取，支持程序化手部动画。
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -28,16 +29,12 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	// ==================== 配置 ====================
-	
-	/** 抓取射线最大距离 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PC|Grab")
-	float MaxGrabDistance = 300.0f;
 
 	/** 丢弃射线最大距离 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PC|Grab")
 	float MaxDropDistance = 500.0f;
 
-	/** 抓取检测通道 */
+	/** 抓取检测通道（用于丢弃时的射线检测） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PC|Grab")
 	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
 
@@ -60,8 +57,8 @@ public:
 	bool bIsInterping = false;
 
 	// ==================== 重写 ====================
-	
-	virtual AGrabbeeObject* FindTarget_Implementation(bool bFromBackpack) override;
+
+	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
 
 	// ==================== PC 专用接口 ====================
 	
@@ -93,11 +90,14 @@ public:
 
 protected:
 	// ==================== 内部函数 ====================
-	
+
 	/** 获取所属玩家的摄像机组件 */
 	UCameraComponent* GetOwnerCamera() const;
 
-	/** 执行射线检测 */
+	/** 获取所属 PC 玩家 */
+	ABasePCPlayer* GetOwnerPCPlayer() const;
+
+	/** 执行射线检测（仅用于丢弃物体时） */
 	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance) const;
 
 	/** 更新手部插值位置 */

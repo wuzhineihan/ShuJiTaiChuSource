@@ -10,6 +10,7 @@
 
 class UPhysicsControlComponent;
 class AGrabbeeWeapon;
+class ABow;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBowArmedChanged, bool, bIsArmed);
 
@@ -55,7 +56,7 @@ public:
 
 	/** 当前持有的弓（弓箭模式下不为空） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
-	AGrabbeeWeapon* CurrentBow = nullptr;
+	ABow* CurrentBow = nullptr;
 
 	/** 弓箭模式切换事件 */
 	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
@@ -85,7 +86,7 @@ public:
 
 protected:
 	/** 生成弓 Actor */
-	virtual AGrabbeeWeapon* SpawnBow();
+	virtual ABow* SpawnBow();
 
 	/** 销毁弓 Actor */
 	virtual void DestroyBow();

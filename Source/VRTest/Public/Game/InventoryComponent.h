@@ -87,6 +87,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Arrow")
 	int32 GetArrowCount() const { return ArrowCount; }
 
+	/**
+	 * 消耗一支箭（不生成 Actor，仅减少计数）
+	 * @return true 如果成功消耗
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Arrow")
+	bool ConsumeArrow();
+
+	/**
+	 * 增加一支箭（不需要 Actor，仅增加计数）
+	 * @return true 如果成功增加（未达到上限）
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Arrow")
+	bool AddArrow();
+
 	// ==================== 直接设置（用于存档/初始化） ====================
 
 	UFUNCTION(BlueprintCallable, Category = "Arrow")
