@@ -22,13 +22,12 @@ ABaseVRPlayer::ABaseVRPlayer()
 	VRCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("VRCamera"));
 	VRCamera->SetupAttachment(VROrigin);
 
-	// 创建背包碰撞区域（附加到摄像机后方）
+	// 创建背包碰撞区域（在蓝图设置变换）
 	BackpackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BackpackCollision"));
 	BackpackCollision->SetupAttachment(VRCamera);
-	BackpackCollision->SetRelativeLocation(FVector(-30.0f, 0.0f, -20.0f));
-	BackpackCollision->SetBoxExtent(FVector(15.0f, 20.0f, 25.0f));
 	BackpackCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	BackpackCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	BackpackCollision->ComponentTags.Add(FName("player_backpack"));
 
 	// 创建左手 MotionController
 	MotionControllerLeft = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("MotionControllerLeft"));

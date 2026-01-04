@@ -56,10 +56,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "PC|Interp")
 	bool bIsInterping = false;
 
-	// ==================== 重写 ====================
-
-	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
-
 	// ==================== PC 专用接口 ====================
 	
 	/**
@@ -89,6 +85,10 @@ public:
 	void InterpToDefaultTransform();
 
 protected:
+	// ==================== 重写 ====================
+	
+	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
+
 	// ==================== 内部函数 ====================
 
 	/** 获取所属玩家的摄像机组件 */

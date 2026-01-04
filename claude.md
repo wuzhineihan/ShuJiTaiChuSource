@@ -94,18 +94,40 @@ USceneComponent
 - `AActor* HeldActor` / `EGrabType HeldGrabType` / `FName CurrentControlName`
 - PhysicsControl参数：`FreeGrabStrength/Damping`、`WeaponSnapStrength/Damping`
 
-**核心接口**：
-- `TryGrab(bool bFromBackpack)` - 尝试抓取
-- `TryRelease(bool bToBackpack)` - 尝试释放
+**核心接口（职责分离）**：
+- `TryGrab(bool bFromBackpack)` - 决策层：找目标，决定用什么方式抓
+- `TryRelease(bool bToBackpack)` - 决策层：决定如何释放
 - `FindTarget(bool, FName&)` - 查找目标（子类实现）
-- `GrabObject(AActor*, FName)` - 执行抓取（内部检查 CanBeGrabbedBy）
-- `ReleaseObject()` - 执行释放
+- `GrabObject(AActor*, FName)` - 执行层：真正的抓取（内部调用 GrabFree/GrabWeaponSnap/GrabHumanBody）
+- `ReleaseObject()` - 执行层：真正的释放（内部调用 ReleasePhysicsControl）
 
-**内部实现**：
+**内部实现（protected）**：
 - `GrabFree()` - PhysicsControl，保持相对变换
 - `GrabWeaponSnap()` - PhysicsControl（高强度），对齐到武器偏移
 - `GrabHumanBody()` - PhysicsControl，控制骨骼
 - `ReleasePhysicsControl()` - 销毁 Control
+
+#### UVRGrabHand（VR专用）
+
+**重写方法**：
+- `TryGrab()` - 自动背包检测 + Gravity Gloves 虚拟抓取决策
+- `TryRelease()` - 虚拟抓取释放 + 箭自动存入背包
+- `FindTarget()` - 背包/近距离/GravityGlovesTarget 优先级
+
+**不重写**：`GrabObject()` - 执行层逻辑统一使用父类
+
+**Gravity Gloves 功能**：
+- 手里没东西时自动启用检测，不需要手动开关
+- `GravityGlovesTarget` - 当前瞄准的远程目标（高亮显示）
+- `bIsVirtualGrabbing` - 虚拟抓取状态（Grip按下但物体未到手）
+- `VirtualGrab(Target)` - 开始虚拟抓取
+- `VirtualRelease(bLaunch)` - 结束虚拟抓取，bLaunch决定是否发射
+- `CheckPullBackGesture()` - 检测后拉手势（只在虚拟抓取时计算手部速度）
+- 参数：`GravityGlovesDistance`、`GravityGlovesAngle`、`PullBackThreshold`、`MinPullVelocity`、`LaunchArcParam`
+
+**背包检测**：
+- `bIsInBackpackArea` - 通过 HandCollision overlap 检测（tag: "player_backpack"）
+- `IsInBackpackArea()` - 返回 bIsInBackpackArea
 
 #### Grabbee 侧（IGrabbable 接口）
 
@@ -229,6 +251,12 @@ IGrabbable (接口)
    - Bow 移除 SetHandInStringArea/SetPullAmount/UpdateStringFromHandPosition
    - OnStringCollisionBeginOverlap 实现自动搭箭+抓弦
    - PC/VR 统一使用碰撞检测触发弓弦交互
+5. **抓取系统代码清理**（2026-01-01完成）：
+   - TryRelease 重构：VRGrabHand 简化为修改参数+单一父类调用
+   - 职责分离：TryGrab/TryRelease（决策层）vs GrabObject/ReleaseObject（执行层）
+   - VRGrabHand 移除 GrabObject 重写，VirtualGrab 决策移至 TryGrab
+   - Gravity Gloves 简化：移除 bEnableGravityGloves（手空时自动启用）
+   - 手部速度追踪优化：只在虚拟抓取状态才计算（非每帧）
 
 ### 待实现
 1. VR 弓弦交互测试验证
@@ -266,5 +294,5 @@ IGrabbable (接口)
 
 ---
 
-**最后更新**：2025-12-31
-**最近完成**：Phase 2 抓取系统重构（移除Snap、统一PhysicsControl、自动弓弦交互）
+**最后更新**：2026-01-01
+**最近完成**：抓取系统代码清理（职责分离、VRGrabHand简化、Gravity Gloves优化）

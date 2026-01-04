@@ -33,19 +33,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Grab")
 	float GrabSphereRadius = 15.0f;
 
-	/** 抓取检测对象类型 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Grab")
-	TArray<TEnumAsByte<EObjectTypeQuery>> GrabObjectTypes;
-
 	/** 背包碰撞区域引用（由 Player 设置） */
 	UPROPERTY(BlueprintReadWrite, Category = "VR|Backpack")
 	UBoxComponent* BackpackCollision = nullptr;
 
 	// ==================== Gravity Gloves 配置 ====================
-	
-	/** 是否启用 Gravity Gloves */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|GravityGloves")
-	bool bEnableGravityGloves = true;
 
 	/** Gravity Gloves 检测距离 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|GravityGloves")
@@ -87,42 +79,51 @@ public:
 
 	// ==================== 重写 ====================
 	
-	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
 	virtual void TryGrab(bool bFromBackpack = false) override;
-	virtual void GrabObject(AActor* TargetActor, FName BoneName = NAME_None) override;
 	virtual void TryRelease(bool bToBackpack = false) override;
 
-	// ==================== VR 专用接口 ====================
+	// ==================== VR 背包检测 ====================
+	
+	/** 手是否在背包区域内（通过 HandCollision overlap 检测） */
+	UPROPERTY(BlueprintReadOnly, Category = "VR|Backpack")
+	bool bIsInBackpackArea = false;
+
+protected:
+	// ==================== 目标查找 ====================
+	
+	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
+
+	// ==================== Gravity Gloves 内部实现 ====================
 	
 	/**
 	 * 查找角度最近的可抓取物体（Gravity Gloves 用）
 	 */
-	UFUNCTION(BlueprintCallable, Category = "VR|GravityGloves")
 	AActor* FindAngleClosestTarget();
 
 	/**
 	 * 虚拟抓取（Gravity Gloves）
 	 * 设置状态但不实际附加物体
 	 */
-	UFUNCTION(BlueprintCallable, Category = "VR|GravityGloves")
 	void VirtualGrab(AActor* Target);
 
 	/**
 	 * 虚拟释放（Gravity Gloves）
 	 * 清除状态，可选择是否发射物体
 	 */
-	UFUNCTION(BlueprintCallable, Category = "VR|GravityGloves")
 	void VirtualRelease(bool bLaunch = false);
 
-	// ==================== VR 背包检测 ====================
+	// ==================== 背包 Overlap 事件 ====================
 	
-	/**
-	 * 检查手是否在背包区域内
-	 */
-	UFUNCTION(BlueprintCallable, Category = "VR|Backpack")
-	bool IsInBackpackArea() const;
+	/** HandCollision 进入背包区域 */
+	UFUNCTION()
+	void OnHandCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-protected:
+	/** HandCollision 离开背包区域 */
+	UFUNCTION()
+	void OnHandCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 	// ==================== 内部函数 ====================
 	
 	/** 更新 Gravity Gloves 逻辑 */
@@ -133,9 +134,6 @@ protected:
 
 	/** 检测向后拉动手势 */
 	bool CheckPullBackGesture() const;
-
-	/** 球形检测（使用 Overlap，用于非 HumanBody 类型） */
-	AActor* PerformSphereOverlap() const;
 
 	/** 球形追踪（使用 Trace，用于 HumanBody 类型获取骨骼名）
 	 * @param OutBoneName 输出参数：命中的骨骼名

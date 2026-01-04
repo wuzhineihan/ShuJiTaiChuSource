@@ -78,12 +78,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	virtual void SetBowArmed(bool bArmed);
 
-	/**
-	 * 切换弓箭模式（Toggle）
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void ToggleBowArmed();
-
 protected:
 	/** 生成弓 Actor */
 	virtual ABow* SpawnBow();

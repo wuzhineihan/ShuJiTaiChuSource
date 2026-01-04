@@ -21,6 +21,10 @@ UPlayerGrabHand::UPlayerGrabHand()
 	HandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 	HandCollision->ComponentTags.Add(FName("player_hand"));
+
+	// 默认检测对象类型
+	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
 }
 
 void UPlayerGrabHand::BeginPlay()
@@ -28,8 +32,11 @@ void UPlayerGrabHand::BeginPlay()
 	Super::BeginPlay();
 
 	// 缓存组件引用以优化性能
-	CachedPhysicsControl = GetPhysicsControlComponent();
-	CachedInventory = GetInventoryComponent();
+	if (AActor* Owner = GetOwner())
+	{
+		CachedPhysicsControl = Owner->FindComponentByClass<UPhysicsControlComponent>();
+		CachedInventory = Owner->FindComponentByClass<UInventoryComponent>();
+	}
 }
 
 void UPlayerGrabHand::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -112,24 +119,14 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 		return;
 	}
 
-	// Step 3: 获取接口并验证
-	IGrabbable* Grabbable = Cast<IGrabbable>(TargetActor);
-	if (!Grabbable)
-	{
-		return;
-	}
-
-	// Step 4: 验证是否可抓取（通过接口 CanBeGrabbedBy）
-	if (IGrabbable::Execute_CanBeGrabbedBy(TargetActor, this))
-	{
-		GrabObject(TargetActor, BoneName);
-	}
+	// Step 4: 抓取，统一在GrabObject里进行验证
+	GrabObject(TargetActor, BoneName);
 }
 
 void UPlayerGrabHand::TryRelease(bool bToBackpack)
 {
 	// ValidateRelease 内部处理所有有效性检查
-	if (!ValidateRelease())
+	if (!(bIsHolding && HeldActor != nullptr))
 	{
 		return;
 	}
@@ -141,28 +138,17 @@ void UPlayerGrabHand::TryRelease(bool bToBackpack)
 		{
 			if (Weapon->WeaponType == EWeaponType::Arrow)
 			{
-				if (CachedInventory)
+				if (CachedInventory && CachedInventory->TryStoreArrow())
 				{
-					if (CachedInventory->TryStoreArrow())
-					{
-						// 先释放物理控制
-						ReleasePhysicsControl();
-						
-						// 通知物体被释放（通过接口）
-						if (IGrabbable* Grabbable = Cast<IGrabbable>(HeldActor))
-						{
-							IGrabbable::Execute_OnReleased(HeldActor, this);
-						}
-						OnObjectReleased.Broadcast(HeldActor);
-						
-						// 销毁物体
-						HeldActor->Destroy();
-						HeldActor = nullptr;
-						HeldGrabType = EGrabType::None;
-						bIsHolding = false;
-						CurrentControlName = NAME_None;
-						return;
-					}
+					// 保存指针用于销毁
+					AActor* ArrowToDestroy = HeldActor;
+					
+					// 统一通过 ReleaseObject 释放（处理物理控制、状态清理、回调）
+					ReleaseObject();
+					
+					// 销毁箭 Actor
+					ArrowToDestroy->Destroy();
+					return;
 				}
 			}
 		}
@@ -236,21 +222,13 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 	switch (GrabType)
 	{
 	case EGrabType::Free:
-		GrabFree(Grabbable, TargetActor);
+		GrabFree(TargetActor);
 		break;
 	case EGrabType::WeaponSnap:
-		if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(TargetActor))
-		{
-			GrabWeaponSnap(Weapon);
-		}
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Attempted to grab a WeaponSnap object that is not a weapon."));
-            return;
-        }
+		GrabWeaponSnap(TargetActor);
 		break;
 	case EGrabType::HumanBody:
-		GrabHumanBody(Grabbable, TargetActor, BoneName);
+		GrabHumanBody(TargetActor, BoneName);
 		break;
 	case EGrabType::Custom:
 		// 啥都不做，自定义逻辑放在OnGrabbed里面实现
@@ -314,9 +292,9 @@ void UPlayerGrabHand::ReleaseObject()
 
 // ==================== 内部实现 ====================
 
-void UPlayerGrabHand::GrabFree(IGrabbable* Grabbable, AActor* TargetActor)
+void UPlayerGrabHand::GrabFree(AActor* TargetActor)
 {
-	if (!CachedPhysicsControl || !Grabbable || !TargetActor)
+	if (!CachedPhysicsControl || !TargetActor)
 	{
 		return;
 	}
@@ -360,10 +338,17 @@ void UPlayerGrabHand::GrabFree(IGrabbable* Grabbable, AActor* TargetActor)
 	}
 }
 
-void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
+void UPlayerGrabHand::GrabWeaponSnap(AActor* TargetActor)
 {
-	if (!CachedPhysicsControl || !Weapon)
+	if (!CachedPhysicsControl || !TargetActor)
 	{
+		return;
+	}
+
+	AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(TargetActor);
+	if (!Weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GrabWeaponSnap: Target is not a weapon"));
 		return;
 	}
 
@@ -379,13 +364,13 @@ void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
 		return;
 	}
 
-	// 禁用物理模拟（PhysicsControl 会控制位置）
+	// 暂时禁用物理，以便直接设置位置
 	Primitive->SetSimulatePhysics(false);
 
 	// 计算目标变换
 	FTransform TargetTransform = GetComponentTransform() * FinalOffset;
 
-	// 设置物体初始位置
+	// 瞬移武器到手部位置
 	Weapon->SetActorTransform(TargetTransform);
 
 	// 准备控制数据 - 使用高强度使武器紧跟手部
@@ -403,7 +388,7 @@ void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
 	UMeshComponent* MeshComp = Cast<UMeshComponent>(Primitive);
 	if (MeshComp)
 	{
-		// 先启用物理模拟（PhysicsControl 需要）
+		// 重新启用物理（PhysicsControl 需要物理模拟）
 		Primitive->SetSimulatePhysics(true);
 		
 		CurrentControlName = CachedPhysicsControl->CreateControl(
@@ -418,9 +403,9 @@ void UPlayerGrabHand::GrabWeaponSnap(AGrabbeeWeapon* Weapon)
 	}
 }
 
-void UPlayerGrabHand::GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, FName BoneName)
+void UPlayerGrabHand::GrabHumanBody(AActor* TargetActor, FName BoneName)
 {
-	if (!CachedPhysicsControl || !Grabbable || !TargetActor)
+	if (!CachedPhysicsControl || !TargetActor)
 	{
 		return;
 	}
@@ -446,12 +431,6 @@ void UPlayerGrabHand::GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, 
 	ControlTarget.TargetPosition = GetComponentLocation();
 	ControlTarget.TargetOrientation = GetComponentRotation();
 
-	// 生成独立的控制名
-	FString ControlNameStr = FString::Printf(TEXT("DragBody_%s_%s"), 
-		bIsRightHand ? TEXT("Right") : TEXT("Left"),
-		*TargetActor->GetName());
-	FName GeneratedControlName = FName(*ControlNameStr);
-
 	// 如果目标是骨骼网格体且有有效的骨骼名
 	if (SkelMesh && !BoneName.IsNone())
 	{
@@ -465,7 +444,7 @@ void UPlayerGrabHand::GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, 
 				BoneName,
 				ControlData,
 				ControlTarget,
-				GeneratedControlName
+				NAME_None
 			);
 			
 			UE_LOG(LogTemp, Log, TEXT("GrabHumanBody: Created control '%s' for bone '%s'"), 
@@ -477,24 +456,6 @@ void UPlayerGrabHand::GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, 
 			UE_LOG(LogTemp, Warning, TEXT("GrabHumanBody: Bone '%s' not found in mesh, using root"), 
 				*BoneName.ToString());
 		}
-	}
-
-	// 回退：使用普通网格体控制
-	UMeshComponent* MeshComp = Cast<UMeshComponent>(Primitive);
-	if (MeshComp)
-	{
-		CurrentControlName = CachedPhysicsControl->CreateControl(
-			nullptr,
-			NAME_None,
-			MeshComp,
-			NAME_None,
-			ControlData,
-			ControlTarget,
-			GeneratedControlName
-		);
-		
-		UE_LOG(LogTemp, Log, TEXT("GrabHumanBody: Created control '%s' without bone"), 
-			*CurrentControlName.ToString());
 	}
 }
 
@@ -514,29 +475,6 @@ void UPlayerGrabHand::ReleasePhysicsControl()
 }
 
 // ==================== 辅助函数 ====================
-
-UInventoryComponent* UPlayerGrabHand::GetInventoryComponent() const
-{
-	if (AActor* Owner = GetOwner())
-	{
-		return Owner->FindComponentByClass<UInventoryComponent>();
-	}
-	return nullptr;
-}
-
-UPhysicsControlComponent* UPlayerGrabHand::GetPhysicsControlComponent() const
-{
-	if (AActor* Owner = GetOwner())
-	{
-		return Owner->FindComponentByClass<UPhysicsControlComponent>();
-	}
-	return nullptr;
-}
-
-bool UPlayerGrabHand::ValidateRelease() const
-{
-	return bIsHolding && HeldActor != nullptr;
-}
 
 void UPlayerGrabHand::HandleOtherHandHolding(AActor* TargetActor, IGrabbable* Grabbable)
 {

@@ -51,11 +51,6 @@ void ABasePlayer::SetBowArmed(bool bArmed)
 	OnBowArmedChanged.Broadcast(bIsBowArmed);
 }
 
-void ABasePlayer::ToggleBowArmed()
-{
-	SetBowArmed(!bIsBowArmed);
-}
-
 ABow* ABasePlayer::SpawnBow()
 {
 	if (!BowClass)

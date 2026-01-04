@@ -53,6 +53,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Weapon")
 	TMap<EWeaponType, FTransform> WeaponGrabOffsets;
 
+	/** 抓取检测对象类型 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	TArray<TEnumAsByte<EObjectTypeQuery>> GrabObjectTypes;
+
 	// ==================== 组件 ====================
 	
 	/** 手部碰撞体 - 用于检测与弓弦的 overlap */
@@ -137,15 +141,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	virtual void TryRelease(bool bToBackpack = false);
 
-	/**
-	 * 查找抓取目标（子类实现）
-	 * @param bFromBackpack 是否从背包取物
-	 * @param OutBoneName 输出参数：命中的骨骼名（如果目标是骨骼网格体）
-	 * @return 找到的实现 IGrabbable 的 Actor，或 nullptr
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
-	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName);
-
 	// ==================== 抓取实现 ====================
 	
 	/**
@@ -163,37 +158,35 @@ public:
 	virtual void ReleaseObject();
 
 protected:
+	// ==================== 目标查找 ====================
+	
+	/**
+	 * 查找抓取目标（子类实现）
+	 * @param bFromBackpack 是否从背包取物
+	 * @param OutBoneName 输出参数：命中的骨骼名（如果目标是骨骼网格体）
+	 * @return 找到的实现 IGrabbable 的 Actor，或 nullptr
+	 */
+	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName);
+
 	// ==================== 内部实现 ====================
 	
 	/** Free 类型抓取 - 使用 PhysicsControl */
-	virtual void GrabFree(IGrabbable* Grabbable, AActor* TargetActor);
+	virtual void GrabFree(AActor* TargetActor);
 
 	/** WeaponSnap 类型抓取 - 使用 PhysicsControl */
-	virtual void GrabWeaponSnap(AGrabbeeWeapon* Weapon);
+	virtual void GrabWeaponSnap(AActor* TargetActor);
 
 	/** HumanBody 类型抓取 - 使用 PhysicsControl 控制骨骼 
-	 * @param Grabbable 接口指针
 	 * @param TargetActor 目标 Actor
 	 * @param BoneName 要控制的骨骼名（如果目标不是骨骼网格体则忽略）
 	 */
-	virtual void GrabHumanBody(IGrabbable* Grabbable, AActor* TargetActor, FName BoneName = NAME_None);
+	virtual void GrabHumanBody(AActor* TargetActor, FName BoneName = NAME_None);
 	
 	/** 释放 PhysicsControl */
 	virtual void ReleasePhysicsControl();
 
 	// ==================== 辅助函数 ====================
-	
-	/** 获取 InventoryComponent */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
-	UInventoryComponent* GetInventoryComponent() const;
 
-	/** 获取 PhysicsControlComponent */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
-	UPhysicsControlComponent* GetPhysicsControlComponent() const;
-
-	/** 释放前的验证 */
-	virtual bool ValidateRelease() const;
-
-	/** 处理另一只手持有同一物体的情况 */
+	/** 处理另一只手持有同一物体的情况 仅在处理非双手抓取的物体时调用 支持双手抓取的物体不调用*/
 	virtual void HandleOtherHandHolding(AActor* TargetActor, IGrabbable* Grabbable);
 };
