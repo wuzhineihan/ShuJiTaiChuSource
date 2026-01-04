@@ -104,6 +104,9 @@ public:
 	/** 重写：进入/退出弓箭模式 */
 	virtual void SetBowArmed(bool bArmed) override;
 
+	/** 重写：返回摄像机作为追踪原点 */
+	virtual USceneComponent* GetTrackOrigin() const override;
+
 	// ==================== 输入处理 ======================================
 	
 	/**

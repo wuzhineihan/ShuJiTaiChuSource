@@ -109,6 +109,11 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	}
 }
 
+USceneComponent* ABasePCPlayer::GetTrackOrigin() const
+{
+	return FirstPersonCamera;
+}
+
 // ==================== 输入处理 ====================
 
 void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
