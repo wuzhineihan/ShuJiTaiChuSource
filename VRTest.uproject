@@ -79,6 +79,11 @@
 		{
 			"Name": "GPULightmass",
 			"Enabled": true
+		},
+		{
+			"Name": "BP2AI",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/Fab/product/6ccff7cf-f752-4b98-85d02c9d8a071792"
 		}
 	],
 	"TargetPlatforms": [
