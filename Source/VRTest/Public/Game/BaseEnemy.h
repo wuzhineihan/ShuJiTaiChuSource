@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Game/BaseCharacter.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "BaseEnemy.generated.h"
 
 /**

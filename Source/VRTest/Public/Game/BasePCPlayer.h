@@ -39,13 +39,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* FirstPersonCamera;
 
-	/** 左手 */
+	/** 左手抓取组件（PC 具体类型，与 BasePlayer::LeftHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UPCGrabHand* LeftHand;
+	UPCGrabHand* PCLeftHand;
 
-	/** 右手 */
+	/** 右手抓取组件（PC 具体类型，与 BasePlayer::RightHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UPCGrabHand* RightHand;
+	UPCGrabHand* PCRightHand;
 
 	// ==================== 目标检测配置 ====================
 

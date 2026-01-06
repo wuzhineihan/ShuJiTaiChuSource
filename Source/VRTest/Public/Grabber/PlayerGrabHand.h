@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "Components/SphereComponent.h"
-#include "Game/GrabTypes.h"
+#include "Grabber/GrabTypes.h"
 #include "PlayerGrabHand.generated.h"
 
 class IGrabbable;
 class AGrabbeeWeapon;
 class UInventoryComponent;
-class UPhysicsControlComponent;
+class UPhysicsHandleComponent;
 class USphereComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectGrabbed, AActor*, GrabbedActor);
@@ -63,23 +63,39 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* HandCollision;
 
-	// ==================== PhysicsControl 配置 ====================
+	// ==================== PhysicsHandle 配置 ====================
 	
-	/** Free 类型的物理控制强度 */
+	/** Free 类型的物理控制强度（线性刚度） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float FreeGrabStrength = 1.0f;
+	float FreeGrabLinearStiffness = 1500.0f;
 
-	/** Free 类型的物理控制阻尼 */
+	/** Free 类型的物理控制阻尼（线性阻尼） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float FreeGrabDamping = 1.0f;
+	float FreeGrabLinearDamping = 200.0f;
 
-	/** WeaponSnap 类型的物理控制强度 */
+	/** Free 类型的角度刚度 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float WeaponSnapStrength = 50.0f;
+	float FreeGrabAngularStiffness = 1500.0f;
 
-	/** WeaponSnap 类型的物理控制阻尼 */
+	/** Free 类型的角度阻尼 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
-	float WeaponSnapDamping = 5.0f;
+	float FreeGrabAngularDamping = 500.0f;
+
+	/** WeaponSnap 类型的线性刚度（更高以保持武器紧跟手部） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
+	float WeaponSnapLinearStiffness = 5000.0f;
+
+	/** WeaponSnap 类型的线性阻尼 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
+	float WeaponSnapLinearDamping = 500.0f;
+
+	/** WeaponSnap 类型的角度刚度 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
+	float WeaponSnapAngularStiffness = 10000.0f;
+
+	/** WeaponSnap 类型的角度阻尼 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Physics")
+	float WeaponSnapAngularDamping = 1000.0f;
 
 	// ==================== 状态 ====================
 	
@@ -95,9 +111,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bIsHolding = false;
 
-	/** 当前 PhysicsControl 句柄名称 */
-	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
-	FName CurrentControlName;
 
 	/** 当前抓取的骨骼名（HumanBody 类型用） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
@@ -109,9 +122,9 @@ public:
 
 	// ==================== 缓存组件 ====================
 
-	/** 缓存的 PhysicsControlComponent（优化性能，避免重复查找） */
+	/** 缓存的 PhysicsHandleComponent（从 BasePlayer 获取，根据 bIsRightHand 选择） */
 	UPROPERTY()
-	UPhysicsControlComponent* CachedPhysicsControl = nullptr;
+	UPhysicsHandleComponent* CachedPhysicsHandle = nullptr;
 
 	/** 缓存的 InventoryComponent（优化性能，避免重复查找） */
 	UPROPERTY()
@@ -157,6 +170,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	virtual void ReleaseObject();
 
+	/**
+	 * 设置此手部使用的 PhysicsHandle（由 BasePlayer 在 BeginPlay 中调用）
+	 */
+	void SetPhysicsHandle(UPhysicsHandleComponent* InPhysicsHandle);
+
+	/**
+	 * 设置此手部使用的 Inventory（由 BasePlayer 在 BeginPlay 中调用）
+	 */
+	void SetInventory(UInventoryComponent* InInventory);
+
 protected:
 	// ==================== 目标查找 ====================
 	
@@ -170,20 +193,8 @@ protected:
 
 	// ==================== 内部实现 ====================
 	
-	/** Free 类型抓取 - 使用 PhysicsControl */
-	virtual void GrabFree(AActor* TargetActor);
-
-	/** WeaponSnap 类型抓取 - 使用 PhysicsControl */
-	virtual void GrabWeaponSnap(AActor* TargetActor);
-
-	/** HumanBody 类型抓取 - 使用 PhysicsControl 控制骨骼 
-	 * @param TargetActor 目标 Actor
-	 * @param BoneName 要控制的骨骼名（如果目标不是骨骼网格体则忽略）
-	 */
-	virtual void GrabHumanBody(AActor* TargetActor, FName BoneName = NAME_None);
-	
-	/** 释放 PhysicsControl */
-	virtual void ReleasePhysicsControl();
+	/** 释放 PhysicsHandle */
+	virtual void ReleasePhysicsHandle();
 
 	// ==================== 辅助函数 ====================
 

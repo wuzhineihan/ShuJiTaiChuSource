@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Game/GrabTypes.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/GrabTypes.h"
+#include "Grabber/IGrabbable.h"
 #include "GrabbeeObject.generated.h"
 
 class UPlayerGrabHand;

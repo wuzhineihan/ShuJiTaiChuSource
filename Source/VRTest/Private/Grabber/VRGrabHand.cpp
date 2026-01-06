@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/VRGrabHand.h"
+#include "Grabber/VRGrabHand.h"
 #include "Game/InventoryComponent.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/BoxComponent.h"
@@ -47,6 +47,7 @@ void UVRGrabHand::TryGrab(bool bFromBackpack)
 	// 查找目标
 	FName BoneName;
 	AActor* Target = FindTarget(bFromBackpack, BoneName);
+	
 	if (!Target)
 	{
 		return;
@@ -217,6 +218,10 @@ void UVRGrabHand::VirtualGrab(AActor* Target)
 	bIsHolding = true;
 	bIsVirtualGrabbing = true;
 
+	// 重置手部速度追踪，避免残留数据触发误判
+	LastHandLocation = GetComponentLocation();
+	HandVelocity = FVector::ZeroVector;
+
 	// 清除选中状态（物体从"选中"变为"虚拟抓取"）
 	if (GravityGlovesTarget == Target)
 	{
@@ -244,6 +249,12 @@ void UVRGrabHand::VirtualRelease(bool bLaunch)
 		{
 			GrabbeeObj->LaunchTowards(GetComponentLocation(), LaunchArcParam);
 		}
+	}
+
+	// 通知物体取消选中（虚拟抓取结束）
+	if (IGrabbable* Grabbable = Cast<IGrabbable>(ReleasedTarget))
+	{
+		IGrabbable::Execute_OnGrabDeselected(ReleasedTarget);
 	}
 
 	// 清除状态
@@ -372,7 +383,7 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 		GrabObjectTypes,
 		false,  // bTraceComplex
 		IgnoreActors,
-		EDrawDebugTrace::None,
+		EDrawDebugTrace::ForDuration,
 		HitResult,
 		true    // bIgnoreSelf
 	);
@@ -392,3 +403,4 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 	// 回退到 Overlap 检测（不返回骨骼名，用于非骨骼网格体）
 	return nullptr;
 }
+

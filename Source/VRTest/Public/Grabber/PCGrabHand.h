@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/PlayerGrabHand.h"
+#include "Grabber/PlayerGrabHand.h"
 #include "PCGrabHand.generated.h"
 
 class UCameraComponent;

@@ -2,7 +2,8 @@
 
 
 #include "Game/BasePlayer.h"
-#include "PhysicsControlComponent.h"
+#include "Grabber/PlayerGrabHand.h"
+#include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Grabbee/Bow.h"
 
@@ -10,7 +11,27 @@ ABasePlayer::ABasePlayer()
 {
 	FallDamageComponent = CreateDefaultSubobject<UFallDamageComponent>(TEXT("FallDamageComponent"));
 	AutoRecoverComponent = CreateDefaultSubobject<UAutoRecoverComponent>(TEXT("AutoRecoverComponent"));
-	PhysicsControlComponent = CreateDefaultSubobject<UPhysicsControlComponent>(TEXT("PhysicsControlComponent"));
+	
+	// 为左右手分别创建 PhysicsHandleComponent
+	LeftPhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(TEXT("LeftPhysicsHandle"));
+	RightPhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(TEXT("RightPhysicsHandle"));
+}
+
+void ABasePlayer::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// 统一设置手部的 PhysicsHandle 和 Inventory
+	if (LeftHand)
+	{
+		LeftHand->SetPhysicsHandle(LeftPhysicsHandle);
+		LeftHand->SetInventory(InventoryComponent);
+	}
+	if (RightHand)
+	{
+		RightHand->SetPhysicsHandle(RightPhysicsHandle);
+		RightHand->SetInventory(InventoryComponent);
+	}
 }
 
 // ==================== 弓接口 ====================

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/PlayerGrabHand.h"
+#include "Grabber/PlayerGrabHand.h"
 #include "VRGrabHand.generated.h"
 
 class UBoxComponent;

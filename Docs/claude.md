@@ -1,5 +1,7 @@
 # Claude Code 项目记忆
 
+请AI大模型在维护这个记忆文件的时候保持精简，抓住要点而不是冗长描述。
+
 ## 项目基本信息
 
 **项目类型**：VR潜行战斗游戏（支持PC和VR双平台）
@@ -14,14 +16,31 @@
 Source/VRTest/
 ├── Public/
 │   ├── Effect/          # 效果/伤害系统
-│   ├── Game/            # 游戏核心逻辑（玩家、抓取）
-│   ├── Grab/            # 抓取接口
+│   ├── Game/            # 游戏核心逻辑（玩家、角色、库存）
+│   ├── Grabber/         # 抓取系统（GrabHand、接口、类型）
 │   └── Grabbee/         # 可抓取物体
 ├── Private/
-│   └── ...              # 对应实现
+│   ├── Game/            # 玩家、角色实现
+│   ├── Grabber/         # GrabHand实现
+│   └── Grabbee/         # 可抓取物体实现
 
 Docs/Refactor/           # 重构设计文档
 BP2AIExport/Program/     # 蓝图导出文档
+```
+
+### Grabber 文件夹内容（2026-01-06重构）
+```
+Public/Grabber/
+├── GrabTypes.h          # EGrabType、EWeaponType 枚举
+├── IGrabbable.h         # 可抓取接口
+├── PlayerGrabHand.h     # 抓取手基类
+├── PCGrabHand.h         # PC模式抓取手
+└── VRGrabHand.h         # VR模式抓取手
+
+Private/Grabber/
+├── PlayerGrabHand.cpp
+├── PCGrabHand.cpp
+└── VRGrabHand.cpp
 ```
 
 ## 已完成的重构模块
@@ -58,25 +77,26 @@ ACharacter
 - 弓相关：`bHasBow`（永久）、`bIsBowArmed`（模式）、`ABow* CurrentBow`
 - `SetBowArmed(bool)` / `ToggleBowArmed()` - 切换弓箭模式
 
-### 3. 抓取系统（Grab System）- 已完成Phase 2重构
+### 3. 抓取系统（Grab System）- Phase 3重构完成
 
 #### 设计原则
 - **职责分离**：Grabber 和 Grabbee 完全分离
 - **接口驱动**：完全面向 IGrabbable 接口编程
-- **统一物理控制**：所有抓取类型（Free、WeaponSnap、HumanBody）都使用 PhysicsControl
+- **PhysicsHandle 统一**：所有抓取类型都使用 UPhysicsHandleComponent（替代 PhysicsControl）
+- **依赖注入**：PhysicsHandle 和 Inventory 由 BasePlayer 注入到 GrabHand
 - **自动弓弦交互**：通过碰撞检测自动触发搭箭和抓弓弦
 
-#### 抓取类型（EGrabType）- Phase 2后
+#### 抓取类型（EGrabType）
 
 | GrabType | 实现方式 | 说明 |
 |----------|---------|------|
 | **None** | - | 不可抓取 |
-| **Free** | PhysicsControl | 物体保持抓取时的相对位置 |
-| **WeaponSnap** | PhysicsControl | 武器对齐到偏移位置（高强度跟随） |
-| **HumanBody** | PhysicsControl | 拖拽尸体，控制指定骨骼 |
+| **Free** | PhysicsHandle | 物体保持抓取时的相对位置 |
+| **WeaponSnap** | PhysicsHandle | 武器对齐到偏移位置（高强度跟随） |
+| **HumanBody** | PhysicsHandle | 拖拽尸体，控制指定骨骼 |
 | **Custom** | 自定义 | 通过 OnGrabbed/OnReleased 实现 |
 
-**已移除**：`Snap` 类型（与 Free 合并）、`ReleaseAttachOnly()`、`ValidateGrab()`
+**Phase 3 变更**：PhysicsControl → PhysicsHandle（更简单可靠）
 
 #### Grabber 侧（UPlayerGrabHand）
 
@@ -88,24 +108,31 @@ USceneComponent
 ```
 
 **关键属性**：
-- `USphereComponent* HandCollision` - 手部碰撞体（tag: "player_hand"），用于检测弓弦overlap
+- `USphereComponent* HandCollision` - 手部碰撞体（tag: "player_hand"）
 - `bool bIsRightHand` / `UPlayerGrabHand* OtherHand`
 - `TMap<EWeaponType, FTransform> WeaponGrabOffsets`
-- `AActor* HeldActor` / `EGrabType HeldGrabType` / `FName CurrentControlName`
-- PhysicsControl参数：`FreeGrabStrength/Damping`、`WeaponSnapStrength/Damping`
+- `AActor* HeldActor` / `EGrabType HeldGrabType`
+- **依赖注入**：
+  - `UPhysicsHandleComponent* CachedPhysicsHandle` - 由 BasePlayer 注入
+  - `UInventoryComponent* CachedInventory` - 由 BasePlayer 注入
+- PhysicsHandle参数：`FreeGrabStrength/Damping`、`WeaponSnapStrength/Damping`
+
+**依赖注入方法**：
+- `SetPhysicsHandle(UPhysicsHandleComponent*)` - 设置物理句柄
+- `SetInventory(UInventoryComponent*)` - 设置库存组件
 
 **核心接口（职责分离）**：
 - `TryGrab(bool bFromBackpack)` - 决策层：找目标，决定用什么方式抓
 - `TryRelease(bool bToBackpack)` - 决策层：决定如何释放
 - `FindTarget(bool, FName&)` - 查找目标（子类实现）
-- `GrabObject(AActor*, FName)` - 执行层：真正的抓取（内部调用 GrabFree/GrabWeaponSnap/GrabHumanBody）
-- `ReleaseObject()` - 执行层：真正的释放（内部调用 ReleasePhysicsControl）
+- `GrabObject(AActor*, FName)` - 执行层：真正的抓取
+- `ReleaseObject()` - 执行层：真正的释放
 
 **内部实现（protected）**：
-- `GrabFree()` - PhysicsControl，保持相对变换
-- `GrabWeaponSnap()` - PhysicsControl（高强度），对齐到武器偏移
-- `GrabHumanBody()` - PhysicsControl，控制骨骼
-- `ReleasePhysicsControl()` - 销毁 Control
+- `GrabFree()` - PhysicsHandle，保持相对变换
+- `GrabWeaponSnap()` - PhysicsHandle（高强度），对齐到武器偏移
+- `GrabHumanBody()` - PhysicsHandle，控制骨骼
+- `ReleasePhysicsHandle()` - 释放 PhysicsHandle
 
 #### UVRGrabHand（VR专用）
 
@@ -117,17 +144,28 @@ USceneComponent
 **不重写**：`GrabObject()` - 执行层逻辑统一使用父类
 
 **Gravity Gloves 功能**：
-- 手里没东西时自动启用检测，不需要手动开关
-- `GravityGlovesTarget` - 当前瞄准的远程目标（高亮显示）
+- 手里没东西时自动启用检测
+- `GravityGlovesTarget` - 当前瞄准的远程目标（通过 Custom Stencil 高亮）
 - `bIsVirtualGrabbing` - 虚拟抓取状态（Grip按下但物体未到手）
-- `VirtualGrab(Target)` - 开始虚拟抓取
+- `VirtualGrab(Target)` - 开始虚拟抓取，调用 OnGrabSelected
 - `VirtualRelease(bLaunch)` - 结束虚拟抓取，bLaunch决定是否发射
-- `CheckPullBackGesture()` - 检测后拉手势（只在虚拟抓取时计算手部速度）
+- `CheckPullBackGesture()` - 检测后拉手势触发Launch
+- **Launch机制**：向后拉动触发，调用 `AGrabbeeObject::LaunchTowards()`
 - 参数：`GravityGlovesDistance`、`GravityGlovesAngle`、`PullBackThreshold`、`MinPullVelocity`、`LaunchArcParam`
+
+**高亮实现**：
+- `OnGrabSelected` / `OnGrabDeselected` - 设置 CustomDepthStencilValue (4/0)
+- 后处理材质检测 Stencil Value 显示高亮效果
 
 **背包检测**：
 - `bIsInBackpackArea` - 通过 HandCollision overlap 检测（tag: "player_backpack"）
-- `IsInBackpackArea()` - 返回 bIsInBackpackArea
+
+#### ABaseVRPlayer（VR玩家）
+
+**手部旋转偏移**：
+- `FRotator HandRotationOffset` - 蓝图可编辑的手部旋转偏移量
+- `ApplyHandRotationOffset(bool bIsRight)` - 应用偏移（左右手镜像处理）
+- 在 BeginPlay 中为两只手应用偏移
 
 #### Grabbee 侧（IGrabbable 接口）
 
@@ -151,6 +189,9 @@ IGrabbable (接口)
 - `EGrabType GrabType`、`bool bCanGrab`、`bool bSupportsDualHandGrab`
 - `bool bIsHeld`、`UPlayerGrabHand* HoldingHand`
 - `TSet<UPlayerGrabHand*> ControllingHands` - 双手抓取追踪
+
+**AGrabbeeObject 方法**：
+- `LaunchTowards(FVector Target, float ArcParam)` - 被重力手套发射，内部先清零速度再调用 OnGrabDeselected
 
 **ABaseEnemy 实现**：
 - `GetGrabType()` → HumanBody
@@ -197,6 +238,7 @@ IGrabbable (接口)
 #### AArrow（箭）
 
 **状态（EArrowState）**：Idle、Nocked、Flying、Stuck
+
 
 **核心函数**：
 - `EnterIdleState/NockedState/FlyingState/StuckState`
@@ -257,6 +299,18 @@ IGrabbable (接口)
    - VRGrabHand 移除 GrabObject 重写，VirtualGrab 决策移至 TryGrab
    - Gravity Gloves 简化：移除 bEnableGravityGloves（手空时自动启用）
    - 手部速度追踪优化：只在虚拟抓取状态才计算（非每帧）
+6. **Phase 3 抓取系统重构**（2026-01-06完成）：
+   - PhysicsControl → PhysicsHandle（更简单可靠）
+   - 依赖注入模式：PhysicsHandle 和 Inventory 由 BasePlayer 注入到 GrabHand
+   - 每只手预创建 PhysicsHandle（在 BasePlayer 中）
+   - Gravity Gloves Launch 功能完善
+   - 高亮实现：Custom Stencil + 后处理材质
+   - 手部旋转偏移：`HandRotationOffset` 支持蓝图调参
+7. **文件夹重构**（2026-01-06完成）：
+   - `Grab/` → `Grabber/`（包含 IGrabbable.h）
+   - GrabHand 相关文件从 `Game/` 移至 `Grabber/`
+   - GrabTypes.h 移至 `Grabber/`
+   - 所有 include 路径已更新
 
 ### 待实现
 1. VR 弓弦交互测试验证
@@ -267,10 +321,11 @@ IGrabbable (接口)
 ## 重要设计决策
 
 1. **职责分离**：Grabber 和 Grabbee 彻底分离
-2. **PhysicsControl 统一**：所有抓取类型都用 PhysicsControl，投掷手感自然
-3. **接口驱动**：Grabber 侧完全面向 IGrabbable 接口
-4. **自动弓弦交互**：通过 HandCollision overlap 自动触发，PC/VR 统一
-5. **弓的双手抓取**：动态返回 GrabType（WeaponSnap/Custom），支持弓身+弓弦分开抓取
+2. **PhysicsHandle 统一**：所有抓取类型都用 PhysicsHandle，投掷手感自然
+3. **依赖注入**：PhysicsHandle/Inventory 在 BasePlayer 创建，注入到 GrabHand
+4. **接口驱动**：Grabber 侧完全面向 IGrabbable 接口
+5. **自动弓弦交互**：通过 HandCollision overlap 自动触发，PC/VR 统一
+6. **弓的双手抓取**：动态返回 GrabType（WeaponSnap/Custom），支持弓身+弓弦分开抓取
 
 ## 代码风格
 
@@ -283,8 +338,9 @@ IGrabbable (接口)
 
 1. **蓝图导出文档可能不完全准确**：需要参考实际蓝图
 2. **弓的特殊处理**：弓一旦获得就永久持有，不能真正丢弃
-3. **PhysicsControl 在 Player 级别共享**：所有抓取使用同一个 PhysicsControlComponent
+3. **PhysicsHandle 预创建**：每只手一个 PhysicsHandle，在 BasePlayer 的 BeginPlay 中创建并注入
 4. **HandCollision 配置**：SphereRadius=5.0f，QueryOnly，tag="player_hand"
+5. **蓝图参数生效时机**：手部旋转偏移等参数需在 BeginPlay 中应用，构造函数设置无效
 
 ## 协作模式
 
@@ -294,5 +350,5 @@ IGrabbable (接口)
 
 ---
 
-**最后更新**：2026-01-01
-**最近完成**：抓取系统代码清理（职责分离、VRGrabHand简化、Gravity Gloves优化）
+**最后更新**：2026-01-06
+**最近完成**：Phase 3 抓取系统重构（PhysicsHandle替代PhysicsControl、依赖注入、文件夹重构）

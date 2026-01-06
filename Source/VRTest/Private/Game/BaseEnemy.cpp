@@ -2,8 +2,8 @@
 
 
 #include "Game/BaseEnemy.h"
-#include "Game/GrabTypes.h"
-#include "Game/PlayerGrabHand.h"
+#include "Grabber/GrabTypes.h"
+#include "Grabber/PlayerGrabHand.h"
 #include "Components/SkeletalMeshComponent.h"
 
 // ==================== IGrabbable 接口实现 ====================

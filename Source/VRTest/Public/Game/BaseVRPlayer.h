@@ -63,14 +63,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UMotionControllerComponent* MotionControllerRightAim;
 
-	/** 左手抓取组件 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
-	UVRGrabHand* LeftHand;
-
-	/** 右手抓取组件 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
-	UVRGrabHand* RightHand;
-
 	/** 左手 Widget 交互 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UWidgetInteractionComponent* WidgetInteractionLeft;
@@ -79,6 +71,18 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UWidgetInteractionComponent* WidgetInteractionRight;
 
+	/** 左手抓取组件（VR 具体类型，与 BasePlayer::LeftHand 指向同一对象） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
+	UVRGrabHand* VRLeftHand;
+
+	/** 右手抓取组件（VR 具体类型，与 BasePlayer::RightHand 指向同一对象） */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
+	UVRGrabHand* VRRightHand;
+
+	// ==================== 配置参数 ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Components")
+	FRotator VRHandRotationOffset = FRotator(0.f, 0.f, 0.f);
+	
 	// ==================== 输入处理 ====================
 	
 	/**
@@ -105,5 +109,8 @@ protected:
 	void SetupHandBackpackReferences();
 
 	/** 通用的抓取处理逻辑 */
-	void HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bCheckBowArmed = false);
+	void HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft = false);
+
+	UFUNCTION(BlueprintCallable, Category = "Tools")
+	void SetVRHandRotationOffset(FRotator RotationOffset);
 };

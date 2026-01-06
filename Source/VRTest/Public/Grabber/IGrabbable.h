@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Game/GrabTypes.h"
+#include "Grabber/GrabTypes.h"
 #include "IGrabbable.generated.h"
 
 class UPlayerGrabHand;
