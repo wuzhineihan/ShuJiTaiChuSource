@@ -199,21 +199,26 @@ void ABasePCPlayer::StartAiming()
 	// 将左手平滑过渡到瞄准位置
 	PCLeftHand->InterpToTransform(AimingLeftHandTransform);
 
-	// 在开始瞄准时生成箭并搭在弓弦上
-	if (CurrentBow)
+	// 在开始瞄准时从库存取出箭并让右手抓住
+	if (InventoryComponent && InventoryComponent->HasArrow())
 	{
-		// 检查是否有箭
-		if (InventoryComponent && InventoryComponent->HasArrow())
+		// 计算箭的生成位置（右手位置）
+		FTransform SpawnTransform;
+		SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
+		SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
+		
+		// 从库存取出箭（会消耗计数并生成Actor）
+		AGrabbeeObject* ArrowActor = InventoryComponent->TryRetrieveArrow(SpawnTransform);
+		if (ArrowActor)
 		{
-			// 消耗一支箭并生成
-			InventoryComponent->ConsumeArrow();
-			CurrentBow->SpawnAndNockArrow();
+			// 让右手抓住箭
+			PCRightHand->GrabObject(ArrowActor);
 		}
-		else
-		{
-			// 没有箭，播放音效提示
-			PlayNoArrowSound();
-		}
+	}
+	else
+	{
+		// 没有箭，播放音效提示
+		PlayNoArrowSound();
 	}
 }
 
@@ -230,17 +235,27 @@ void ABasePCPlayer::StopAiming()
 	// 左手回到默认位置
 	PCLeftHand->InterpToDefaultTransform();
 
-	// 清理未发射的箭（只有在没拉弓时才会有未发射的箭）
-	if (CurrentBow && CurrentBow->NockedArrow)
+	// 清理未发射的箭
+	// 情况1：箭还在右手中（未开始拉弓）
+	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
+	if (HeldArrow)
 	{
-		// 退还箭到背包
+		PCRightHand->ReleaseObject();
 		if (InventoryComponent)
 		{
 			InventoryComponent->AddArrow();
 		}
-		// 销毁生成的箭 Actor
+		HeldArrow->Destroy();
+	}
+	// 情况2：箭已搭在弓上（开始拉弓后取消瞄准）
+	else if (CurrentBow && CurrentBow->NockedArrow)
+	{
+		if (InventoryComponent)
+		{
+			InventoryComponent->AddArrow();
+		}
 		CurrentBow->NockedArrow->Destroy();
-		CurrentBow->NockedArrow = nullptr;
+		CurrentBow->UnnockArrow();
 	}
 }
 
@@ -256,8 +271,9 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 检查是否有箭搭在弓上
-	if (!CurrentBow->NockedArrow)
+	// 检查右手是否持有箭
+	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
+	if (!HeldArrow)
 	{
 		PlayNoArrowSound();
 		return;
@@ -265,14 +281,18 @@ void ABasePCPlayer::StartDrawBow()
 
 	bIsDrawingBow = true;
 	
-	// 设置初始偏移：弓弦位置相对于右手的偏移
+	// 计算弓弦位置
 	FVector StringRestPos = CurrentBow->StringRestPosition ? 
 		CurrentBow->StringRestPosition->GetComponentLocation() : 
 		CurrentBow->StringMesh->GetComponentLocation();
-	CurrentBow->InitialStringGrabOffset = StringRestPos - PCRightHand->GetComponentLocation();
 	
-	// 通过抓取系统抓弓弦（触发 OnGrabbed → StartPullingString）
-	PCRightHand->GrabObject(CurrentBow);
+	// 将右手移动到弓弦位置
+	// 这会触发弓弦碰撞检测（OnStringCollisionBeginOverlap）
+	// 弓会检测到手持有箭 → 释放箭 → 搭箭 → 手抓弓弦
+	FTransform StringTransform;
+	StringTransform.SetLocation(StringRestPos);
+	StringTransform.SetRotation(CurrentBow->GetActorRotation().Quaternion());
+	PCRightHand->SetWorldTransform(StringTransform);
 }
 
 void ABasePCPlayer::StopDrawBow()

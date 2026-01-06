@@ -8,28 +8,22 @@
 
 class UBoxComponent;
 class UNiagaraComponent;
-class UAudioComponent;
 class AArrow;
 class UPlayerGrabHand;
 class ABaseCharacter;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArrowFired, AArrow*, FiredArrow);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnArrowNocked, AArrow*, NockedArrow);
 
 /**
  * 弓 - 可抓取武器
  * 
- * 不关心是VR还是PC
- * 对外仅暴露抓取接口
+ * 不关心是VR还是PC，对外仅暴露 IGrabbable 接口
  * 
- * VR模式：
+ * 交互流程（VR/PC 统一）：
  * - 一只手抓弓身（BodyHeld）
- * - 另一只手抓弓弦或拿箭靠近弓弦（StringHeld）
- * - 拉弦释放发射
+ * - 另一只手持箭靠近弓弦 → 自动搭箭并抓弦（StringHeld）
+ * - 拉弦 → 释放发射
  * 
- * PC模式：
- * - 程序化控制弓弦拉伸
- * - 自动管理箭的生成和发射
+ * PC模式下由程序控制手部位置，逻辑与VR相同
  */
 UCLASS()
 class VRTEST_API ABow : public AGrabbeeWeapon
@@ -65,15 +59,7 @@ public:
 
 	/** 轨迹预览 Niagara */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UNiagaraComponent* TrajectoryPreview;
-
-	/** 弓弦音效 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UAudioComponent* StringAudio;
-
-	/** 发射音效 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UAudioComponent* FireAudio;
+	UNiagaraComponent* ArrowTracePreview;
 
 	// ==================== 配置 ====================
 	
@@ -93,10 +79,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
 	float MaxFiringSpeed = 3000.0f;
 
-	/** 播放弓弦音效的拉伸阈值 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
-	float StringSFXThreshold = 10.0f;
-
 	/** 弓弦弹簧强度（回弹） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
 	float StringSpringStrength = 40.0f;
@@ -104,10 +86,6 @@ public:
 	/** 弓弦弹簧阻尼 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
 	float StringSpringDamping = 0.4f;
-
-	/** 箭类（用于生成箭） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
-	TSubclassOf<AArrow> ArrowClass;
 
 	// ==================== 状态 ====================
 	
@@ -143,10 +121,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	FVector InitialStringGrabOffset;
 
-	/** 手是否在弓弦碰撞区域内 */
-	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
-	bool bHandInStringCollision = false;
-
 	/** 弓弦动态材质实例 */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	UMaterialInstanceDynamic* StringMID = nullptr;
@@ -154,17 +128,17 @@ public:
 	/** 弓的持有者（用于伤害归属） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	ABaseCharacter* BowOwner = nullptr;
-
-	// ==================== 委托 ====================
 	
-	/** 箭发射时触发 */
-	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
-	FOnArrowFired OnArrowFired;
+	// ==================== 重写 ====================
+	
+	virtual EGrabType GetGrabType_Implementation() const override;
+	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
+	virtual bool SupportsDualHandGrab_Implementation() const override;
+	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
+	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 
-	/** 箭搭上弓弦时触发 */
-	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
-	FOnArrowNocked OnArrowNocked;
-
+protected:
 	// ==================== 核心接口 ====================
 	
 	/**
@@ -188,23 +162,11 @@ public:
 	void UnnockArrow();
 
 	/**
-	 * 生成并搭载箭（PC模式使用）
-	 * @return 生成的箭
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	AArrow* SpawnAndNockArrow();
-
-	/**
 	 * 发射箭
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void FireArrow();
 
-	/**
-	 * 重置弓弦状态（释放但不发射）
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void ResetStringState();
 
 	/**
 	 * 计算当前发射速度
@@ -216,25 +178,9 @@ public:
 	 * 更新轨迹预览
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
-	void UpdateTrajectoryPreview();
-
-	// ==================== 重写 ====================
+	void UpdateArrowTracePreview();
 	
-	virtual EGrabType GetGrabType_Implementation() const override;
-	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
-	virtual bool SupportsDualHandGrab_Implementation() const override;
-	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
-	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
-	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
-
-protected:
 	// ==================== 内部函数 ====================
-	
-	/**
-	 * 开始拉弦（内部调用，由OnGrabbed触发）
-	 * @param Hand 抓弦的手
-	 */
-	void StartPullingString(UPlayerGrabHand* Hand);
 
 	/**
 	 * 从碰撞组件获取对应的手部组件
@@ -265,6 +211,5 @@ protected:
 	/** 弓弦回弹速度（用于弹簧计算） */
 	FVector StringVelocity = FVector::ZeroVector;
 
-	/** 是否已播放弓弦音效（防止重复播放） */
-	bool bHasPlayedStringSFX = false;
+	UPlayerGrabHand* InStringCollisionHand = nullptr;
 };

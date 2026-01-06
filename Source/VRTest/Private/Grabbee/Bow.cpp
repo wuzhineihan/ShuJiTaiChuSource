@@ -6,7 +6,6 @@
 #include "Game/BaseCharacter.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/AudioComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
@@ -46,19 +45,10 @@ ABow::ABow()
 	StringRestPosition->SetupAttachment(MeshComponent);
 
 	// 创建轨迹预览
-	TrajectoryPreview = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TrajectoryPreview"));
-	TrajectoryPreview->SetupAttachment(StringMesh);
-	TrajectoryPreview->SetAutoActivate(false);
-	TrajectoryPreview->SetVisibility(false);
-
-	// 创建音效组件
-	StringAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("StringAudio"));
-	StringAudio->SetupAttachment(MeshComponent);
-	StringAudio->SetAutoActivate(false);
-
-	FireAudio = CreateDefaultSubobject<UAudioComponent>(TEXT("FireAudio"));
-	FireAudio->SetupAttachment(MeshComponent);
-	FireAudio->SetAutoActivate(false);
+	ArrowTracePreview = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TrajectoryPreview"));
+	ArrowTracePreview->SetupAttachment(StringMesh);
+	ArrowTracePreview->SetAutoActivate(false);
+	ArrowTracePreview->SetVisibility(false);
 
 	// 设置默认标签
 	Tags.Add(FName("Bow"));
@@ -91,43 +81,22 @@ void ABow::Tick(float DeltaTime)
 
 // ==================== 核心接口 ====================
 
-void ABow::StartPullingString(UPlayerGrabHand* Hand)
-{
-	bStringHeld = true;
-	StringHoldingHand = Hand;
-
-	// 记录抓取时的偏移（VR模式）
-	if (Hand)
-	{
-		InitialStringGrabOffset = StringMesh->GetComponentLocation() - Hand->GetComponentLocation();
-	}
-
-	// 显示轨迹预览
-	if (NockedArrow && TrajectoryPreview)
-	{
-		TrajectoryPreview->SetVisibility(true);
-	}
-}
-
 void ABow::ReleaseString()
 {
-	// 如果有箭，发射
-	if (NockedArrow)
-	{
-		FireArrow();
-	}
+    // 如果有箭，发射
+    if (NockedArrow)
+    {
+        FireArrow();
+    }
 
-	bStringHeld = false;
-	StringHoldingHand = nullptr;
+    bStringHeld = false;
+    StringHoldingHand = nullptr;
 
-	// 隐藏轨迹预览
-	if (TrajectoryPreview)
-	{
-		TrajectoryPreview->SetVisibility(false);
-	}
-
-	// 重置音效状态
-	bHasPlayedStringSFX = false;
+    // 隐藏轨迹预览
+    if (ArrowTracePreview)
+    {
+        ArrowTracePreview->SetVisibility(false);
+    }
 }
 
 bool ABow::NockArrow(AArrow* Arrow)
@@ -149,8 +118,6 @@ bool ABow::NockArrow(AArrow* Arrow)
 	// 设置箭的发射者
 	NockedArrow->ArrowInstigator = BowOwner;
 
-	// 广播搭箭事件
-	OnArrowNocked.Broadcast(NockedArrow);
 
 	return true;
 }
@@ -164,73 +131,31 @@ void ABow::UnnockArrow()
 	}
 }
 
-AArrow* ABow::SpawnAndNockArrow()
-{
-	if (!ArrowClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ABow::SpawnAndNockArrow - ArrowClass not set!"));
-		return nullptr;
-	}
-
-	// 在弓弦位置生成箭
-	FTransform SpawnTransform;
-	SpawnTransform.SetLocation(CurrentGrabSpot);
-	
-	// 箭朝向弓前方
-	FVector Direction = BowFrontPosition->GetComponentLocation() - CurrentGrabSpot;
-	SpawnTransform.SetRotation(UKismetMathLibrary::MakeRotFromX(Direction).Quaternion());
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Instigator = Cast<APawn>(BowOwner);
-
-	AArrow* NewArrow = GetWorld()->SpawnActor<AArrow>(ArrowClass, SpawnTransform, SpawnParams);
-	if (NewArrow)
-	{
-		NockArrow(NewArrow);
-	}
-
-	return NewArrow;
-}
 
 void ABow::FireArrow()
 {
-	if (!NockedArrow)
-	{
-		return;
-	}
+    if (!NockedArrow)
+    {
+        return;
+    }
 
-	// 计算发射速度
-	float FiringSpeed = CalculateFiringSpeed();
+    // 计算发射速度
+    float FiringSpeed = CalculateFiringSpeed();
 
-	// 播放发射音效
-	if (FireAudio)
-	{
-		FireAudio->Play();
-	}
+    // 发射箭
+    NockedArrow->EnterFlyingState(FiringSpeed);
 
-	// 发射箭
-	NockedArrow->EnterFlyingState(FiringSpeed);
 
-	// 广播发射事件
-	OnArrowFired.Broadcast(NockedArrow);
+    // 清除引用
+    NockedArrow = nullptr;
 
-	// 清除引用
-	NockedArrow = nullptr;
-
-	// 隐藏轨迹预览
-	if (TrajectoryPreview)
-	{
-		TrajectoryPreview->SetVisibility(false);
-	}
+    // 隐藏轨迹预览
+    if (ArrowTracePreview)
+    {
+        ArrowTracePreview->SetVisibility(false);
+    }
 }
 
-void ABow::ResetStringState()
-{
-	bStringHeld = false;
-	StringHoldingHand = nullptr;
-	bHasPlayedStringSFX = false;
-}
 
 float ABow::CalculateFiringSpeed() const
 {
@@ -238,9 +163,9 @@ float ABow::CalculateFiringSpeed() const
 	return FMath::Clamp(Speed, MinFiringSpeed, MaxFiringSpeed);
 }
 
-void ABow::UpdateTrajectoryPreview()
+void ABow::UpdateArrowTracePreview()
 {
-	if (!NockedArrow || !TrajectoryPreview)
+	if (!NockedArrow || !ArrowTracePreview)
 	{
 		return;
 	}
@@ -279,7 +204,7 @@ void ABow::UpdateTrajectoryPreview()
 		PathPoints.Add(PointData.Location);
 	}
 
-	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(TrajectoryPreview, FName("User.PointArray"), PathPoints);
+	UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(ArrowTracePreview, FName("User.PointArray"), PathPoints);
 }
 
 // ==================== 重写 ====================
@@ -326,8 +251,8 @@ bool ABow::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
 	}
 
 	// 弓身已被抓取，检查是否可以抓弓弦
-	// 弓弦未被抓取 且 不是同一只手
-	if (!bStringHeld && Hand != BodyHoldingHand)
+	// 弓弦未被抓取 且 不是同一只手 且 手在弓弦碰撞区域内
+	if (!bStringHeld && Hand != BodyHoldingHand && InStringCollisionHand)
 	{
 		return true;
 	}
@@ -360,12 +285,18 @@ void ABow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 	}
 	else if (!bStringHeld && Hand != BodyHoldingHand)
 	{
-		// 第二次抓取：抓弓弦（必须是另一只手）
-		StartPullingString(Hand);
-		
+		bStringHeld = true;
+		StringHoldingHand = Hand;
+
 		// 记录抓取时的偏移（弓弦位置相对于手部位置）
 		FVector StringPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
 		InitialStringGrabOffset = StringPos - Hand->GetComponentLocation();
+
+		// 显示轨迹预览
+		if (NockedArrow && ArrowTracePreview)
+		{
+			ArrowTracePreview->SetVisibility(true);
+		}
 	}
 }
 
@@ -405,6 +336,7 @@ UPlayerGrabHand* ABow::GetHandFromCollision(UPrimitiveComponent* Comp) const
 	// HandCollision 是 PlayerGrabHand 的子组件
 	if (UPlayerGrabHand* Hand = Cast<UPlayerGrabHand>(Comp->GetAttachParent()))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("ABow::GetHandFromCollision"));
 		return Hand;
 	}
 	
@@ -417,26 +349,23 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 	// 检查是否是玩家的手
 	if (OtherComp->ComponentHasTag(FName("player_hand")))
 	{
-		bHandInStringCollision = true;
-		
 		// 获取手组件
 		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
-		if (!Hand || Hand == BodyHoldingHand)
-		{
-			return;
-		}
 		
+		if (!Hand)
+			return;
+		
+		InStringCollisionHand = Hand;
+
+		// 如果是抓弓身的手则跳过
 		// 弓身必须已被抓取
-		if (!bBodyHeld)
+		// 弓弦已被抓取则跳过
+		if (Hand == BodyHoldingHand || !bBodyHeld || bStringHeld)
 		{
 			return;
 		}
 		
-		// 弓弦已被抓取则跳过
-		if (bStringHeld)
-		{
-			return;
-		}
+		//todo haptic effect
 		
 		// 检查手是否持有箭
 		if (AArrow* Arrow = Cast<AArrow>(Hand->HeldActor))
@@ -445,22 +374,12 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 			Hand->ReleaseObject();
 			// 搭箭
 			NockArrow(Arrow);
+			// 手抓弓弦
+			Hand->GrabObject(this);
 		}
 		
-		// 手抓弓弦
-		Hand->GrabObject(this);
-		return;
 	}
-
-	// 检查是否是箭（保留旧逻辑用于没有手持的箭）
-	if (AArrow* Arrow = Cast<AArrow>(OtherActor))
-	{
-		// 如果箭在 Idle 状态且弓身已被抓取，自动搭箭
-		if (Arrow->ArrowState == EArrowState::Idle && bBodyHeld && !NockedArrow && !Arrow->bIsHeld)
-		{
-			NockArrow(Arrow);
-		}
-	}
+	
 }
 
 void ABow::OnStringCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -469,82 +388,67 @@ void ABow::OnStringCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent,
 	// 检查是否是玩家的手离开
 	if (OtherComp->ComponentHasTag(FName("player_hand")))
 	{
-		bHandInStringCollision = false;
+		InStringCollisionHand = nullptr;
 	}
 }
 
 void ABow::UpdateStringPosition(float DeltaTime)
 {
-	FVector TargetPos;
+    FVector TargetPos;
 
-	if (bStringHeld)
-	{
-		// 弓弦被拉动
-		if (StringHoldingHand)
-		{
-			// 跟随手的位置
-			TargetPos = StringHoldingHand->GetComponentLocation() + InitialStringGrabOffset;
-		}
-		else
-		{
-			// 使用 UpdateStringFromHandPosition 或 SetPullAmount 设置的位置
-			TargetPos = CurrentGrabSpot;
-		}
+    if (bStringHeld)
+    {
+        // 弓弦被拉动
+        if (StringHoldingHand)
+        {
+            // 跟随手的位置
+            TargetPos = StringHoldingHand->GetComponentLocation() + InitialStringGrabOffset;
+        }
+        else
+        {
+            TargetPos = StringRestPosition->GetComponentLocation();
+        }
 
-		// 限制拉弦距离
-		FVector RestPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
-		FVector PullVector = TargetPos - RestPos;
-		float PullDist = PullVector.Size();
+        // 限制拉弦距离
+        FVector RestPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
+        FVector PullVector = TargetPos - RestPos;
+        float PullDist = PullVector.Size();
 
-		if (PullDist > MaxPullDistance)
-		{
-			TargetPos = RestPos + PullVector.GetSafeNormal() * MaxPullDistance;
-			PullDist = MaxPullDistance;
-		}
+        if (PullDist > MaxPullDistance)
+        {
+            TargetPos = RestPos + PullVector.GetSafeNormal() * MaxPullDistance;
+            PullDist = MaxPullDistance;
+        	//TODO : 拉满音效
+        }
 
-		CurrentGrabSpot = TargetPos;
-		CurrentPullLength = PullDist;
+        CurrentGrabSpot = TargetPos;
+        CurrentPullLength = PullDist;
 
-		// 更新弓弦材质
-		if (StringMID)
-		{
-			StringMID->SetScalarParameterValue(FName("Grabbed"), 1.0f);
-			StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
-		}
+        // 更新弓弦材质
+        if (StringMID)
+        {
+            StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
+        }
 
-		// 播放弓弦音效
-		if (CurrentPullLength > StringSFXThreshold && !bHasPlayedStringSFX)
-		{
-			if (StringAudio)
-			{
-				StringAudio->Play();
-			}
-			bHasPlayedStringSFX = true;
-		}
+        // 更新轨迹预览
+        if (NockedArrow)
+        {
+            UpdateArrowTracePreview();
+        }
+    }
+    else
+    {
+        // 弓弦回弹
+        TargetPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
+        CurrentGrabSpot = SpringSolve(CurrentGrabSpot, TargetPos, StringSpringStrength, StringSpringDamping, DeltaTime);
+        CurrentPullLength = (CurrentGrabSpot - TargetPos).Size();
 
-		// 更新轨迹预览
-		if (NockedArrow)
-		{
-			UpdateTrajectoryPreview();
-		}
-	}
-	else
-	{
-		// 弓弦回弹
-		TargetPos = StringRestPosition ? StringRestPosition->GetComponentLocation() : StringMesh->GetComponentLocation();
-		CurrentGrabSpot = SpringSolve(CurrentGrabSpot, TargetPos, StringSpringStrength, StringSpringDamping, DeltaTime);
-		CurrentPullLength = (CurrentGrabSpot - TargetPos).Size();
-
-		// 更新弓弦材质
-		if (StringMID)
-		{
-			float GrabbedValue = CurrentPullLength > 1.0f ? 1.0f : 0.0f;
-			StringMID->SetScalarParameterValue(FName("Grabbed"), GrabbedValue);
-			StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
-		}
-
-		bHasPlayedStringSFX = false;
-	}
+        // 更新弓弦材质
+        if (StringMID)
+        {
+            StringMID->SetVectorParameterValue(FName("GrabSpot"), FLinearColor(CurrentGrabSpot));
+        }
+    }
 }
 
 void ABow::UpdateArrowPosition()
