@@ -3,7 +3,7 @@
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Grabber/PlayerGrabHand.h"
-#include "Game/BaseCharacter.h"
+#include "Game/BasePlayer.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"
@@ -24,14 +24,13 @@ ABow::ABow()
 	// 创建弓弦网格体
 	StringMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StringMesh"));
 	StringMesh->SetupAttachment(MeshComponent);
-	StringMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	StringMesh->SetCollisionProfileName(FName("OverlapAllDynamic"));
 
 	// 创建弓弦碰撞区域
 	StringCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("StringCollision"));
 	StringCollision->SetupAttachment(StringMesh);
-	StringCollision->SetBoxExtent(FVector(10.0f, 5.0f, 20.0f));
-	StringCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	StringCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	StringCollision->SetBoxExtent(FVector(5.0f, 5.0f, 5.0f));
+	StringCollision->SetCollisionProfileName(FName("OverlapAllDynamic"));
 	StringCollision->OnComponentBeginOverlap.AddDynamic(this, &ABow::OnStringCollisionBeginOverlap);
 	StringCollision->OnComponentEndOverlap.AddDynamic(this, &ABow::OnStringCollisionEndOverlap);
 
@@ -189,6 +188,7 @@ void ABow::UpdateArrowTracePreview()
 	PathParams.ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
 	PathParams.ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
 	PathParams.ActorsToIgnore.Add(this);
+	PathParams.ActorsToIgnore.Add(BowOwner);
 	if (NockedArrow)
 	{
 		PathParams.ActorsToIgnore.Add(NockedArrow);
@@ -278,10 +278,12 @@ void ABow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 
 		// 尝试获取弓的持有者
 		AActor* HandOwner = Hand->GetOwner();
-		if (ABaseCharacter* Character = Cast<ABaseCharacter>(HandOwner))
+		if (ABasePlayer* Player = Cast<ABasePlayer>(HandOwner))
 		{
-			BowOwner = Character;
+			BowOwner = Player;
 		}
+
+		UE_LOG(LogTemp, Warning, TEXT("OnGrabbedBody"));
 	}
 	else if (!bStringHeld && Hand != BodyHoldingHand)
 	{
@@ -297,6 +299,8 @@ void ABow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 		{
 			ArrowTracePreview->SetVisibility(true);
 		}
+		
+		UE_LOG(LogTemp, Warning, TEXT("OnGrabbedString"));
 	}
 }
 
@@ -336,7 +340,6 @@ UPlayerGrabHand* ABow::GetHandFromCollision(UPrimitiveComponent* Comp) const
 	// HandCollision 是 PlayerGrabHand 的子组件
 	if (UPlayerGrabHand* Hand = Cast<UPlayerGrabHand>(Comp->GetAttachParent()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ABow::GetHandFromCollision"));
 		return Hand;
 	}
 	
@@ -365,7 +368,12 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 			return;
 		}
 		
-		//todo haptic effect
+		//haptic effect
+		if (BowOwner)
+		{
+			BowOwner->PlaySimpleForceFeedback(Hand->bIsRightHand? EControllerHand::Right:EControllerHand::Left);
+		}
+			
 		
 		// 检查手是否持有箭
 		if (AArrow* Arrow = Cast<AArrow>(Hand->HeldActor))

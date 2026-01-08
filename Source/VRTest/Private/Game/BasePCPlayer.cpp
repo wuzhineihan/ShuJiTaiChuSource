@@ -247,16 +247,6 @@ void ABasePCPlayer::StopAiming()
 		}
 		HeldArrow->Destroy();
 	}
-	// 情况2：箭已搭在弓上（开始拉弓后取消瞄准）
-	else if (CurrentBow && CurrentBow->NockedArrow)
-	{
-		if (InventoryComponent)
-		{
-			InventoryComponent->AddArrow();
-		}
-		CurrentBow->NockedArrow->Destroy();
-		CurrentBow->UnnockArrow();
-	}
 }
 
 void ABasePCPlayer::StartDrawBow()

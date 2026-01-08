@@ -190,6 +190,12 @@ void ABaseVRPlayer::SetBowArmed(bool bArmed)
 	}
 }
 
+void ABaseVRPlayer::PlaySimpleForceFeedback(EControllerHand Hand)
+{
+	Super::PlaySimpleForceFeedback(Hand);
+	PlayerController->PlayHapticEffect(SimpleHapticEffect, Hand);
+}
+
 // =================== Tools ====================
 void ABaseVRPlayer::SetVRHandRotationOffset(FRotator RotationOffset)
 {

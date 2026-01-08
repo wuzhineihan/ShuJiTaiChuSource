@@ -32,6 +32,8 @@ void ABasePlayer::BeginPlay()
 		RightHand->SetPhysicsHandle(RightPhysicsHandle);
 		RightHand->SetInventory(InventoryComponent);
 	}
+
+	PlayerController = Cast<APlayerController>(GetController());
 }
 
 // ==================== 弓接口 ====================
@@ -70,6 +72,11 @@ void ABasePlayer::SetBowArmed(bool bArmed)
 	}
 
 	OnBowArmedChanged.Broadcast(bIsBowArmed);
+}
+
+void ABasePlayer::PlaySimpleForceFeedback(EControllerHand Hand)
+{
+	// 子类实现
 }
 
 ABow* ABasePlayer::SpawnBow()

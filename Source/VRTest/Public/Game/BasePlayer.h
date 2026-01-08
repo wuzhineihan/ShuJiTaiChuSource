@@ -95,7 +95,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	virtual void SetBowArmed(bool bArmed);
 
+	UFUNCTION(BlueprintCallable, Category = "Controller")
+	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
+
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	APlayerController* PlayerController;
+	
 	/** 生成弓 Actor */
 	virtual ABow* SpawnBow();
 

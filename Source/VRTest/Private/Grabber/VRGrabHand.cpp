@@ -59,7 +59,7 @@ void UVRGrabHand::TryGrab(bool bFromBackpack)
 		VirtualGrab(Target);
 		return;
 	}
-
+	
 	// 近距离目标：正常抓取
 	GrabObject(Target, BoneName);
 }
@@ -370,12 +370,12 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(GetOwner());
 
-	FHitResult HitResult;
+	TArray<FHitResult> HitResults;
 	FVector Start = GetComponentLocation();
 	FVector End = Start; // 原地球形扫描
 	
-	// 使用 SphereTraceSingleForObjects 来获取精确的 Hit 信息
-	bool bHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+	// 使用 SphereTraceMultiForObjects 来获取所有碰撞物体
+	bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
 		Start,
 		End,
@@ -384,23 +384,57 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 		false,  // bTraceComplex
 		IgnoreActors,
 		EDrawDebugTrace::ForDuration,
-		HitResult,
+		HitResults,
 		true    // bIgnoreSelf
 	);
-
-	if (bHit && HitResult.GetActor())
+	
+	if (!bHit || HitResults.Num() == 0)
+	{
+		return nullptr;
+	}
+	
+	// 遍历所有碰撞结果，找到最近的实现了 IGrabbable 接口的物体
+	AActor* ClosestGrabbableActor = nullptr;
+	float ClosestDistance = FLT_MAX;
+	FName ClosestBoneName = NAME_None;
+	
+	for (const FHitResult& HitResult : HitResults)
 	{
 		AActor* HitActor = HitResult.GetActor();
-		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
-		if (Grabbable && IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
+		if (!HitActor)
 		{
-			// 从 HitResult 获取骨骼名
-			OutBoneName = HitResult.BoneName;
-			return HitActor;
+			continue;
+		}
+		
+		// 检查是否实现 IGrabbable 接口
+		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
+		if (!Grabbable)
+		{
+			continue;
+		}
+		
+		// 检查是否可以被抓取
+		if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
+		{
+			continue;
+		}
+		
+		// 计算距离
+		float Distance = HitResult.Distance;
+		if (Distance < ClosestDistance)
+		{
+			ClosestDistance = Distance;
+			ClosestGrabbableActor = HitActor;
+			ClosestBoneName = HitResult.BoneName;
 		}
 	}
-
-	// 回退到 Overlap 检测（不返回骨骼名，用于非骨骼网格体）
+	
+	if (ClosestGrabbableActor)
+	{
+		OutBoneName = ClosestBoneName;
+		return ClosestGrabbableActor;
+	}
+	
 	return nullptr;
 }
 

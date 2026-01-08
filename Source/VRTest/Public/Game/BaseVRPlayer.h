@@ -102,7 +102,11 @@ public:
 	/** 重写：进入弓箭模式时将弓附加到左手 */
 	virtual void SetBowArmed(bool bArmed) override;
 
+	virtual void PlaySimpleForceFeedback(EControllerHand Hand) override;
+
 protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Components")
+	UHapticFeedbackEffect_Base* SimpleHapticEffect;
 	// ==================== 内部函数 ====================
 	
 	/** 设置手部的背包碰撞引用 */

@@ -16,8 +16,7 @@ AGrabbeeObject::AGrabbeeObject()
 
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	MeshComponent->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
 
 	MeshComponent->SetRenderCustomDepth(true);
 }
@@ -141,14 +140,12 @@ void AGrabbeeObject::OnGrabSelected_Implementation()
 {
 	bIsSelected = true;
 	MeshComponent->SetCustomDepthStencilValue(4); // 使用 setter 方法确保渲染状态更新
-	UE_LOG(LogTemp, Warning, TEXT("OnGrabSelected"));
 }
 
 void AGrabbeeObject::OnGrabDeselected_Implementation()
 {
 	bIsSelected = false;
 	MeshComponent->SetCustomDepthStencilValue(0); // 使用 setter 方法确保渲染状态更新
-	UE_LOG(LogTemp, Warning, TEXT("OnGrabDeselected"));
 }
 
 // ==================== 自有函数 ====================

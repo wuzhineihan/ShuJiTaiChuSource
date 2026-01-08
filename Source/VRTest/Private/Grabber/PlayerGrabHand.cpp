@@ -172,8 +172,9 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 
 	// 获取 Primitive（所有物理抓取类型都需要）
 	UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(TargetActor);
-	if (!Primitive)
+	if (!Primitive && IGrabbable::Execute_GetGrabType(TargetActor) != EGrabType::Custom)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("GrabObject: Target's grab primitive is null"));
 		return;
 	}
 
@@ -238,7 +239,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 			Primitive->SetSimulatePhysics(true);
 
 			// GrabLocation 是物体上的抓取点（质心），不是目标位置
-			GrabLocation = Primitive->GetCenterOfMass();
+			GrabLocation = Primitive->GetComponentLocation();
 			GrabRotation = Primitive->GetComponentRotation();
 
 			bUseSnapStrength = true;

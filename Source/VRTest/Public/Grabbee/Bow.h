@@ -10,7 +10,7 @@ class UBoxComponent;
 class UNiagaraComponent;
 class AArrow;
 class UPlayerGrabHand;
-class ABaseCharacter;
+class ABasePlayer;
 
 
 /**
@@ -81,11 +81,11 @@ public:
 
 	/** 弓弦弹簧强度（回弹） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
-	float StringSpringStrength = 40.0f;
+	float StringSpringStrength = 1000.0f;
 
 	/** 弓弦弹簧阻尼 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Config")
-	float StringSpringDamping = 0.4f;
+	float StringSpringDamping = 15.0f;
 
 	// ==================== 状态 ====================
 	
@@ -127,7 +127,7 @@ public:
 
 	/** 弓的持有者（用于伤害归属） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
-	ABaseCharacter* BowOwner = nullptr;
+	ABasePlayer* BowOwner = nullptr;
 	
 	// ==================== 重写 ====================
 	
