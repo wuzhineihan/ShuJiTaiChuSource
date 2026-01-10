@@ -77,6 +77,11 @@ bool AGrabbeeObject::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) 
 	return true;
 }
 
+bool AGrabbeeObject::CanBeGrabbedByGravityGlove_Implementation() const
+{
+	return true;
+}
+
 bool AGrabbeeObject::SupportsDualHandGrab_Implementation() const
 {
 	return bSupportsDualHandGrab;

@@ -269,6 +269,12 @@ void AArrow::OnFireTimerExpired()
 
 // ==================== 重写 ====================
 
+bool AArrow::CanBeGrabbedByGravityGlove_Implementation() const
+{
+	// 只有处于 Idle 状态才允许重力手套抓取
+	return ArrowState == EArrowState::Idle;
+}
+
 void AArrow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[ArrowGrab] OnGrabbed - State: %d"), static_cast<int32>(ArrowState));
@@ -357,14 +363,6 @@ void AArrow::HandleHit(const FHitResult& HitResult)
 
 	// 获取命中骨骼名称（如果是骨骼网格体）
 	FName BoneName = HitResult.BoneName;
-	if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(HitComp))
-	{
-		// 获取父骨骼以获得更稳定的附着点
-		if (BoneName != NAME_None)
-		{
-			BoneName = SkelMesh->GetParentBone(BoneName);
-		}
-	}
 
 	// 准备物理冲量数据
 	FVector ImpulseDir = FVector::ZeroVector;

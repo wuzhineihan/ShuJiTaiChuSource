@@ -6,6 +6,7 @@
 #include "Game/BaseCharacter.h"
 #include "Effect/FallDamageComponent.h"
 #include "Effect/AutoRecoverComponent.h"
+#include "Game/InventoryComponent.h"
 #include "BasePlayer.generated.h"
 
 class UPhysicsHandleComponent;
@@ -40,6 +41,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UAutoRecoverComponent* AutoRecoverComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UInventoryComponent* InventoryComponent;
 
 	/** 左手物理抓取组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

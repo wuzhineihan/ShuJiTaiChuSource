@@ -122,6 +122,7 @@ public:
 
 	// ==================== 重写 ====================
 
+	virtual bool CanBeGrabbedByGravityGlove_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 

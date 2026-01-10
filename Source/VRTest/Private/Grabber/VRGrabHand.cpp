@@ -177,7 +177,8 @@ AActor* UVRGrabHand::FindAngleClosestTarget()
 			continue;
 		}
 		
-		if (!IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
+		// 使用 CanBeGrabbedByGravityGlove 检查是否可以被重力手套选中
+		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor) || !IGrabbable::Execute_CanBeGrabbedBy(Actor,this))
 		{
 			continue;
 		}

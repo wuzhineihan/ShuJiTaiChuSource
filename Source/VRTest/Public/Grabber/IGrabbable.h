@@ -48,6 +48,12 @@ public:
 	bool CanBeGrabbedBy(const UPlayerGrabHand* Hand) const;
 
 	/**
+	 * 检查是否可以被重力手套抓取
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
+	bool CanBeGrabbedByGravityGlove() const;
+
+	/**
 	 * 是否支持双手同时抓取
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
