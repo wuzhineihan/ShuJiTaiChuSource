@@ -11,6 +11,7 @@
 class UPlayerGrabHand;
 class UStaticMeshComponent;
 class UPrimitiveComponent;
+class ABaseCharacter;
 
 /**
  * 可抓取物体基类
@@ -67,6 +68,10 @@ public:
 	/** 当前是否被选中（Gravity Gloves） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bIsSelected = false;
+
+	/** 控制/使用此物体的角色（用于伤害归属等） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	ABaseCharacter* OwningCharacter = nullptr;
 
 	// ==================== IGrabbable 接口实现 ====================
 	

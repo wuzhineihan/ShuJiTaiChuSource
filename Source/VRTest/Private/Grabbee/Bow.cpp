@@ -114,9 +114,7 @@ bool ABow::NockArrow(AArrow* Arrow)
 	NockedArrow = Arrow;
 	NockedArrow->EnterNockedState(this);
 
-	// 设置箭的发射者
-	NockedArrow->ArrowInstigator = BowOwner;
-
+	// OwningCharacter 已在箭被抓取时设置，无需重复赋值
 
 	return true;
 }
@@ -282,8 +280,6 @@ void ABow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 		{
 			BowOwner = Player;
 		}
-
-		UE_LOG(LogTemp, Warning, TEXT("OnGrabbedBody"));
 	}
 	else if (!bStringHeld && Hand != BodyHoldingHand)
 	{
@@ -299,8 +295,6 @@ void ABow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 		{
 			ArrowTracePreview->SetVisibility(true);
 		}
-		
-		UE_LOG(LogTemp, Warning, TEXT("OnGrabbedString"));
 	}
 }
 

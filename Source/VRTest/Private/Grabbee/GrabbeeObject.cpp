@@ -5,6 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Grabber/PlayerGrabHand.h"
+#include "Game/BaseCharacter.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -84,6 +85,15 @@ bool AGrabbeeObject::SupportsDualHandGrab_Implementation() const
 void AGrabbeeObject::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
 	bIsHeld = true;
+	
+	// 设置 OwningCharacter（控制此物体的角色）
+	if (Hand)
+	{
+		if (ABaseCharacter* Character = Cast<ABaseCharacter>(Hand->GetOwner()))
+		{
+			OwningCharacter = Character;
+		}
+	}
 	
 	// 如果支持双手抓取，添加到控制列表
 	if (bSupportsDualHandGrab)
