@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Game/BaseCharacter.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "BaseEnemy.generated.h"
 
 /**
@@ -18,6 +18,7 @@ class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable
 	GENERATED_BODY()
 
 public:
+	ABaseEnemy();
 	// ==================== 状态 ====================
 	
 	/** 当前控制此物体的所有手（双手抓取用） */
@@ -29,9 +30,13 @@ public:
 	virtual EGrabType GetGrabType_Implementation() const override;
 	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
 	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+	virtual bool CanBeGrabbedByGravityGlove_Implementation() const override;
 	virtual bool SupportsDualHandGrab_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnGrabSelected_Implementation() override;
 	virtual void OnGrabDeselected_Implementation() override;
+
+	// Override OnDeath
+	virtual void OnDeath_Implementation() override;
 };

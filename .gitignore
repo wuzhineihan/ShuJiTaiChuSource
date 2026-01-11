@@ -2,6 +2,7 @@
 Content/
 Samples/
 FeaturePacks/
+*.uproject
 
 # --- Generated / Intermediate ---
 Binaries/

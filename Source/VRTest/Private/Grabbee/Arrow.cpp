@@ -2,9 +2,8 @@
 
 #include "Grabbee/Arrow.h"
 #include "Grabbee/Bow.h"
-#include "Game/PlayerGrabHand.h"
+#include "Grabber/PlayerGrabHand.h"
 #include "Game/BaseCharacter.h"
-#include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
@@ -17,18 +16,12 @@ AArrow::AArrow()
 
 	// 设置武器类型
 	WeaponType = EWeaponType::Arrow;
-	
-	// 箭使用 Free 抓取类型（物理跟随）
-	GrabType = EGrabType::Free;
+	GrabType = EGrabType::WeaponSnap;
 
-	// 创建箭头碰撞盒
-	ArrowTipCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("ArrowTipCollision"));
-	ArrowTipCollision->SetupAttachment(MeshComponent);
-	ArrowTipCollision->SetBoxExtent(FVector(5.0f, 2.0f, 2.0f));
-	ArrowTipCollision->SetRelativeLocation(FVector(30.0f, 0.0f, 0.0f)); // 箭头位置
-	ArrowTipCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	ArrowTipCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-	ArrowTipCollision->OnComponentBeginOverlap.AddDynamic(this, &AArrow::OnArrowTipBeginOverlap);
+	// 创建箭头位置标记（用于 LineTrace）
+	ArrowTipPosition = CreateDefaultSubobject<USceneComponent>(TEXT("ArrowTipPosition"));
+	ArrowTipPosition->SetupAttachment(MeshComponent);
+	ArrowTipPosition->SetRelativeLocation(FVector(30.0f, 0.0f, 0.0f)); // 箭头位置
 
 	// 创建投射物移动组件
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
@@ -67,7 +60,11 @@ void AArrow::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Nocked 状态下跟随弓弦位置（由 Bow 更新）
+	// 飞行状态：使用 LineTrace 检测碰撞
+	if (ArrowState == EArrowState::Flying && ProjectileMovement && ProjectileMovement->IsActive())
+	{
+		PerformFlightTrace(DeltaTime);
+	}
 }
 
 // ==================== 状态切换 ====================
@@ -79,16 +76,16 @@ void AArrow::EnterIdleState()
 	// 启用物理模拟
 	if (MeshComponent)
 	{
+		// 确保先 Detach，避免在 Attached 状态下启用物理导致冲突
+		if (GetAttachParentActor())
+		{
+			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		}
+		
 		MeshComponent->SetSimulatePhysics(true);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
+		MeshComponent->SetCollisionProfileName("IgnoreOnlyPawn");
 	}
 
-	// 禁用箭头碰撞（只在飞行时启用）
-	if (ArrowTipCollision)
-	{
-		ArrowTipCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
 
 	// 禁用投射物移动
 	if (ProjectileMovement)
@@ -122,14 +119,9 @@ void AArrow::EnterNockedState(ABow* Bow)
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCollisionProfileName("NoCollision");
 	}
 
-	// 禁用箭头碰撞
-	if (ArrowTipCollision)
-	{
-		ArrowTipCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
 
 	// 禁用投射物移动
 	if (ProjectileMovement)
@@ -142,29 +134,45 @@ void AArrow::EnterNockedState(ABow* Bow)
 
 void AArrow::EnterFlyingState(float LaunchSpeed)
 {
+	// 检查是否 attach 到其他 Actor
+	AActor* AttachParent = GetAttachParentActor();
+	
+	// 如果 attach 了，先 detach
+	if (AttachParent)
+	{
+		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	}
+	
 	ArrowState = EArrowState::Flying;
 
 	// 禁用物理模拟（由 ProjectileMovement 控制）
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		// 先完全禁用碰撞，让箭能飞起来
+		MeshComponent->SetCollisionProfileName("NoCollision");
+		MeshComponent->SetMobility(EComponentMobility::Movable);
 	}
 
-	// 启用箭头碰撞检测
-	if (ArrowTipCollision)
-	{
-		ArrowTipCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	}
 
 	// 启用投射物移动
 	if (ProjectileMovement)
 	{
-		ProjectileMovement->SetActive(true);
+		// 1. 先设置 UpdatedComponent
+		ProjectileMovement->SetUpdatedComponent(MeshComponent);
+		
+		// 2. 配置参数
+		ProjectileMovement->InitialSpeed = LaunchSpeed;
+		ProjectileMovement->MaxSpeed = LaunchSpeed * 2.0f;
 		ProjectileMovement->bRotationFollowsVelocity = true;
-		// 设置初始速度（沿箭的前方向）
-		FVector LaunchDirection = GetActorForwardVector();
-		ProjectileMovement->Velocity = LaunchDirection * LaunchSpeed;
+		ProjectileMovement->ProjectileGravityScale = 1.0f;
+		
+		// 3. 激活组件
+		ProjectileMovement->Activate(true);
+		ProjectileMovement->SetComponentTickEnabled(true);
+		
+		// 4. 最后设置速度（使用 SetVelocityInLocalSpace 强制设置）
+		ProjectileMovement->SetVelocityInLocalSpace(FVector(LaunchSpeed, 0, 0));
 	}
 
 	// 启用轨迹效果
@@ -173,6 +181,9 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 		TrailEffect->SetActive(true);
 	}
 
+	// 初始化上一帧箭头位置（用于 LineTrace）
+	PreviousTipLocation = ArrowTipPosition ? ArrowTipPosition->GetComponentLocation() : GetActorLocation();
+
 	// 清除弓引用
 	NockedBow = nullptr;
 	bCanGrab = false;
@@ -180,6 +191,8 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 
 void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ArrowGrab] EnterStuckState"));
+	
 	ArrowState = EArrowState::Stuck;
 
 	// 停止投射物移动
@@ -188,16 +201,11 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 		ProjectileMovement->SetActive(false);
 	}
 
-	// 禁用碰撞
+	// 禁用物理模拟但保留 Query 碰撞（这样 GrabHand 的 SphereTrace 才能检测到）
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
-
-	if (ArrowTipCollision)
-	{
-		ArrowTipCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		MeshComponent->SetCollisionProfileName("OverlapAllDynamic");
 	}
 
 	// 禁用轨迹效果
@@ -213,7 +221,7 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 		AttachToComponent(HitComponent, FAttachmentTransformRules::KeepWorldTransform, BoneName);
 	}
 
-	bCanGrab = false;
+	bCanGrab = true;
 }
 
 // ==================== 火焰效果 ====================
@@ -261,22 +269,22 @@ void AArrow::OnFireTimerExpired()
 
 // ==================== 重写 ====================
 
-bool AArrow::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
+bool AArrow::CanBeGrabbedByGravityGlove_Implementation() const
 {
-	// 只有在 Idle 状态下才能被抓取
-	return Super::CanBeGrabbedBy_Implementation(Hand) && ArrowState == EArrowState::Idle;
+	// 只有处于 Idle 状态才允许重力手套抓取
+	return ArrowState == EArrowState::Idle;
 }
 
 void AArrow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
-	Super::OnGrabbed_Implementation(Hand);
-
-	// 被抓取时确保进入 Idle 状态（从 Stuck 状态恢复时）
-	if (ArrowState == EArrowState::Stuck)
+	UE_LOG(LogTemp, Warning, TEXT("[ArrowGrab] OnGrabbed - State: %d"), static_cast<int32>(ArrowState));
+	if (ArrowState== EArrowState::Stuck)
 	{
-		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		EnterIdleState();
 	}
+	
+	// 调用父类处理抓取逻辑
+	Super::OnGrabbed_Implementation(Hand);
 }
 
 void AArrow::OnReleased_Implementation(UPlayerGrabHand* Hand)
@@ -285,6 +293,107 @@ void AArrow::OnReleased_Implementation(UPlayerGrabHand* Hand)
 
 	// 释放后保持 Idle 状态
 	// 如果是在 Nocked 状态下释放，由 Bow 处理
+}
+
+// ==================== 飞行检测 ====================
+
+void AArrow::PerformFlightTrace(float DeltaTime)
+{
+	if (bHasHit)
+	{
+		return;
+	}
+
+	// 获取当前箭头位置
+	FVector CurrentTipLocation = ArrowTipPosition ? ArrowTipPosition->GetComponentLocation() : GetActorLocation();
+
+	// 执行 LineTrace
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+	
+	// 忽略发射者（玩家）
+	if (OwningCharacter)
+	{
+		QueryParams.AddIgnoredActor(OwningCharacter);
+		
+		// 如果发射者有Owner（比如玩家控制器），也忽略
+		AActor* InstigatorOwner = OwningCharacter->GetOwner();
+		if (InstigatorOwner)
+		{
+			QueryParams.AddIgnoredActor(InstigatorOwner);
+		}
+	}
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		PreviousTipLocation,
+		CurrentTipLocation,
+		ECC_Visibility,
+		QueryParams
+	);
+
+	if (bHit && HitResult.GetActor())
+	{
+		// 忽略弓
+		if (!HitResult.GetActor()->ActorHasTag(FName("Bow")))
+		{
+			HandleHit(HitResult);
+		}
+	}
+
+	// 更新上一帧位置
+	PreviousTipLocation = CurrentTipLocation;
+}
+
+void AArrow::HandleHit(const FHitResult& HitResult)
+{
+	if (bHasHit)
+	{
+		return;
+	}
+
+	bHasHit = true;
+
+	AActor* HitActor = HitResult.GetActor();
+	UPrimitiveComponent* HitComp = HitResult.GetComponent();
+
+	// 造成伤害
+	DealDamage(HitActor);
+
+	// 获取命中骨骼名称（如果是骨骼网格体）
+	FName BoneName = HitResult.BoneName;
+
+	// 准备物理冲量数据
+	FVector ImpulseDir = FVector::ZeroVector;
+	float ImpulseStrength = 0.0f;
+	bool bShouldApplyImpulse = false;
+
+	if (HitComp && HitComp->IsSimulatingPhysics())
+	{
+		bShouldApplyImpulse = true;
+		ImpulseDir = GetActorForwardVector();
+		
+		if (ProjectileMovement && ProjectileMovement->Velocity.SizeSquared() > 1.0f)
+		{
+			ImpulseDir = ProjectileMovement->Velocity.GetSafeNormal();
+			// 动量 = 质量 * 速度，这里简单模拟
+			ImpulseStrength = ProjectileMovement->Velocity.Size() * ImpulseStrengthMultiplier; 
+		}
+	}
+
+	// 将箭移动到命中点（根据箭头位置组件的相对偏移）
+	float TipOffset = ArrowTipPosition ? ArrowTipPosition->GetRelativeLocation().X : 30.0f;
+	SetActorLocation(HitResult.ImpactPoint - GetActorForwardVector() * TipOffset);
+
+	// 进入插入状态
+	EnterStuckState(HitComp, BoneName);
+
+	// 在附着后施加物理冲量，确保物体带着箭一起受到影响
+	if (bShouldApplyImpulse && HitComp)
+	{
+		HitComp->AddImpulseAtLocation(ImpulseDir * ImpulseStrength, HitResult.ImpactPoint, HitResult.BoneName);
+	}
 }
 
 // ==================== IEffectable 接口 ====================
@@ -304,53 +413,6 @@ void AArrow::ApplyEffect_Implementation(const FEffect& Effect)
 
 // ==================== 内部函数 ====================
 
-void AArrow::OnArrowTipBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	// 只在飞行状态下处理碰撞
-	if (ArrowState != EArrowState::Flying)
-	{
-		return;
-	}
-
-	// 忽略自己和弓
-	if (OtherActor == this || OtherActor->ActorHasTag(FName("Bow")))
-	{
-		return;
-	}
-
-	// 忽略发射者
-	if (ArrowInstigator && OtherActor == ArrowInstigator)
-	{
-		return;
-	}
-
-	// 防止重复命中
-	if (bHasHit)
-	{
-		return;
-	}
-
-	bHasHit = true;
-
-	// 造成伤害
-	DealDamage(OtherActor);
-
-	// 获取命中骨骼名称（如果是骨骼网格体）
-	FName BoneName = NAME_None;
-	if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(OtherComp))
-	{
-		BoneName = SkelMesh->GetBoneName(OtherBodyIndex);
-		// 获取父骨骼以获得更稳定的附着点
-		BoneName = SkelMesh->GetParentBone(BoneName);
-	}
-
-	// 进入插入状态
-	EnterStuckState(OtherComp, BoneName);
-
-	// 一段时间后销毁（可选）
-	// SetLifeSpan(10.0f);
-}
 
 void AArrow::DealDamage(AActor* HitActor)
 {
@@ -366,7 +428,7 @@ void AArrow::DealDamage(AActor* HitActor)
 		Effect.EffectTypes.Add(EEffectType::Arrow);
 		Effect.Amount = ArrowDamage;
 		Effect.Causer = this;
-		Effect.Instigator = ArrowInstigator;
+		Effect.Instigator = OwningCharacter;
 
 		// 如果箭着火，添加火焰效果
 		if (bOnFire)

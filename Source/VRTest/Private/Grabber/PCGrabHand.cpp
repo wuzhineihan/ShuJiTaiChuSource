@@ -1,9 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/PCGrabHand.h"
+#include "Grabber/PCGrabHand.h"
 #include "Game/BasePCPlayer.h"
 #include "Camera/CameraComponent.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "GameFramework/Character.h"
 
@@ -177,3 +177,4 @@ void UPCGrabHand::UpdateHandInterp(float DeltaTime)
 		bIsInterping = false;
 	}
 }
+

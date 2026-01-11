@@ -6,7 +6,6 @@
 #include "GameFramework/Character.h"
 #include "Effect/Effectable.h"
 #include "Effect/AliveComponent.h"
-#include "Game/InventoryComponent.h"
 #include "BaseCharacter.generated.h"
 
 UCLASS()
@@ -31,9 +30,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UAliveComponent* AliveComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UInventoryComponent* InventoryComponent;
 
 	/** 角色是否已死亡 */
 	UPROPERTY(BlueprintReadOnly, Category = "Character")

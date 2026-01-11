@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Game/GrabTypes.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/GrabTypes.h"
+#include "Grabber/IGrabbable.h"
 #include "GrabbeeObject.generated.h"
 
 class UPlayerGrabHand;
 class UStaticMeshComponent;
 class UPrimitiveComponent;
+class ABaseCharacter;
 
 /**
  * 可抓取物体基类
@@ -68,11 +69,16 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bIsSelected = false;
 
+	/** 控制/使用此物体的角色（用于伤害归属等） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	ABaseCharacter* OwningCharacter = nullptr;
+
 	// ==================== IGrabbable 接口实现 ====================
 	
 	virtual EGrabType GetGrabType_Implementation() const override;
 	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
 	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+	virtual bool CanBeGrabbedByGravityGlove_Implementation() const override;
 	virtual bool SupportsDualHandGrab_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;

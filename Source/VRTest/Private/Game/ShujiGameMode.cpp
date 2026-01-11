@@ -7,6 +7,10 @@
 
 UClass* AShujiGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
 {
+	//如果设置了Default Pawn Class则优先使用
+	if (DefaultPawnClass)
+		return DefaultPawnClass;
+	
 	if (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
 	{
 		bIsVRMode = GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();

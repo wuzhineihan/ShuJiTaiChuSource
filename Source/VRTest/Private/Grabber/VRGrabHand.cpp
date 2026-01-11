@@ -1,8 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/VRGrabHand.h"
+#include "Grabber/VRGrabHand.h"
 #include "Game/InventoryComponent.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/BoxComponent.h"
@@ -47,6 +47,7 @@ void UVRGrabHand::TryGrab(bool bFromBackpack)
 	// 查找目标
 	FName BoneName;
 	AActor* Target = FindTarget(bFromBackpack, BoneName);
+	
 	if (!Target)
 	{
 		return;
@@ -58,7 +59,7 @@ void UVRGrabHand::TryGrab(bool bFromBackpack)
 		VirtualGrab(Target);
 		return;
 	}
-
+	
 	// 近距离目标：正常抓取
 	GrabObject(Target, BoneName);
 }
@@ -116,6 +117,7 @@ void UVRGrabHand::OnHandCollisionEndOverlap(UPrimitiveComponent* OverlappedCompo
 
 void UVRGrabHand::TryRelease(bool bToBackpack)
 {
+
 	// VR特有：处理虚拟抓取
 	if (bIsVirtualGrabbing)
 	{
@@ -175,7 +177,8 @@ AActor* UVRGrabHand::FindAngleClosestTarget()
 			continue;
 		}
 		
-		if (!IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
+		// 使用 CanBeGrabbedByGravityGlove 检查是否可以被重力手套选中
+		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor) || !IGrabbable::Execute_CanBeGrabbedBy(Actor,this))
 		{
 			continue;
 		}
@@ -217,6 +220,10 @@ void UVRGrabHand::VirtualGrab(AActor* Target)
 	bIsHolding = true;
 	bIsVirtualGrabbing = true;
 
+	// 重置手部速度追踪，避免残留数据触发误判
+	LastHandLocation = GetComponentLocation();
+	HandVelocity = FVector::ZeroVector;
+
 	// 清除选中状态（物体从"选中"变为"虚拟抓取"）
 	if (GravityGlovesTarget == Target)
 	{
@@ -244,6 +251,12 @@ void UVRGrabHand::VirtualRelease(bool bLaunch)
 		{
 			GrabbeeObj->LaunchTowards(GetComponentLocation(), LaunchArcParam);
 		}
+	}
+
+	// 通知物体取消选中（虚拟抓取结束）
+	if (IGrabbable* Grabbable = Cast<IGrabbable>(ReleasedTarget))
+	{
+		IGrabbable::Execute_OnGrabDeselected(ReleasedTarget);
 	}
 
 	// 清除状态
@@ -359,12 +372,12 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(GetOwner());
 
-	FHitResult HitResult;
+	TArray<FHitResult> HitResults;
 	FVector Start = GetComponentLocation();
 	FVector End = Start; // 原地球形扫描
 	
-	// 使用 SphereTraceSingleForObjects 来获取精确的 Hit 信息
-	bool bHit = UKismetSystemLibrary::SphereTraceSingleForObjects(
+	// 使用 SphereTraceMultiForObjects 来获取所有碰撞物体
+	bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
 		this,
 		Start,
 		End,
@@ -372,23 +385,58 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 		GrabObjectTypes,
 		false,  // bTraceComplex
 		IgnoreActors,
-		EDrawDebugTrace::None,
-		HitResult,
+		EDrawDebugTrace::ForDuration,
+		HitResults,
 		true    // bIgnoreSelf
 	);
-
-	if (bHit && HitResult.GetActor())
+	
+	if (!bHit || HitResults.Num() == 0)
+	{
+		return nullptr;
+	}
+	
+	// 遍历所有碰撞结果，找到最近的实现了 IGrabbable 接口的物体
+	AActor* ClosestGrabbableActor = nullptr;
+	float ClosestDistance = FLT_MAX;
+	FName ClosestBoneName = NAME_None;
+	
+	for (const FHitResult& HitResult : HitResults)
 	{
 		AActor* HitActor = HitResult.GetActor();
-		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
-		if (Grabbable && IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
+		if (!HitActor)
 		{
-			// 从 HitResult 获取骨骼名
-			OutBoneName = HitResult.BoneName;
-			return HitActor;
+			continue;
+		}
+		
+		// 检查是否实现 IGrabbable 接口
+		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
+		if (!Grabbable)
+		{
+			continue;
+		}
+		
+		// 检查是否可以被抓取
+		if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
+		{
+			continue;
+		}
+		
+		// 计算距离
+		float Distance = HitResult.Distance;
+		if (Distance < ClosestDistance)
+		{
+			ClosestDistance = Distance;
+			ClosestGrabbableActor = HitActor;
+			ClosestBoneName = HitResult.BoneName;
 		}
 	}
-
-	// 回退到 Overlap 检测（不返回骨骼名，用于非骨骼网格体）
+	
+	if (ClosestGrabbableActor)
+	{
+		OutBoneName = ClosestBoneName;
+		return ClosestGrabbableActor;
+	}
+	
 	return nullptr;
 }
+

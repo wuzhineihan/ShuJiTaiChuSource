@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "Game/GrabTypes.h"
+#include "Grabber/GrabTypes.h"
 #include "IGrabbable.generated.h"
 
 class UPlayerGrabHand;
@@ -46,6 +46,12 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
 	bool CanBeGrabbedBy(const UPlayerGrabHand* Hand) const;
+
+	/**
+	 * 检查是否可以被重力手套抓取
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Grab")
+	bool CanBeGrabbedByGravityGlove() const;
 
 	/**
 	 * 是否支持双手同时抓取

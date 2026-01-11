@@ -8,7 +8,6 @@
 #include "Arrow.generated.h"
 
 class UProjectileMovementComponent;
-class UBoxComponent;
 class UNiagaraComponent;
 class ABow;
 
@@ -44,9 +43,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UProjectileMovementComponent* ProjectileMovement;
 
-	/** 箭头碰撞盒（用于命中检测） */
+	/** 箭头位置（用于 LineTrace 检测） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UBoxComponent* ArrowTipCollision;
+	USceneComponent* ArrowTipPosition;
 
 	/** 飞行轨迹 Niagara 效果 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -65,6 +64,9 @@ public:
 	/** 着火持续时间 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow|Combat")
 	float OnFireDuration = 5.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow|Combat")
+	float ImpulseStrengthMultiplier = 2.0f;
 
 	// ==================== 状态 ====================
 	
@@ -88,9 +90,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Arrow|State")
 	ABow* NockedBow = nullptr;
 
-	/** 发射箭的角色（用于伤害归属） */
-	UPROPERTY(BlueprintReadOnly, Category = "Arrow|State")
-	ABaseCharacter* ArrowInstigator = nullptr;
+	// OwningCharacter 继承自父类 GrabbeeObject，用于伤害归属
 
 	// ==================== 状态切换 ====================
 	
@@ -121,8 +121,8 @@ public:
 	void Extinguish();
 
 	// ==================== 重写 ====================
-	
-	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+
+	virtual bool CanBeGrabbedByGravityGlove_Implementation() const override;
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 
@@ -133,10 +133,11 @@ public:
 protected:
 	// ==================== 内部函数 ====================
 	
-	/** 箭头碰撞开始 */
-	UFUNCTION()
-	void OnArrowTipBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	/** 飞行时执行 LineTrace 检测碰撞 */
+	void PerformFlightTrace(float DeltaTime);
+
+	/** 处理命中 */
+	void HandleHit(const FHitResult& HitResult);
 
 	/** 造成伤害 */
 	void DealDamage(AActor* HitActor);
@@ -146,4 +147,7 @@ protected:
 
 	/** 火焰计时器句柄 */
 	FTimerHandle FireTimerHandle;
+
+	/** 上一帧箭头位置（用于 LineTrace） */
+	FVector PreviousTipLocation;
 };

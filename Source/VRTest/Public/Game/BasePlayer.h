@@ -6,9 +6,11 @@
 #include "Game/BaseCharacter.h"
 #include "Effect/FallDamageComponent.h"
 #include "Effect/AutoRecoverComponent.h"
+#include "Game/InventoryComponent.h"
 #include "BasePlayer.generated.h"
 
-class UPhysicsControlComponent;
+class UPhysicsHandleComponent;
+class UPlayerGrabHand;
 class AGrabbeeWeapon;
 class ABow;
 
@@ -28,6 +30,10 @@ class VRTEST_API ABasePlayer : public ABaseCharacter
 public:
 	ABasePlayer();
 
+protected:
+	virtual void BeginPlay() override;
+
+public:
 	// ==================== 组件 ====================
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -36,9 +42,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UAutoRecoverComponent* AutoRecoverComponent;
 
-	/** 物理控制组件 - 用于 Free/Snap/HumanBody 类型抓取 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UPhysicsControlComponent* PhysicsControlComponent;
+	UInventoryComponent* InventoryComponent;
+
+	/** 左手物理抓取组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPhysicsHandleComponent* LeftPhysicsHandle;
+
+	/** 右手物理抓取组件 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPhysicsHandleComponent* RightPhysicsHandle;
+
+	/** 左手抓取组件（基类指针，子类创建具体类型） */
+	UPROPERTY(BlueprintReadOnly, Category = "Components")
+	UPlayerGrabHand* LeftHand = nullptr;
+
+	/** 右手抓取组件（基类指针，子类创建具体类型） */
+	UPROPERTY(BlueprintReadOnly, Category = "Components")
+	UPlayerGrabHand* RightHand = nullptr;
 
 	// ==================== 弓相关 ====================
 	
@@ -78,7 +99,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	virtual void SetBowArmed(bool bArmed);
 
+	UFUNCTION(BlueprintCallable, Category = "Controller")
+	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
+
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	APlayerController* PlayerController;
+	
 	/** 生成弓 Actor */
 	virtual ABow* SpawnBow();
 

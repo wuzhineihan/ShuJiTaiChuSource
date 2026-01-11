@@ -1,14 +1,15 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Game/BasePCPlayer.h"
-#include "Game/PCGrabHand.h"
+#include "Grabber/PCGrabHand.h"
 #include "Game/InventoryComponent.h"
-#include "Grab/IGrabbable.h"
+#include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SphereComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -21,18 +22,38 @@ ABasePCPlayer::ABasePCPlayer()
 	FirstPersonCamera->bUsePawnControlRotation = true;
 
 	// 创建左手
-	LeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
-	LeftHand->SetupAttachment(FirstPersonCamera);
-	LeftHand->bIsRightHand = false;
+	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
+	PCLeftHand->SetupAttachment(FirstPersonCamera);
+	PCLeftHand->bIsRightHand = false;
+	LeftHand = PCLeftHand;  // 赋值给 BasePlayer 的基类指针
+
+	// 创建左手碰撞体
+	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
+	LeftHandCollision->SetupAttachment(PCLeftHand);
+	LeftHandCollision->SetSphereRadius(5.0f);
+	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
+	PCLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手
-	RightHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("RightHand"));
-	RightHand->SetupAttachment(FirstPersonCamera);
-	RightHand->bIsRightHand = true;
+	PCRightHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("RightHand"));
+	PCRightHand->SetupAttachment(FirstPersonCamera);
+	PCRightHand->bIsRightHand = true;
+	RightHand = PCRightHand;  // 赋值给 BasePlayer 的基类指针
+
+	// 创建右手碰撞体
+	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
+	RightHandCollision->SetupAttachment(PCRightHand);
+	RightHandCollision->SetSphereRadius(5.0f);
+	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	RightHandCollision->ComponentTags.Add(FName("player_hand"));
+	PCRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用
-	LeftHand->OtherHand = RightHand;
-	RightHand->OtherHand = LeftHand;
+	PCLeftHand->OtherHand = PCRightHand;
+	PCRightHand->OtherHand = PCLeftHand;
 }
 
 void ABasePCPlayer::BeginPlay()
@@ -40,13 +61,13 @@ void ABasePCPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	// 绑定手的抓取/释放委托，用于同步目标检测状态
-	if (LeftHand)
+	if (PCLeftHand)
 	{
-		LeftHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
+		PCLeftHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
 	}
-	if (RightHand)
+	if (PCRightHand)
 	{
-		RightHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
+		PCRightHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
 	}
 }
 
@@ -62,7 +83,7 @@ void ABasePCPlayer::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// 每帧检测瞄准目标（只在徒手模式且未持有物体时检测）
-	if (!bIsBowArmed && !LeftHand->bIsHolding && !RightHand->bIsHolding)
+	if (!bIsBowArmed && !PCLeftHand->bIsHolding && !PCRightHand->bIsHolding)
 	{
 		UpdateTargetDetection();
 	}
@@ -91,11 +112,11 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 		}
 
 		// 释放左手持有的弓
-		if (LeftHand && LeftHand->bIsHolding &&
-		    LeftHand->HeldActor && IsValid(LeftHand->HeldActor) &&
-		    LeftHand->HeldActor == CurrentBow)
+		if (PCLeftHand && PCLeftHand->bIsHolding &&
+		    PCLeftHand->HeldActor && IsValid(PCLeftHand->HeldActor) &&
+		    PCLeftHand->HeldActor == CurrentBow)
 		{
-			LeftHand->ReleaseObject();
+			PCLeftHand->ReleaseObject();
 		}
 	}
 
@@ -103,9 +124,9 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	Super::SetBowArmed(bArmed);
 
 	// 进入弓箭模式时使用 GrabHand 的抓取逻辑
-	if (bArmed && CurrentBow && LeftHand)
+	if (bArmed && CurrentBow && PCLeftHand)
 	{
-		LeftHand->GrabObject(CurrentBow);
+		PCLeftHand->GrabObject(CurrentBow);
 	}
 }
 
@@ -123,7 +144,7 @@ void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
-			LeftHand->TryGrabOrRelease();
+			PCLeftHand->TryGrabOrRelease();
 		}
 	}
 	else
@@ -147,7 +168,7 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
-			RightHand->TryGrabOrRelease();
+			PCRightHand->TryGrabOrRelease();
 		}
 	}
 	else
@@ -176,23 +197,28 @@ void ABasePCPlayer::StartAiming()
 	bIsAiming = true;
 	
 	// 将左手平滑过渡到瞄准位置
-	LeftHand->InterpToTransform(AimingLeftHandTransform);
+	PCLeftHand->InterpToTransform(AimingLeftHandTransform);
 
-	// 在开始瞄准时生成箭并搭在弓弦上
-	if (CurrentBow)
+	// 在开始瞄准时从库存取出箭并让右手抓住
+	if (InventoryComponent && InventoryComponent->HasArrow())
 	{
-		// 检查是否有箭
-		if (InventoryComponent && InventoryComponent->HasArrow())
+		// 计算箭的生成位置（右手位置）
+		FTransform SpawnTransform;
+		SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
+		SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
+		
+		// 从库存取出箭（会消耗计数并生成Actor）
+		AGrabbeeObject* ArrowActor = InventoryComponent->TryRetrieveArrow(SpawnTransform);
+		if (ArrowActor)
 		{
-			// 消耗一支箭并生成
-			InventoryComponent->ConsumeArrow();
-			CurrentBow->SpawnAndNockArrow();
+			// 让右手抓住箭
+			PCRightHand->GrabObject(ArrowActor);
 		}
-		else
-		{
-			// 没有箭，播放音效提示
-			PlayNoArrowSound();
-		}
+	}
+	else
+	{
+		// 没有箭，播放音效提示
+		PlayNoArrowSound();
 	}
 }
 
@@ -207,19 +233,19 @@ void ABasePCPlayer::StopAiming()
 	bIsAiming = false;
 	
 	// 左手回到默认位置
-	LeftHand->InterpToDefaultTransform();
+	PCLeftHand->InterpToDefaultTransform();
 
-	// 清理未发射的箭（只有在没拉弓时才会有未发射的箭）
-	if (CurrentBow && CurrentBow->NockedArrow)
+	// 清理未发射的箭
+	// 情况1：箭还在右手中（未开始拉弓）
+	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
+	if (HeldArrow)
 	{
-		// 退还箭到背包
+		PCRightHand->ReleaseObject();
 		if (InventoryComponent)
 		{
 			InventoryComponent->AddArrow();
 		}
-		// 销毁生成的箭 Actor
-		CurrentBow->NockedArrow->Destroy();
-		CurrentBow->NockedArrow = nullptr;
+		HeldArrow->Destroy();
 	}
 }
 
@@ -235,8 +261,9 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 检查是否有箭搭在弓上
-	if (!CurrentBow->NockedArrow)
+	// 检查右手是否持有箭
+	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
+	if (!HeldArrow)
 	{
 		PlayNoArrowSound();
 		return;
@@ -244,14 +271,18 @@ void ABasePCPlayer::StartDrawBow()
 
 	bIsDrawingBow = true;
 	
-	// 设置初始偏移：弓弦位置相对于右手的偏移
+	// 计算弓弦位置
 	FVector StringRestPos = CurrentBow->StringRestPosition ? 
 		CurrentBow->StringRestPosition->GetComponentLocation() : 
 		CurrentBow->StringMesh->GetComponentLocation();
-	CurrentBow->InitialStringGrabOffset = StringRestPos - RightHand->GetComponentLocation();
 	
-	// 通过抓取系统抓弓弦（触发 OnGrabbed → StartPullingString）
-	RightHand->GrabObject(CurrentBow);
+	// 将右手移动到弓弦位置
+	// 这会触发弓弦碰撞检测（OnStringCollisionBeginOverlap）
+	// 弓会检测到手持有箭 → 释放箭 → 搭箭 → 手抓弓弦
+	FTransform StringTransform;
+	StringTransform.SetLocation(StringRestPos);
+	StringTransform.SetRotation(CurrentBow->GetActorRotation().Quaternion());
+	PCRightHand->SetWorldTransform(StringTransform);
 }
 
 void ABasePCPlayer::StopDrawBow()
@@ -274,13 +305,13 @@ void ABasePCPlayer::ReleaseBowString()
 	bIsDrawingBow = false;
 
 	// 释放弓弦（触发 OnReleased → 发射）
-	if (RightHand && RightHand->bIsHolding && RightHand->HeldActor == CurrentBow)
+	if (PCRightHand && PCRightHand->bIsHolding && PCRightHand->HeldActor == CurrentBow)
 	{
-		RightHand->ReleaseObject();
+		PCRightHand->ReleaseObject();
 	}
 
 	// 右手回到默认位置
-	RightHand->InterpToDefaultTransform();
+	PCRightHand->InterpToDefaultTransform();
 }
 
 // ==================== 内部函数 ====================
@@ -302,7 +333,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 		// 验证是否可以被抓取（检查左手或右手，取第一只空闲的手）
 		if (Grabbable)
 		{
-			UPCGrabHand* CheckHand = !LeftHand->bIsHolding ? LeftHand : RightHand;
+			UPCGrabHand* CheckHand = !PCLeftHand->bIsHolding ? PCLeftHand : PCRightHand;
 			if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, CheckHand))
 			{
 				NewTarget = nullptr;

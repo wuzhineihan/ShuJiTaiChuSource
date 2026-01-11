@@ -4,7 +4,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Game/PlayerGrabHand.h"
+#include "Grabber/PlayerGrabHand.h"
+#include "Game/BaseCharacter.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -16,7 +17,9 @@ AGrabbeeObject::AGrabbeeObject()
 
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	MeshComponent->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
+
+	MeshComponent->SetRenderCustomDepth(true);
 }
 
 void AGrabbeeObject::BeginPlay()
@@ -57,8 +60,26 @@ bool AGrabbeeObject::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) 
 		return !ControllingHands.Contains(const_cast<UPlayerGrabHand*>(Hand));
 	}
 
-	// 普通物体：未被抓取时才可抓取
-	return !bIsHeld;
+	// 普通物体（不支持双手抓取）
+	if (bIsHeld)
+	{
+		// 如果被另一只手持有，允许抓取（会触发换手）
+		// HoldingHand 存在且有 OtherHand，并且 OtherHand 就是当前尝试抓取的手
+		if (HoldingHand && HoldingHand->OtherHand == Hand)
+		{
+			return true;
+		}
+		// 被同一只手或其他情况持有，不允许
+		return false;
+	}
+
+	// 未被抓取时可以抓取
+	return true;
+}
+
+bool AGrabbeeObject::CanBeGrabbedByGravityGlove_Implementation() const
+{
+	return true;
 }
 
 bool AGrabbeeObject::SupportsDualHandGrab_Implementation() const
@@ -69,6 +90,15 @@ bool AGrabbeeObject::SupportsDualHandGrab_Implementation() const
 void AGrabbeeObject::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
 	bIsHeld = true;
+	
+	// 设置 OwningCharacter（控制此物体的角色）
+	if (Hand)
+	{
+		if (ABaseCharacter* Character = Cast<ABaseCharacter>(Hand->GetOwner()))
+		{
+			OwningCharacter = Character;
+		}
+	}
 	
 	// 如果支持双手抓取，添加到控制列表
 	if (bSupportsDualHandGrab)
@@ -124,24 +154,28 @@ void AGrabbeeObject::OnReleased_Implementation(UPlayerGrabHand* Hand)
 void AGrabbeeObject::OnGrabSelected_Implementation()
 {
 	bIsSelected = true;
-	// 子类可重写添加高亮、音效等
+	MeshComponent->SetCustomDepthStencilValue(4); // 使用 setter 方法确保渲染状态更新
 }
 
 void AGrabbeeObject::OnGrabDeselected_Implementation()
 {
 	bIsSelected = false;
-	// 子类可重写移除高亮等
+	MeshComponent->SetCustomDepthStencilValue(0); // 使用 setter 方法确保渲染状态更新
 }
 
 // ==================== 自有函数 ====================
 
 bool AGrabbeeObject::LaunchTowards(const FVector& TargetLocation, float ArcParam)
 {
-	UPrimitiveComponent* Primitive = GetGrabPrimitive();
+	UPrimitiveComponent* Primitive = IGrabbable::Execute_GetGrabPrimitive(this);
 	if (!Primitive)
 	{
 		return false;
 	}
+
+	// 先将物体速度置零，避免残留速度影响发射轨迹
+	Primitive->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	Primitive->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 
 	FVector StartLocation = GetActorLocation();
 	FVector OutLaunchVelocity;
