@@ -2,9 +2,6 @@
 
 #include "Game/BaseVRPlayer.h"
 #include "Grabber/VRGrabHand.h"
-#include "Game/InventoryComponent.h"
-#include "Grabbee/GrabbeeWeapon.h"
-#include "Grabbee/Bow.h"
 #include "Camera/CameraComponent.h"
 #include "MotionControllerComponent.h"
 #include "Components/BoxComponent.h"
@@ -28,6 +25,7 @@ ABaseVRPlayer::ABaseVRPlayer()
 	BackpackCollision->SetupAttachment(VRCamera);
 	BackpackCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	BackpackCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	BackpackCollision->SetGenerateOverlapEvents(true);
 	BackpackCollision->ComponentTags.Add(FName("player_backpack"));
 
 	// 创建左手 MotionController
@@ -57,11 +55,12 @@ ABaseVRPlayer::ABaseVRPlayer()
 	LeftHand = VRLeftHand;  // 赋值给 BasePlayer 的基类指针
 
 	// 创建左手碰撞体
-	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
+	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(VRLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
 	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	LeftHandCollision->SetGenerateOverlapEvents(true);
 	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
 	VRLeftHand->HandCollision = LeftHandCollision;
 
@@ -73,11 +72,12 @@ ABaseVRPlayer::ABaseVRPlayer()
 
 
 	// 创建右手碰撞体
-	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
+	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(VRRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
 	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	RightHandCollision->SetGenerateOverlapEvents(true);
 	RightHandCollision->ComponentTags.Add(FName("player_hand"));
 	VRRightHand->HandCollision = RightHandCollision;
 
@@ -99,9 +99,6 @@ ABaseVRPlayer::ABaseVRPlayer()
 void ABaseVRPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 设置手部的背包碰撞引用
-	SetupHandBackpackReferences();
 }
 
 void ABaseVRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -130,18 +127,6 @@ void ABaseVRPlayer::HandleRightGrip(bool bPressed)
 
 // ==================== 内部函数 ====================
 
-void ABaseVRPlayer::SetupHandBackpackReferences()
-{
-	if (VRLeftHand)
-	{
-		VRLeftHand->BackpackCollision = BackpackCollision;
-	}
-	if (VRRightHand)
-	{
-		VRRightHand->BackpackCollision = BackpackCollision;
-	}
-}
-
 void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
 {
 	if (!Hand)
@@ -167,28 +152,6 @@ void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
 
 
 // ==================== 重写基类 ====================
-
-void ABaseVRPlayer::SetBowArmed(bool bArmed)
-{
-	// 退出弓箭模式时先释放左手
-	if (bIsBowArmed && !bArmed)
-	{
-		if (VRLeftHand && VRLeftHand->bIsHolding && VRLeftHand->HeldActor == CurrentBow)
-		{
-			// 使用 ReleaseObject 统一释放
-			VRLeftHand->ReleaseObject();
-		}
-	}
-
-	// 调用基类处理弓的生成/销毁
-	Super::SetBowArmed(bArmed);
-
-	// 进入弓箭模式时使用 GrabHand 的抓取逻辑
-	if (bArmed && CurrentBow && VRLeftHand)
-	{
-		VRLeftHand->GrabObject(CurrentBow);
-	}
-}
 
 void ABaseVRPlayer::PlaySimpleForceFeedback(EControllerHand Hand)
 {

@@ -13,6 +13,7 @@ class AGrabbeeWeapon;
 class UInventoryComponent;
 class UPhysicsHandleComponent;
 class USphereComponent;
+class ABasePlayer;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectGrabbed, AActor*, GrabbedActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectReleased, AActor*, ReleasedActor);
@@ -40,6 +41,9 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	// ==================== 配置 ====================
+
+	UPROPERTY(VisibleAnywhere,BlueprintReadWrite,Category = "Player")
+	ABasePlayer* PlayerCharacter = nullptr;
 	
 	/** 是否是右手 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hand")

@@ -6,6 +6,7 @@
 #include "Grabbee/GrabbeeWeapon.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Game/BasePlayer.h"
 
 UPlayerGrabHand::UPlayerGrabHand()
 {
@@ -19,7 +20,13 @@ UPlayerGrabHand::UPlayerGrabHand()
 void UPlayerGrabHand::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
+	PlayerCharacter = Cast<ABasePlayer>(GetOwner());
+	if (!PlayerCharacter)
+	{
+		UE_LOG(LogTemp, Error, TEXT("PlayerGrabHand: Owner is not ABasePlayer"));
+		return;
+	}
 	// CachedPhysicsHandle 和 CachedInventory 将由 BasePlayer 在其 BeginPlay 中设置
 }
 
@@ -154,7 +161,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 	{
 		return;
 	}
-
+	
 	// 获取接口
 	IGrabbable* Grabbable = Cast<IGrabbable>(TargetActor);
 	if (!Grabbable)
@@ -224,6 +231,16 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 				return;
 			}
 
+			if (Weapon->WeaponType == EWeaponType::Bow)
+			{
+				// 通知玩家角色首次拾取弓
+				if (PlayerCharacter && PlayerCharacter->CheckBowFirstPickedUp())
+				{
+					TargetActor->Destroy();
+					return;
+				}
+			}
+			
 			// 查找此武器类型的偏移
 			FTransform* Offset = WeaponGrabOffsets.Find(Weapon->WeaponType);
 			GrabOffset = Offset ? *Offset : FTransform::Identity;
@@ -237,6 +254,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 			
 			Weapon->SetActorLocationAndRotation(TargetPosition, TargetRotation);
 			Primitive->SetSimulatePhysics(true);
+			
 
 			// GrabLocation 是物体上的抓取点（质心），不是目标位置
 			GrabLocation = Primitive->GetComponentLocation();

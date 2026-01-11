@@ -10,6 +10,7 @@ class UVRGrabHand;
 class UCameraComponent;
 class UMotionControllerComponent;
 class UBoxComponent;
+class USphereComponent;
 class UWidgetInteractionComponent;
 
 /**
@@ -75,6 +76,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UVRGrabHand* VRLeftHand;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
+	USphereComponent* LeftHandCollision;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
+	USphereComponent* RightHandCollision;
+
 	/** 右手抓取组件（VR 具体类型，与 BasePlayer::RightHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UVRGrabHand* VRRightHand;
@@ -98,19 +105,14 @@ public:
 	void HandleRightGrip(bool bPressed);
 
 	// ==================== 重写基类 ====================
-	
-	/** 重写：进入弓箭模式时将弓附加到左手 */
-	virtual void SetBowArmed(bool bArmed) override;
 
 	virtual void PlaySimpleForceFeedback(EControllerHand Hand) override;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Components")
 	UHapticFeedbackEffect_Base* SimpleHapticEffect;
-	// ==================== 内部函数 ====================
 	
-	/** 设置手部的背包碰撞引用 */
-	void SetupHandBackpackReferences();
+	// ==================== 内部函数 ====================
 
 	/** 通用的抓取处理逻辑 */
 	void HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft = false);

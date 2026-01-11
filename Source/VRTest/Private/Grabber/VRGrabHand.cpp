@@ -6,6 +6,7 @@
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/BoxComponent.h"
+#include "Game/BasePlayer.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 UVRGrabHand::UVRGrabHand()
@@ -23,6 +24,10 @@ void UVRGrabHand::BeginPlay()
 	{
 		HandCollision->OnComponentBeginOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionBeginOverlap);
 		HandCollision->OnComponentEndOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionEndOverlap);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("VRGrabHand::BeginPlay - HandCollision is NULL!"));
 	}
 }
 
@@ -101,6 +106,7 @@ void UVRGrabHand::OnHandCollisionBeginOverlap(UPrimitiveComponent* OverlappedCom
 	// 检查是否是背包碰撞区域（通过 Tag 检测）
 	if (OtherComp && OtherComp->ComponentHasTag(FName("player_backpack")))
 	{
+		PlayerCharacter->PlaySimpleForceFeedback(bIsRightHand ? EControllerHand::Right : EControllerHand::Left);
 		bIsInBackpackArea = true;
 	}
 }
