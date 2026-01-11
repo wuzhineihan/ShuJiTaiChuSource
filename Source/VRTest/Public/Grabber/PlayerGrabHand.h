@@ -63,8 +63,6 @@ public:
 
 	// ==================== 组件 ====================
 	
-	/** 手部碰撞体 - 用于检测与弓弦的 overlap */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* HandCollision;
 
 	// ==================== PhysicsHandle 配置 ====================

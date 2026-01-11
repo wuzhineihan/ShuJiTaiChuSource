@@ -6,6 +6,7 @@
 #include "Grabbee/GrabbeeWeapon.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SphereComponent.h"
 #include "Game/BasePlayer.h"
 
 UPlayerGrabHand::UPlayerGrabHand()
@@ -15,6 +16,8 @@ UPlayerGrabHand::UPlayerGrabHand()
 	// 默认检测对象类型
 	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
+	
+	// HandCollision 由 BaseVRPlayer 创建并赋值
 }
 
 void UPlayerGrabHand::BeginPlay()

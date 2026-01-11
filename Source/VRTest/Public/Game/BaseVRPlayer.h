@@ -10,7 +10,6 @@ class UVRGrabHand;
 class UCameraComponent;
 class UMotionControllerComponent;
 class UBoxComponent;
-class USphereComponent;
 class UWidgetInteractionComponent;
 
 /**
@@ -75,12 +74,6 @@ public:
 	/** 左手抓取组件（VR 具体类型，与 BasePlayer::LeftHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UVRGrabHand* VRLeftHand;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
-	USphereComponent* LeftHandCollision;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
-	USphereComponent* RightHandCollision;
 
 	/** 右手抓取组件（VR 具体类型，与 BasePlayer::RightHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")

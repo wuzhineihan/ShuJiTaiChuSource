@@ -55,13 +55,14 @@ ABaseVRPlayer::ABaseVRPlayer()
 	LeftHand = VRLeftHand;  // 赋值给 BasePlayer 的基类指针
 
 	// 创建左手碰撞体
-	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
+	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(VRLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
 	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
+	LeftHandCollision->SetHiddenInGame(false);
 	VRLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手抓取组件
@@ -70,15 +71,15 @@ ABaseVRPlayer::ABaseVRPlayer()
 	VRRightHand->bIsRightHand = true;
 	RightHand = VRRightHand;  // 赋值给 BasePlayer 的基类指针
 
-
 	// 创建右手碰撞体
-	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
+	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(VRRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
 	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	RightHandCollision->ComponentTags.Add(FName("player_hand"));
+	RightHandCollision->SetHiddenInGame(false);
 	VRRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用
