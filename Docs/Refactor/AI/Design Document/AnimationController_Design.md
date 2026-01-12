@@ -1,306 +1,193 @@
-# 动画控制器设计文档
+# Animation Controller Component Design (Local Actor Scope)
 
 ## 目录
+- [Animation Controller Component Design (Local Actor Scope)](#animation-controller-component-design-local-actor-scope)
+  - [目录](#目录)
+  - [1. 核心目标](#1-核心目标)
+  - [2. 核心设计决策](#2-核心设计决策)
+    - [A. 动画资源完全来自于外界传递，自身作为中介不承担存储资源功能。](#a-动画资源完全来自于外界传递自身作为中介不承担存储资源功能)
+    - [B. 通信机制与状态归属](#b-通信机制与状态归属)
+    - [C. 动画通知](#c-动画通知)
+    - [D. 接口定义 (C++ API)](#d-接口定义-c-api)
+  - [3. 待讨论细节 (Pending Details)](#3-待讨论细节-pending-details)
+  - [4. 目录结构](#4-目录结构)
+  - [5. API 速查 (External API Summary)](#5-api-速查-external-api-summary)
+    - [Commands (命令)](#commands-命令)
+    - [Queries (查询)](#queries-查询)
+    - [Events (事件)](#events-事件)
+  - [6. 使用示例 (Example)](#6-使用示例-example)
+    - [场景: 近战组件发起攻击并处理被打断](#场景-近战组件发起攻击并处理被打断)
 
-- [1. 概述](#1-概述)
-- [2. 职责范围](#2-职责范围)
-  - [核心职责](#21-核心职责)
-  - [不负责的事项](#22-不负责的事项)
-- [3. 架构设计](#3-架构设计)
-  - [组件定位](#31-组件定位)
-  - [数据流](#32-数据流)
-- [4. 组件设计](#4-组件设计)
-  - [UAnimationController](#41-uanimationcontroller)
-- [5. 工作流程](#5-工作流程)
-  - [初始化流程](#51-初始化流程)
-  - [攻击动画流程](#52-攻击动画流程)
-  - [武器切换流程](#53-武器切换流程)
-- [6. 数据配置](#6-数据配置)
-  - [蒙太奇映射表](#61-蒙太奇映射表)
-  - [常见蒙太奇](#62-常见蒙太奇)
-- [7. 设计特点](#7-设计特点)
-  - [解耦性](#71-解耦性)
-  - [复用性](#72-复用性)
-  - [可扩展性](#73-可扩展性)
-- [8. 与其他系统的交互](#8-与其他系统的交互)
-  - [与武器系统的交互](#81-与武器系统的交互)
-  - [与动画蒙太奇的交互](#82-与动画蒙太奇的交互)
-  - [与骨架网格体的交互](#83-与骨架网格体的交互)
-- [9. 扩展方向](#9-扩展方向)
-  - [动画完成通知](#91-动画完成通知)
-  - [动画中断处理](#92-动画中断处理)
-  - [分层动画](#93-分层动画)
-- [10. 调试支持](#10-调试支持)
-  - [可视化信息](#101-可视化信息)
-  - [日志记录](#102-日志记录)
-- [11. 设计清单](#11-设计清单)
+## 1. 核心目标
+构建一个连接 AI/Gameplay 逻辑与底层动画系统的中间层，职责明确：
+- **执行**：播放事件总线转递的动画蒙太奇。
+- **广播**：统一对外广播“动画完成/被打断”等状态；
+- **去中心**：仅作为播放动画蒙太奇的中间件，不参与其他的逻辑调用。
+- **未来扩展**：可能会添加LevelSequence播放的功能
 
----
+## 2. 核心设计决策
 
-## 1. 概述
+### A. 动画资源完全来自于外界传递，自身作为中介不承担存储资源功能。
+- **输入**：动画蒙太奇资源、唯一标识Guid、该动作标签（比如攻击的话就是Attack标签，受击的话就是Hit标签）。
+- **输出**：通过`Event.Anim.Finished`向事件总线发起通知，输出：当前的Guid，当前的动作标签，是否完整播放，是否被打断
+  
+### B. 通信机制与状态归属
+- **关联凭证**：使用 `FGuid RequestID` 关联一次播放请求及其完成事件。
+- **状态归属（关键）**：
+  - 请求者长期订阅 `Event.Anim.Finished`，收到后按 `Payload.RequestID` 做自我过滤。
+- **控制器职责**：
+  - `UAnimationControllerComponent` 仅负责“执行与广播”，不保存业务回调、不维护多路映射。
+  - 播放新动画前，控制器从 `AnimInstance` 读取 `CurrentMontageRequestID`（由 AnimInstance 在开播时记录）。若存在旧 ID，则：
+    1.  停止当前蒙太奇。
+    2.  立刻广播 `Event.Anim.Finished`，并依据当前情况组装payload。
+  - 开始新动画，并将“新 ID”写入 `AnimInstance.CurrentMontageRequestID`，以便下一次切换时能正确中断并广播旧 ID。
 
-AnimationController 是一个独立的动画执行组件，负责接收武器系统的攻击请求并播放对应的动画蒙太奇。
+**说明**：核心目标即是实现多个蒙太奇的播放而不造成互相影响
 
-**核心设计理念**：完全解耦动画逻辑与武器逻辑，使得动画系统不需要知道任何武器类型信息。
+### C. 动画通知
+- **通过接口通知**：为特定的动画通知定义相关接口，比如近战武器的开启碰撞体或者后续连招变招都可以通过动画通知实现 
 
----
+### D. 接口定义 (C++ API)
+```cpp
+// 1) 结果载荷 (Output)
+UENUM(BlueprintType)
+enum class EAnimCompletionResult : uint8
+{
+    Finished,     // 完整播放
+    Interrupted   // 被打断
+};
 
-## 2. 职责范围
+UCLASS(BlueprintType)
+class UAnimResultPayload : public UObject
+{
+    GENERATED_BODY()
+public:
+    // 当前的Guid
+    UPROPERTY(BlueprintReadOnly, Category = "Result")
+    FGuid RequestID;
 
-### 2.1 核心职责
+    // 当前的动作标签
+    UPROPERTY(BlueprintReadOnly, Category = "Result")
+    FGameplayTag ActionTag;
 
-- 接收来自武器系统的攻击请求事件（FAttackRequestedEvent）
-- 根据攻击名称查找对应的蒙太奇资源
-- 播放和管理动画蒙太奇的生命周期
-- 与骨架网格体的 AnimInstance 直接交互
+    // 是否完整播放 / 是否被打断
+    UPROPERTY(BlueprintReadOnly, Category = "Result")
+    EAnimCompletionResult Result = EAnimCompletionResult::Finished;
+};
 
-### 2.2 不负责的事项
+// 2) 请求载荷 (Input)
+UCLASS(BlueprintType)
+class UAnimRequestPayload : public UObject
+{
+    GENERATED_BODY()
+public:
+    // 动画蒙太奇资源
+    UPROPERTY(BlueprintReadWrite, Category = "Request", meta = (ExposeOnSpawn = true))
+    UAnimMontage* Montage = nullptr;
 
-- 任何武器逻辑判断
-- 伤害计算
-- 碰撞检测
-- 弹药管理
-- 任何游戏业务逻辑
+    // 唯一标识Guid (若为空则内部生成)
+    UPROPERTY(BlueprintReadWrite, Category = "Request", meta = (ExposeOnSpawn = true))
+    FGuid RequestID;
 
----
+    // 该动作标签 (用于上下文匹配)
+    UPROPERTY(BlueprintReadWrite, Category = "Request", meta = (ExposeOnSpawn = true))
+    FGameplayTag ActionTag;
 
-## 3. 架构设计
+    // 播放速率
+    UPROPERTY(BlueprintReadWrite, Category = "Request")
+    float PlayRate = 1.0f;
 
-### 3.1 组件定位
+    // 起始段落名
+    UPROPERTY(BlueprintReadWrite, Category = "Request")
+    FName StartSection = NAME_None;
+};
 
-AnimationController 在 EnemyBase 中的角色：
+// 3) 控制器对外 API
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class UAnimationControllerComponent : public UActorComponent
+{
+    GENERATED_BODY()
+public:
+    // --- Commands (命令) ---
 
-```
-EnemyBase (Pawn)
-├── EventBusComponent (事件中转)
-├── WeaponSlots + CurrentWeapon (武器管理)
-└── AnimationController (动画执行) ← 纯粹的表现层
-```
+    /**
+     * 执行动画播放
+     * @param RequestInput  包含 资源、Tag、ID 及播放参数的请求载荷
+     * @return              本次播放关联的 RequestID
+     */
+    UFUNCTION(BlueprintCallable, Category = "AI|Animation")
+    FGuid PlayAnimation(UAnimRequestPayload* RequestInput);
 
-特点：
-- 作为 EnemyBase 的子组件
-- 通过事件总线接收事件（不直接依赖武器）
-- 直接访问 Owner 的骨架网格体
+    /**
+     * 主动停止当前动画
+     * 若当前有正在播放的蒙太奇，将导致广播 EAnimCompletionResult::Interrupted
+     */
+    UFUNCTION(BlueprintCallable, Category = "AI|Animation")
+    void StopCurrentAnimation(float BlendOutTime = 0.2f);
 
-### 3.2 数据流
+    // --- Queries (查询) ---
 
-```
-武器组件 → FAttackRequestedEvent → EventBus
-                                      ↓
-                            AnimationController
-                                      ↓
-                          查找蒙太奇 → 播放动画
-```
+    /** 获取当前正在播放的动作标签 (若无播放则返回 Empty) */
+    UFUNCTION(BlueprintPure, Category = "AI|Animation")
+    FGameplayTag GetCurrentActionTag() const;
 
----
+    /** 获取当前蒙太奇播放位置（秒） */
+    UFUNCTION(BlueprintPure, Category = "AI|Animation")
+    float GetCurrentMontagePosition() const;
 
-## 4. 组件设计
+    /** 是否正在播放任何由该控制器管理的动画 */
+    UFUNCTION(BlueprintPure, Category = "AI|Animation")
+    bool IsPlaying() const;
 
-### 4.1 UAnimationController
+protected:
+    // --- Internal Handlers (内部处理) ---
 
-**职责**：动画资源管理和蒙太奇播放
-
-**关键数据**：
-- AttackMontages：映射表
-  - 键：攻击名称 (FName，如 "Light", "Heavy", "Charge")
-  - 值：动画蒙太奇资源 (UAnimMontage*)
-- CurrentMontage：当前正在播放的蒙太奇
-- SwitchWeaponMontage：武器切换时的过渡动画
-
-**关键行为**：
-
-| 行为 | 说明 |
-|------|------|
-| OnAttackRequested | 接收攻击请求事件并处理 |
-| PlayMontage | 播放指定蒙太奇 |
-| StopMontage | 停止当前蒙太奇 |
-| OnWeaponChanged | 武器切换时的动画过渡 |
-
-**订阅的事件**：
-- FAttackRequestedEvent：来自武器组件的攻击请求
-- FWeaponChangedEvent：来自武器槽的武器切换通知
-
-**发送的事件**：
-- （暂无，或可扩展为动画完成事件）
-
----
-
-## 5. 工作流程
-
-### 5.1 初始化流程
-
-1. EnemyBase::BeginPlay() 时创建 AnimationController 组件
-2. AnimationController 向 EventBusComponent 订阅事件
-3. 准备就绪，等待事件
-
-### 5.2 攻击动画流程
-
-1. **事件接收**：
-   - AnimationController 收到 FAttackRequestedEvent
-   - 事件包含 AttackName（如 "Light"）
-
-2. **资源查找**：
-   - 在 AttackMontages 中查找 AttackName
-   - 若存在，获取蒙太奇资源
-   - 若不存在，记录警告
-
-3. **蒙太奇播放**：
-   - 停止当前蒙太奇（若有）
-   - 通过 AnimInstance->Montage_Play() 播放新蒙太奇
-   - 记录当前播放的蒙太奇
-
-4. **生命周期管理**：
-   - 蒙太奇播放过程中触发 AnimNotify
-   - AnimNotify 向武器系统发送 FWeaponNotifyEvent
-   - 蒙太奇播放结束，清理状态
-
-### 5.3 武器切换流程
-
-1. **事件接收**：
-   - AnimationController 收到 FWeaponChangedEvent
-   - 事件包含新旧武器信息和切换时长
-
-2. **过渡动画**：
-   - 播放 SwitchWeaponMontage（如果配置了）
-   - 按指定时长播放
-   - 完成后，新武器的动画映射表已准备好
-
----
-
-## 6. 数据配置
-
-### 6.1 蒙太奇映射表
-
-**在 EnemyConfigPreset 中定义**：
-
-- AttackMontages：TMap<FName, UAnimMontage*>
-  - 包含所有可能的攻击蒙太奇
-  - 键应与武器系统发送的 AttackName 一致
-
-**使用场景**：
-- 不同敌人可能有不同的攻击蒙太奇
-- 即使武器相同，动画效果可能不同（身材、风格等）
-
-### 6.2 常见蒙太奇
-
-| 蒙太奇名 | 说明 | 用于 |
-|---------|------|------|
-| Light | 轻攻击 | 所有武器 |
-| Heavy | 重攻击 | 所有武器 |
-| Special | 特殊攻击 | 特定武器 |
-| Charge | 蓄力攻击 | 远程武器 |
-| SwitchWeapon | 武器切换过渡 | 武器切换 |
-
----
-
-## 7. 设计特点
-
-### 7.1 解耦性
-
-- 不知道武器的具体类型
-- 不知道伤害计算细节
-- 不知道碰撞检测
-- 完全独立的表现层
-
-### 7.2 复用性
-
-- 相同的 AnimationController 可用于多种敌人
-- 只需修改配置中的蒙太奇映射
-- 可用于玩家角色
-
-### 7.3 可扩展性
-
-- 新增攻击类型只需添加蒙太奇和 FName
-- 无需修改 AnimationController 代码
-- 支持动态蒙太奇切换
-
----
-
-## 8. 与其他系统的交互
-
-### 8.1 与武器系统的交互
-
-```
-武器组件 (发送)
-  ↓
-FAttackRequestedEvent
-  ↓
-EventBusComponent (中转)
-  ↓
-AnimationController (接收)
-  ↓
-播放蒙太奇
-  ↓
-AnimNotify (发送)
-  ↓
-FWeaponNotifyEvent
-  ↓
-EventBusComponent (中转)
-  ↓
-武器组件 (接收)
+    /**
+     * 绑定到底层 AnimInstance 的 OnMontageEnded 委托。
+     * 核心职责：捕获动画结束（自然完成或被打断），并广播 Event.Anim.Finished。
+     * 注意：此函数由系统自动调用，不可被外部 Gameplay 逻辑直接调用。
+     */
+    UFUNCTION()
+    void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+};
 ```
 
-### 8.2 与动画蒙太奇的交互
+## 3. 待讨论细节 (Pending Details)
+- **多槽位蒙太奇**：多槽位播放，比如说上半身，下半身或者手臂分开来播放
 
-蒙太奇中的 AnimNotify 可以：
-- 引用 EventBusComponent
-- 发送 FWeaponNotifyEvent 到武器系统
-- 传递精确的时序信息
+## 4. 目录结构
+`Source/VRTest/Public/AI/Component/AnimationControllerComponent.h`
+`Source/VRTest/Private/AI/Component/AnimationControllerComponent.cpp`
+`Source/VRTest/Public/AI/Data/AnimationConfigDataAsset.h`
 
-### 8.3 与骨架网格体的交互
+## 5. API 速查 (External API Summary)
 
-- 直接访问 Owner->GetMesh()->GetAnimInstance()
-- 播放蒙太奇
-- 获取当前播放进度
-- 监听播放完成
+### Commands (命令)
+| 函数名 | 说明 | 适用场景 |
+| :--- | :--- | :--- |
+| **`PlayAnimation`** | 播放指定蒙太奇 (需传入 Payload)，返回 RequestID。会自动打断当前播放。 | 发起攻击、受击硬直、闪避等动作播放。 |
+| **`StopCurrentAnimation`** | 强制停止当前动画，并广播 `Interrupted` 结果。 | 强行打断动作（如死亡时），或重置状态。 |
 
----
+### Queries (查询)
+| 函数名 | 说明 | 适用场景 |
+| :--- | :--- | :--- |
+| **`GetCurrentActionTag`** | 返回当前正在播放的动作标签 (ActionTag)。若无动作则返回 Empty。 | 判断当前是在攻击还是受击，进行逻辑分流。 |
+| **`GetCurrentMontagePosition`** | 返回当前蒙太奇的播放进度（秒）。 | 精确判定是否可以取消后摇，或触发连招。 |
+| **`IsPlaying`** | 是否有任何由 Controller 管理的动画正在播放。 | 基础的状态判断。 |
 
-## 9. 扩展方向
+### Events (事件)
+| 事件 Tag | Payload 类型 | 说明 |
+| :--- | :--- | :--- |
+| **`Event.Anim.Finished`** | `UAnimResultPayload` | 动画结束通知。包含 `RequestID` (凭证)、`ActionTag` (动作类型)、`Result` (完成或打断)。 |
 
-### 9.1 动画完成通知
 
-可扩展为发送动画完成事件：
-- FAnimationCompleteEvent
-- 用于其他系统做最后收尾
+## 6. 使用示例 (Example)
 
-### 9.2 动画中断处理
+### 场景: 近战组件发起攻击并处理被打断
 
-处理由于被打断需要立即中止当前动画的情况：
-- 受到控制效果（击退、冻结等）
-- 需要立即切换动画
+Requester（如 `UMeleeAttackComponent`）内部仅保存自己最近一次发起的攻击 `RequestID`，并订阅统一事件：
 
-### 9.3 分层动画
+```cpp
 
-支持上身/下身分层蒙太奇：
-- 独立控制上身攻击动画
-- 下身可继续移动
+```
 
----
-
-## 10. 调试支持
-
-### 10.1 可视化信息
-
-- 当前播放蒙太奇名称
-- 播放进度百分比
-- 最后一次收到的事件
-
-### 10.2 日志记录
-
-- 收到 FAttackRequestedEvent 时记录
-- 蒙太奇查找失败时记录警告
-- 蒙太奇播放开始/结束时记录
-
----
-
-## 11. 设计清单
-
-- [ ] 创建 UAnimationController 基类
-- [ ] 实现 OnAttackRequested 处理
-- [ ] 实现 PlayMontage 播放逻辑
-- [ ] 实现 OnWeaponChanged 过渡逻辑
-- [ ] 配置蒙太奇映射表
-- [ ] 创建 AnimNotify_WeaponAction（在 Weapon 文档中）
-- [ ] 在蒙太奇中放置 AnimNotify
-- [ ] 调试和优化
