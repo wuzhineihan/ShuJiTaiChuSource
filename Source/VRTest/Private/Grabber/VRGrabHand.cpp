@@ -104,11 +104,9 @@ AActor* UVRGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
 void UVRGrabHand::OnHandCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                               UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	UE_LOG(LogTemp, Error, TEXT("test1"));
 	// 检查是否是背包碰撞区域（通过 Tag 检测）
 	if (OtherComp && OtherComp->ComponentHasTag(FName("player_backpack")))
 	{
-		UE_LOG(LogTemp, Error, TEXT("test2"));
 		PlayerCharacter->PlaySimpleForceFeedback(bIsRightHand ? EControllerHand::Right : EControllerHand::Left);
 		bIsInBackpackArea = true;
 	}

@@ -8,9 +8,6 @@
 
 class AGrabbeeObject;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnArrowCountChanged, int32, NewCount, int32, MaxCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBowStateChanged, bool, bInBackpack);
-
 /**
  * 背包组件 - 管理角色的弓和箭
  * 
@@ -36,22 +33,7 @@ public:
 	/** 箭矢最大数量 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	int32 MaxArrowCount = 3;
-
-	/** 箭的类 - 用于生成 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	TSubclassOf<AGrabbeeObject> ArrowClass;
-
-	// ==================== 状态 ====================
-
-	/** 当前箭矢数量 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
-	int32 ArrowCount = 0;
-
-	// ==================== 委托 ====================
 	
-	UPROPERTY(BlueprintAssignable, Category = "Events")
-	FOnArrowCountChanged OnArrowCountChanged;
-
 	// ==================== 箭操作 ====================
 	
 	/**
@@ -87,20 +69,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Arrow")
 	int32 GetArrowCount() const { return ArrowCount; }
 
-	/**
-	 * 消耗一支箭（不生成 Actor，仅减少计数）
-	 * @return true 如果成功消耗
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Arrow")
-	bool ConsumeArrow();
-
-	/**
-	 * 增加一支箭（不需要 Actor，仅增加计数）
-	 * @return true 如果成功增加（未达到上限）
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Arrow")
-	bool AddArrow();
-
 	// ==================== 直接设置（用于存档/初始化） ====================
 
 	UFUNCTION(BlueprintCallable, Category = "Arrow")
@@ -108,4 +76,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Arrow")
 	void AddArrows(int32 Amount);
+
+protected:
+	/** 箭的类 - 用于生成 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	TSubclassOf<AGrabbeeObject> ArrowClass;
+
+	// ==================== 状态 ====================
+
+	/** 当前箭矢数量 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	int32 ArrowCount = 0;
 };

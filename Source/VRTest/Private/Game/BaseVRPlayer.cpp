@@ -62,7 +62,6 @@ ABaseVRPlayer::ABaseVRPlayer()
 	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
-	LeftHandCollision->SetHiddenInGame(false);
 	VRLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手抓取组件
@@ -79,7 +78,6 @@ ABaseVRPlayer::ABaseVRPlayer()
 	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	RightHandCollision->ComponentTags.Add(FName("player_hand"));
-	RightHandCollision->SetHiddenInGame(false);
 	VRRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用

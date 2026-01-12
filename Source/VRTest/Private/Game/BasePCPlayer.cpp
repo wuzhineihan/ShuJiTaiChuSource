@@ -243,7 +243,7 @@ void ABasePCPlayer::StopAiming()
 		PCRightHand->ReleaseObject();
 		if (InventoryComponent)
 		{
-			InventoryComponent->AddArrow();
+			InventoryComponent->TryStoreArrow();
 		}
 		HeldArrow->Destroy();
 	}
