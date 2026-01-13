@@ -3,6 +3,7 @@
 #include "Game/GameSettings.h"
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
+#include "Skill/SkillAsset.h"
 
 UGameSettings::UGameSettings()
 {
@@ -33,3 +34,12 @@ TSubclassOf<AArrow> UGameSettings::GetArrowClass() const
 	return ArrowClass.LoadSynchronous();
 }
 
+USkillAsset* UGameSettings::GetSkillAsset() const
+{
+	if (SkillAsset.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameSettings: SkillAsset is not set!"));
+		return nullptr;
+	}
+	return SkillAsset.LoadSynchronous();
+}

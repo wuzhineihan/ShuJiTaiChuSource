@@ -7,6 +7,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/WidgetInteractionComponent.h"
+#include "Skill/PlayerSkillComponent.h"
 
 ABaseVRPlayer::ABaseVRPlayer()
 {
@@ -137,6 +138,17 @@ void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
 	if (bIsLeft && bIsBowArmed)
 	{
 		return;
+	}
+
+	// 绘制互斥：VR 只禁用“正在绘制的那只手”的抓取
+	if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
+	{
+		const bool bDrawingRight = PlayerSkillComponent->IsRightHandDrawing();
+		const bool bThisHandIsRight = Hand->bIsRightHand;
+		if (bThisHandIsRight == bDrawingRight)
+		{
+			return;
+		}
 	}
 
 	if (bPressed)

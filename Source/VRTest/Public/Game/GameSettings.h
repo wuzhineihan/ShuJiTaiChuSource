@@ -8,6 +8,7 @@
 
 class ABow;
 class AArrow;
+class USkillAsset;
 
 /**
  * 游戏全局设置
@@ -36,6 +37,16 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Bow")
 	TSoftClassPtr<AArrow> ArrowClass;
 
+	// ==================== StarDraw 相关 ====================
+
+	/** 技能总资产：包含 StarDraw 的轨迹映射 + FingerPoint/MainStar/OtherStar 蓝图类 */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw")
+	TSoftObjectPtr<USkillAsset> SkillAsset;
+
+	/** 获取 SkillAsset（同步加载）。未配置则返回 nullptr。 */
+	UFUNCTION(BlueprintCallable, Category = "Game Settings")
+	USkillAsset* GetSkillAsset() const;
+
 	// ==================== 辅助函数 ====================
 	
 	/** 获取弓的类（同步加载） */
@@ -46,4 +57,3 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Settings")
 	TSubclassOf<AArrow> GetArrowClass() const;
 };
-

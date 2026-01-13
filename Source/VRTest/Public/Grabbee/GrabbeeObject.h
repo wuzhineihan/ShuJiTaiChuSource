@@ -91,7 +91,7 @@ public:
 	 * 向目标位置发射物体（Gravity Gloves 用）
 	 * 使用抛物线轨迹计算速度并施加冲量
 	 * @param TargetLocation 目标位置（通常是手的位置）
-	 * @param ArcParam 抛物线弧度参数（0.0-1.0，越小越平）
+	 * @param ArcParam 抛物线弧度参数（0.0-1.0，越大越平）
 	 * @return 是否成功施加冲量
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Grab")

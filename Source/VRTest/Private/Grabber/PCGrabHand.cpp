@@ -185,7 +185,7 @@ void UPCGrabHand::DropToRaycastTarget()
 	ReleaseObject();
 
 	// 没有命中目标点则正常释放即可
-	if (!PCPlayer->bTraceHit || !DroppedObject)
+	if (!PCPlayer->bTraceHit || !DroppedObject || Cast<USkeletalMeshComponent>(DroppedPrimitive))
 	{
 		return;
 	}

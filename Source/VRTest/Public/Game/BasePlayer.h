@@ -12,8 +12,7 @@
 class UPhysicsHandleComponent;
 class UPlayerGrabHand;
 class ABow;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBowArmedChanged, bool, bIsArmed);
+class UPlayerSkillComponent;
 
 /**
  * 玩家基类
@@ -44,6 +43,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UInventoryComponent* InventoryComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPlayerSkillComponent* PlayerSkillComponent;
+
 	/** 左手物理抓取组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPhysicsHandleComponent* LeftPhysicsHandle;
@@ -59,10 +61,6 @@ public:
 	/** 右手抓取组件（基类指针，子类创建具体类型） */
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UPlayerGrabHand* RightHand = nullptr;
-
-	/** 弓箭模式切换事件 */
-	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
-	FOnBowArmedChanged OnBowArmedChanged;
 
 	// ==================== 弓接口 ====================
 	

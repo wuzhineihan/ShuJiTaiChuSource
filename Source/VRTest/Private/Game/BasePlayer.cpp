@@ -6,12 +6,14 @@
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Grabbee/Bow.h"
 #include "Game/GameSettings.h"
+#include "Skill/PlayerSkillComponent.h"
 
 ABasePlayer::ABasePlayer()
 {
 	FallDamageComponent = CreateDefaultSubobject<UFallDamageComponent>(TEXT("FallDamageComponent"));
 	AutoRecoverComponent = CreateDefaultSubobject<UAutoRecoverComponent>(TEXT("AutoRecoverComponent"));
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+	PlayerSkillComponent = CreateDefaultSubobject<UPlayerSkillComponent>(TEXT("PlayerSkillComponent"));
 	
 	// 为左右手分别创建 PhysicsHandleComponent
 	LeftPhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(TEXT("LeftPhysicsHandle"));
@@ -97,8 +99,6 @@ void ABasePlayer::SetBowArmed(bool bArmed)
 	}
 	
 	bIsBowArmed = bArmed;
-	
-	OnBowArmedChanged.Broadcast(bIsBowArmed);
 }
 
 bool ABasePlayer::GetBowArmed() const

@@ -117,6 +117,23 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	bool bIsDrawingBow = false;
 
+	// ==================== 投掷（PC） ====================
+
+	/** 最大投掷射线距离（摄像机前方） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw")
+	float MaxThrowDistance = 1000.0f;
+
+	/** 投掷抛物线弧度参数（0-1，越小越平） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float ThrowArcParam = 0.35f;
+
+	/**
+	 * 投掷入口（唯一入口）。
+	 * @param bRightHand true=右手投掷，false=左手投掷。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Throw")
+	void TryThrow(bool bRightHand);
+
 	// ==================== 重写基类 ====================
 	
 	/** 重写：进入/退出弓箭模式 */

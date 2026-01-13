@@ -4,13 +4,13 @@
 #include "Grabber/PCGrabHand.h"
 #include "Game/InventoryComponent.h"
 #include "Grabber/IGrabbable.h"
-#include "Grabbee/GrabbeeWeapon.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Skill/PlayerSkillComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -127,6 +127,12 @@ void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
+			// 绘制互斥：PC 绘制时禁用双手抓取
+			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
+			{
+				return;
+			}
+
 			PCLeftHand->TryGrabOrRelease();
 		}
 	}
@@ -151,6 +157,12 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
+			// 绘制互斥：PC 绘制时禁用双手抓取
+			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
+			{
+				return;
+			}
+
 			PCRightHand->TryGrabOrRelease();
 		}
 	}
@@ -159,14 +171,54 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 		if (bIsAiming)
 		{
 			if (bPressed)
-            {
-            	StartDrawBow();
-            }
-            else
-            {
-            	ReleaseBowString();
-            }
+			{
+				StartDrawBow();
+			}
+			else
+			{
+				ReleaseBowString();
+			}
 		}
+	}
+}
+
+void ABasePCPlayer::TryThrow(bool bRightHand)
+{
+	UPCGrabHand* ThrowHand = bRightHand ? PCRightHand : PCLeftHand;
+	if (!ThrowHand || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	// 手里没东西就返回
+	if (!ThrowHand->bIsHolding || !ThrowHand->HeldActor)
+	{
+		return;
+	}
+
+	// 只有 GrabbeeObject 才允许投掷
+	AGrabbeeObject* ThrowObject = Cast<AGrabbeeObject>(ThrowHand->HeldActor);
+	if (!ThrowObject)
+	{
+		return;
+	}
+
+	// 通过射线计算投掷目标点（从摄像机朝前）
+	FHitResult Hit;
+	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance);
+
+	const FVector Start = FirstPersonCamera->GetComponentLocation();
+	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
+	const FVector TargetPoint = bHit ? Hit.ImpactPoint : End;
+
+	// 先释放（解除 PhysicsHandle / 附着），再发射
+	ThrowHand->ReleaseObject();
+
+	// LaunchTowards 内部会清速度并加冲量
+	bool bSuccess = ThrowObject->LaunchTowards(TargetPoint, ThrowArcParam);
+	if (!bSuccess)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ABasePCPlayer::TryThrow: LaunchTowards failed!"));
 	}
 }
 
