@@ -12,9 +12,8 @@
   - [3. 待讨论细节 (Pending Details)](#3-待讨论细节-pending-details)
   - [4. 目录结构](#4-目录结构)
   - [5. API 速查 (External API Summary)](#5-api-速查-external-api-summary)
-    - [Commands (命令)](#commands-命令)
-    - [Queries (查询)](#queries-查询)
-    - [Events (事件)](#events-事件)
+    - [命令](#命令)
+    - [查询](#查询)
   - [6. 使用示例 (Example)](#6-使用示例-example)
     - [场景: 近战组件发起攻击并处理被打断](#场景-近战组件发起攻击并处理被打断)
 
@@ -162,23 +161,18 @@ protected:
 
 ## 5. API 速查 (External API Summary)
 
-### Commands (命令)
+### 命令
 | 函数名 | 说明 | 适用场景 |
 | :--- | :--- | :--- |
 | **`PlayAnimation`** | 播放指定蒙太奇 (需传入 Payload)，返回 RequestID。会自动打断当前播放。 | 发起攻击、受击硬直、闪避等动作播放。 |
 | **`StopCurrentAnimation`** | 强制停止当前动画，并广播 `Interrupted` 结果。 | 强行打断动作（如死亡时），或重置状态。 |
 
-### Queries (查询)
+### 查询
 | 函数名 | 说明 | 适用场景 |
 | :--- | :--- | :--- |
 | **`GetCurrentActionTag`** | 返回当前正在播放的动作标签 (ActionTag)。若无动作则返回 Empty。 | 判断当前是在攻击还是受击，进行逻辑分流。 |
 | **`GetCurrentMontagePosition`** | 返回当前蒙太奇的播放进度（秒）。 | 精确判定是否可以取消后摇，或触发连招。 |
 | **`IsPlaying`** | 是否有任何由 Controller 管理的动画正在播放。 | 基础的状态判断。 |
-
-### Events (事件)
-| 事件 Tag | Payload 类型 | 说明 |
-| :--- | :--- | :--- |
-| **`Event.Anim.Finished`** | `UAnimResultPayload` | 动画结束通知。包含 `RequestID` (凭证)、`ActionTag` (动作类型)、`Result` (完成或打断)。 |
 
 
 ## 6. 使用示例 (Example)
