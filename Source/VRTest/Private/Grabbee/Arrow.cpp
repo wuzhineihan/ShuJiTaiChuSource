@@ -204,6 +204,7 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 	{
 		MeshComponent->SetSimulatePhysics(false);
 		MeshComponent->SetCollisionProfileName("OverlapAllDynamic");
+		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
 	}
 
 	// 禁用轨迹效果

@@ -71,6 +71,16 @@ void ABasePlayer::SetBowArmed(bool bArmed)
 	
 	if (bArmed)
 	{
+		//释放双手
+		if (LeftHand && LeftHand->bIsHolding)
+		{
+			LeftHand->ReleaseObject();
+		}
+		if (RightHand && RightHand->bIsHolding)
+		{
+			RightHand->ReleaseObject();
+		}
+		
 		// 进入弓箭模式：生成弓
 		CurrentBow = SpawnBow();
 		
