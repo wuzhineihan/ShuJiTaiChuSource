@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SphereComponent.h"
 #include "Game/BasePlayer.h"
 #include "BasePCPlayer.generated.h"
 
@@ -47,6 +48,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* PCRightHand;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* LeftHandCollision;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* RightHandCollision;
+
 	// ==================== 目标检测配置 ====================
 
 	/** 抓取射线最大距离 */
@@ -56,6 +63,18 @@ public:
 	/** 抓取检测通道 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
+
+	/** 是否绘制抓取射线调试（线 + 命中点） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")
+	bool bDrawGrabLineTraceDebug = false;
+
+	/** 调试绘制持续时间（秒）；0 表示仅一帧 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.0"))
+	float GrabLineTraceDebugDrawTime = 1.0f;
+
+	/** 调试线粗细 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.1"))
+	float GrabLineTraceDebugThickness = 0.5f;
 
 	// ==================== 目标检测状态 ====================
 
@@ -67,9 +86,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FName TargetedBoneName;
 
-	/** 当瞄准目标变化时触发 */
-	UPROPERTY(BlueprintAssignable, Category = "Grab")
-	FOnGrabTargetChanged OnGrabTargetChanged;
+	/** 射线检测的碰撞点位置（用于丢弃物体等操作） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	FVector TraceTargetLocation = FVector::ZeroVector;
+
+	/** 射线检测是否命中目标 */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	bool bTraceHit = false;
 
 	// ==================== 弓箭模式配置 ====================
 	
@@ -77,17 +100,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Aiming")
 	FTransform AimingLeftHandTransform;
 
-	/** 最大射击距离 */
+	/**
+	 * PC 模式固定拉弓距离（沿摄像机前向的反方向拉）
+	 * 注意：这是“手的位置偏移”，不是 Bow::MaxPullDistance。
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
-	float MaxShootDistance = 5000.0f;
-
-	/** 最小拉弓距离 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
-	float MinDrawDistance = 5.0f;
-
-	/** 最大拉弓距离 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
-	float MaxDrawDistance = 50.0f;
+	float PCDrawDistance = 30.0f;
 
 	// ==================== 弓箭状态 ====================
 	
@@ -166,8 +184,6 @@ protected:
 	UFUNCTION()
 	void OnHandGrabbedObject(AActor* GrabbedObject);
 
-	/** 计算拉弓距离 */
-	float CalculateDrawDistance() const;
 
 	/** 播放无箭音效 */
 	void PlayNoArrowSound();

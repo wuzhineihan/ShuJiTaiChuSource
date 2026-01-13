@@ -25,18 +25,16 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	/** 缓存所属 PC 玩家（BeginPlay 初始化） */
+	UPROPERTY(Transient)
+	ABasePCPlayer* PCPlayer = nullptr;
+
+	/** 缓存 PC 玩家摄像机（BeginPlay 初始化） */
+	UPROPERTY(Transient)
+	UCameraComponent* CachedCamera = nullptr;
+
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	// ==================== 配置 ====================
-
-	/** 丢弃射线最大距离 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PC|Grab")
-	float MaxDropDistance = 500.0f;
-
-	/** 抓取检测通道（用于丢弃时的射线检测） */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PC|Grab")
-	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
 
 	// ==================== Interp 配置 ====================
 	
@@ -87,18 +85,11 @@ public:
 protected:
 	// ==================== 重写 ====================
 	
+	virtual void TryGrab(bool bFromBackpack) override;
+	
 	virtual AActor* FindTarget(bool bFromBackpack, FName& OutBoneName) override;
 
 	// ==================== 内部函数 ====================
-
-	/** 获取所属玩家的摄像机组件 */
-	UCameraComponent* GetOwnerCamera() const;
-
-	/** 获取所属 PC 玩家 */
-	ABasePCPlayer* GetOwnerPCPlayer() const;
-
-	/** 执行射线检测（仅用于丢弃物体时） */
-	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance) const;
 
 	/** 更新手部插值位置 */
 	void UpdateHandInterp(float DeltaTime);

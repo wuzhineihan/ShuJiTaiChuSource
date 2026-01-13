@@ -6,8 +6,6 @@
 #include "Grabber/PlayerGrabHand.h"
 #include "VRGrabHand.generated.h"
 
-class UBoxComponent;
-
 /**
  * VR 模式手部组件
  * 
@@ -33,9 +31,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Grab")
 	float GrabSphereRadius = 15.0f;
 
-	/** 背包碰撞区域引用（由 Player 设置） */
-	UPROPERTY(BlueprintReadWrite, Category = "VR|Backpack")
-	UBoxComponent* BackpackCollision = nullptr;
 
 	// ==================== Gravity Gloves 配置 ====================
 

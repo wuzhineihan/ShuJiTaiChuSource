@@ -344,44 +344,51 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	// 检查是否是玩家的手
-	if (OtherComp->ComponentHasTag(FName("player_hand")))
+	if (OtherComp && OtherComp->ComponentHasTag(FName("player_hand")))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("ABow::OnStringCollisionBeginOverlap :%s hand"),
+			OtherComp->GetAttachParent() && Cast<UPlayerGrabHand>(OtherComp->GetAttachParent()) &&
+			Cast<UPlayerGrabHand>(OtherComp->GetAttachParent())->bIsRightHand ? TEXT("Right") : TEXT("Left"));
+
 		// 获取手组件
 		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
-		
-		if (!Hand)
-			return;
-		
-		InStringCollisionHand = Hand;
-
-		// 如果是抓弓身的手则跳过
-		// 弓身必须已被抓取
-		// 弓弦已被抓取则跳过
-		if (Hand == BodyHoldingHand || !bBodyHeld || bStringHeld)
-		{
-			return;
-		}
-		
-		//haptic effect
-		if (BowOwner)
-		{
-			BowOwner->PlaySimpleForceFeedback(Hand->bIsRightHand? EControllerHand::Right:EControllerHand::Left);
-		}
-			
-		
-		// 检查手是否持有箭
-		if (AArrow* Arrow = Cast<AArrow>(Hand->HeldActor))
-		{
-			// 手释放箭
-			Hand->ReleaseObject();
-			// 搭箭
-			NockArrow(Arrow);
-			// 手抓弓弦
-			Hand->GrabObject(this);
-		}
-		
+		TryHandleStringHandEnter(Hand);
 	}
-	
+}
+
+void ABow::TryHandleStringHandEnter(UPlayerGrabHand* Hand)
+{
+	if (!Hand)
+	{
+		return;
+	}
+
+	InStringCollisionHand = Hand;
+
+	// 如果是抓弓身的手则跳过
+	// 弓身必须已被抓取
+	// 弓弦已被抓取则跳过
+	if (Hand == BodyHoldingHand || !bBodyHeld || bStringHeld)
+	{
+		return;
+	}
+
+	// haptic effect
+	if (BowOwner)
+	{
+		BowOwner->PlaySimpleForceFeedback(Hand->bIsRightHand ? EControllerHand::Right : EControllerHand::Left);
+	}
+
+	// 检查手是否持有箭
+	if (AArrow* Arrow = Cast<AArrow>(Hand->HeldActor))
+	{
+		// 手释放箭
+		Hand->ReleaseObject();
+		// 搭箭
+		NockArrow(Arrow);
+		// 手抓弓弦
+		Hand->GrabObject(this);
+	}
 }
 
 void ABow::OnStringCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,

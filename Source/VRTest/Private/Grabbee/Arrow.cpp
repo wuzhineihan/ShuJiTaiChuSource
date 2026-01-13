@@ -191,8 +191,6 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 
 void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ArrowGrab] EnterStuckState"));
-	
 	ArrowState = EArrowState::Stuck;
 
 	// 停止投射物移动
@@ -206,6 +204,7 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 	{
 		MeshComponent->SetSimulatePhysics(false);
 		MeshComponent->SetCollisionProfileName("OverlapAllDynamic");
+		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
 	}
 
 	// 禁用轨迹效果
@@ -277,7 +276,6 @@ bool AArrow::CanBeGrabbedByGravityGlove_Implementation() const
 
 void AArrow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[ArrowGrab] OnGrabbed - State: %d"), static_cast<int32>(ArrowState));
 	if (ArrowState== EArrowState::Stuck)
 	{
 		EnterIdleState();

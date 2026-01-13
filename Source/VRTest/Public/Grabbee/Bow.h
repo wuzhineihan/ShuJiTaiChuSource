@@ -211,5 +211,15 @@ protected:
 	/** 弓弦回弹速度（用于弹簧计算） */
 	FVector StringVelocity = FVector::ZeroVector;
 
-	UPlayerGrabHand* InStringCollisionHand = nullptr;
+	/** 当前处于弓弦碰撞区域内的手（用于判断是否允许抓弦） */
+	UPROPERTY(Transient)
+	TObjectPtr<UPlayerGrabHand> InStringCollisionHand = nullptr;
+
+public:
+	/**
+	 * 主动触发“手进入弓弦区域”的逻辑（用于 PC 模式不能可靠触发 BeginOverlap 的情况）
+	 * 该函数会复用 OnStringCollisionBeginOverlap 中的核心逻辑：检测条件、震动、搭箭、手抓弓弦。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Bow")
+	void TryHandleStringHandEnter(UPlayerGrabHand* Hand);
 };

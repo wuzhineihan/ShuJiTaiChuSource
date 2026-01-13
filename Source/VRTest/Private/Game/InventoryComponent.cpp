@@ -1,6 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Game/InventoryComponent.h"
+
+#include "Game/GameSettings.h"
+#include "Grabbee/Arrow.h"
 #include "Grabbee/GrabbeeObject.h"
 
 UInventoryComponent::UInventoryComponent()
@@ -11,6 +14,7 @@ UInventoryComponent::UInventoryComponent()
 void UInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	ArrowClass = UGameSettings::Get()->GetArrowClass();
 }
 
 // ==================== 箭操作 ====================
@@ -24,7 +28,6 @@ bool UInventoryComponent::TryStoreArrow()
 	}
 
 	ArrowCount++;
-	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
 	return true;
 }
 
@@ -36,37 +39,12 @@ AGrabbeeObject* UInventoryComponent::TryRetrieveArrow(const FTransform& SpawnTra
 	}
 
 	ArrowCount--;
-	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
 	SpawnParams.Instigator = Cast<APawn>(GetOwner());
 
 	return GetWorld()->SpawnActor<AGrabbeeObject>(ArrowClass, SpawnTransform, SpawnParams);
-}
-
-bool UInventoryComponent::ConsumeArrow()
-{
-	if (ArrowCount <= 0)
-	{
-		return false;
-	}
-
-	ArrowCount--;
-	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
-	return true;
-}
-
-bool UInventoryComponent::AddArrow()
-{
-	if (ArrowCount >= MaxArrowCount)
-	{
-		return false;
-	}
-
-	ArrowCount++;
-	OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
-	return true;
 }
 
 // ==================== 直接设置 ====================
@@ -77,7 +55,6 @@ void UInventoryComponent::SetArrowCount(int32 NewCount)
 	if (ArrowCount != NewCount)
 	{
 		ArrowCount = NewCount;
-		OnArrowCountChanged.Broadcast(ArrowCount, MaxArrowCount);
 	}
 }
 

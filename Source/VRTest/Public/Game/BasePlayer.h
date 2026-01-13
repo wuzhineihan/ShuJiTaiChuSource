@@ -11,7 +11,6 @@
 
 class UPhysicsHandleComponent;
 class UPlayerGrabHand;
-class AGrabbeeWeapon;
 class ABow;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBowArmedChanged, bool, bIsArmed);
@@ -61,6 +60,41 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UPlayerGrabHand* RightHand = nullptr;
 
+	/** 弓箭模式切换事件 */
+	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
+	FOnBowArmedChanged OnBowArmedChanged;
+
+	// ==================== 弓接口 ====================
+	
+	/**
+	 * 首次获得弓时调用（游戏流程触发）
+	 * 会自动进入弓箭模式
+	 * @return true=首次获得弓，false=已获得过弓
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Bow")
+	virtual bool CheckBowFirstPickedUp();
+
+	/**
+	 * 切换弓箭模式
+	 * @param bArmed true=进入弓箭模式，false=退出
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Bow")
+	virtual void SetBowArmed(bool bArmed);
+
+	/**
+	 * 获取当前是否处于弓箭模式
+	 * @return true=处于弓箭模式，false=未处于弓箭模式
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Bow")
+	virtual bool GetBowArmed() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Controller")
+	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
+	APlayerController* PlayerController;
+
 	// ==================== 弓相关 ====================
 	
 	/** 是否已获得弓（游戏流程中获得，永久持有） */
@@ -71,40 +105,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
 	bool bIsBowArmed = false;
 
-	/** 弓的类 - 用于生成 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow")
-	TSubclassOf<AGrabbeeWeapon> BowClass;
 
 	/** 当前持有的弓（弓箭模式下不为空） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
 	ABow* CurrentBow = nullptr;
-
-	/** 弓箭模式切换事件 */
-	UPROPERTY(BlueprintAssignable, Category = "Bow|Events")
-	FOnBowArmedChanged OnBowArmedChanged;
-
-	// ==================== 弓接口 ====================
-	
-	/**
-	 * 首次获得弓时调用（游戏流程触发）
-	 * 会自动进入弓箭模式
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	virtual void OnBowFirstPickedUp();
-
-	/**
-	 * 切换弓箭模式
-	 * @param bArmed true=进入弓箭模式，false=退出
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Bow")
-	virtual void SetBowArmed(bool bArmed);
-
-	UFUNCTION(BlueprintCallable, Category = "Controller")
-	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
-
-protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
-	APlayerController* PlayerController;
 	
 	/** 生成弓 Actor */
 	virtual ABow* SpawnBow();

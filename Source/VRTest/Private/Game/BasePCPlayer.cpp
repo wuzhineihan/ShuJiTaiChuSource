@@ -10,6 +10,7 @@
 #include "Grabbee/Arrow.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SphereComponent.h"
+#include "DrawDebugHelpers.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -28,7 +29,7 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHand = PCLeftHand;  // 赋值给 BasePlayer 的基类指针
 
 	// 创建左手碰撞体
-	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
+	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
 	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -43,7 +44,7 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHand = PCRightHand;  // 赋值给 BasePlayer 的基类指针
 
 	// 创建右手碰撞体
-	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
+	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
 	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -82,21 +83,18 @@ void ABasePCPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 每帧检测瞄准目标（只在徒手模式且未持有物体时检测）
-	if (!bIsBowArmed && !PCLeftHand->bIsHolding && !PCRightHand->bIsHolding)
+	if (!bIsBowArmed)
 	{
 		UpdateTargetDetection();
 	}
-
-	// 弓箭模式：拉弓时弓弦跟随 StringHoldingHand，由 Bow::Tick 处理
-	// 不再需要在这里手动调用 UpdateStringFromHandPosition
+	
 }
 
 // ==================== 重写基类 ====================
 
 void ABasePCPlayer::SetBowArmed(bool bArmed)
 {
-	// 退出弓箭模式时的清理
+	// 退出弓箭模式时的 PC 特有清理
 	if (bIsBowArmed && !bArmed)
 	{
 		// 如果正在拉弓，直接发射（不能取消拉弓）
@@ -110,24 +108,9 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 		{
 			StopAiming();
 		}
-
-		// 释放左手持有的弓
-		if (PCLeftHand && PCLeftHand->bIsHolding &&
-		    PCLeftHand->HeldActor && IsValid(PCLeftHand->HeldActor) &&
-		    PCLeftHand->HeldActor == CurrentBow)
-		{
-			PCLeftHand->ReleaseObject();
-		}
 	}
-
-	// 调用基类处理弓的生成/销毁
+	
 	Super::SetBowArmed(bArmed);
-
-	// 进入弓箭模式时使用 GrabHand 的抓取逻辑
-	if (bArmed && CurrentBow && PCLeftHand)
-	{
-		PCLeftHand->GrabObject(CurrentBow);
-	}
 }
 
 USceneComponent* ABasePCPlayer::GetTrackOrigin() const
@@ -173,14 +156,16 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 	}
 	else
 	{
-		// 弓箭模式
-		if (bPressed)
+		if (bIsAiming)
 		{
-			StartDrawBow();
-		}
-		else
-		{
-			ReleaseBowString();
+			if (bPressed)
+            {
+            	StartDrawBow();
+            }
+            else
+            {
+            	ReleaseBowString();
+            }
 		}
 	}
 }
@@ -198,28 +183,6 @@ void ABasePCPlayer::StartAiming()
 	
 	// 将左手平滑过渡到瞄准位置
 	PCLeftHand->InterpToTransform(AimingLeftHandTransform);
-
-	// 在开始瞄准时从库存取出箭并让右手抓住
-	if (InventoryComponent && InventoryComponent->HasArrow())
-	{
-		// 计算箭的生成位置（右手位置）
-		FTransform SpawnTransform;
-		SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
-		SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
-		
-		// 从库存取出箭（会消耗计数并生成Actor）
-		AGrabbeeObject* ArrowActor = InventoryComponent->TryRetrieveArrow(SpawnTransform);
-		if (ArrowActor)
-		{
-			// 让右手抓住箭
-			PCRightHand->GrabObject(ArrowActor);
-		}
-	}
-	else
-	{
-		// 没有箭，播放音效提示
-		PlayNoArrowSound();
-	}
 }
 
 void ABasePCPlayer::StopAiming()
@@ -243,7 +206,7 @@ void ABasePCPlayer::StopAiming()
 		PCRightHand->ReleaseObject();
 		if (InventoryComponent)
 		{
-			InventoryComponent->AddArrow();
+			InventoryComponent->TryStoreArrow();
 		}
 		HeldArrow->Destroy();
 	}
@@ -261,13 +224,27 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 检查右手是否持有箭
-	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
-	if (!HeldArrow)
+	// 检查库存是否有箭
+	if (!InventoryComponent || !InventoryComponent->HasArrow())
 	{
 		PlayNoArrowSound();
 		return;
 	}
+
+	// 从库存取出箭
+	FTransform SpawnTransform;
+	SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
+	SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
+	
+	AGrabbeeObject* ArrowActor = InventoryComponent->TryRetrieveArrow(SpawnTransform);
+	if (!ArrowActor)
+	{
+		PlayNoArrowSound();
+		return;
+	}
+
+	// 让右手抓住箭
+	PCRightHand->GrabObject(ArrowActor);
 
 	bIsDrawingBow = true;
 	
@@ -276,13 +253,34 @@ void ABasePCPlayer::StartDrawBow()
 		CurrentBow->StringRestPosition->GetComponentLocation() : 
 		CurrentBow->StringMesh->GetComponentLocation();
 	
-	// 将右手移动到弓弦位置
-	// 这会触发弓弦碰撞检测（OnStringCollisionBeginOverlap）
-	// 弓会检测到手持有箭 → 释放箭 → 搭箭 → 手抓弓弦
+	// 将右手移动到弓弦位置（保持现有逻辑：先把手放到弦附近，确保搭箭/抓弦逻辑能复用）
 	FTransform StringTransform;
 	StringTransform.SetLocation(StringRestPos);
 	StringTransform.SetRotation(CurrentBow->GetActorRotation().Quaternion());
 	PCRightHand->SetWorldTransform(StringTransform);
+
+	// PC 模式：如果右手此时已经在弓弦碰撞区域内，BeginOverlap 不会再次触发。
+	// 主动调用 Bow 的接口复用 OnStringCollisionBeginOverlap 的搭箭/抓弦逻辑。
+	if (CurrentBow)
+	{
+		CurrentBow->TryHandleStringHandEnter(PCRightHand);
+	}
+
+	// PC 简化方案：固定拉弓
+	// 用“摄像机前向的反方向”把右手拉到一个固定距离（相对摄像机坐标系），
+	// 这样 Bow::UpdateStringPosition 会自然产生 CurrentPullLength，从而发射速度由 Bow 统一计算。
+	if (FirstPersonCamera && PCRightHand)
+	{
+		const FVector PullDirWorld = -FirstPersonCamera->GetForwardVector().GetSafeNormal();
+		const FVector RightHandTargetWorld = PCRightHand->GetComponentLocation() + PullDirWorld * PCDrawDistance;
+
+		FTransform RightHandTargetRelative;
+		RightHandTargetRelative.SetLocation(FirstPersonCamera->GetComponentTransform().InverseTransformPosition(RightHandTargetWorld));
+		RightHandTargetRelative.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
+		RightHandTargetRelative.SetScale3D(FVector::OneVector);
+
+		PCRightHand->InterpToTransform(RightHandTargetRelative);
+	}
 }
 
 void ABasePCPlayer::StopDrawBow()
@@ -323,8 +321,13 @@ void ABasePCPlayer::UpdateTargetDetection()
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
 
-	if (PerformLineTrace(Hit, MaxGrabDistance))
+	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance);
+	
+	if (bTraceHit)
 	{
+		// 保存射线碰撞点位置
+		TraceTargetLocation = Hit.Location;
+		
 		AActor* HitActor = Hit.GetActor();
 		
 		// 检查是否实现 IGrabbable 接口
@@ -346,6 +349,11 @@ void ABasePCPlayer::UpdateTargetDetection()
 			}
 		}
 	}
+	else
+	{
+		// 没有命中任何目标
+		TraceTargetLocation = FVector::ZeroVector;
+	}
 
 	// 检查目标是否发生变化
 	if (NewTarget != TargetedObject)
@@ -353,9 +361,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 		AActor* OldTarget = TargetedObject;
 		TargetedObject = NewTarget;
 		TargetedBoneName = NewBoneName;
-
-		// 触发委托
-		OnGrabTargetChanged.Broadcast(NewTarget, OldTarget);
 
 		// 调用物体的 OnGrabSelected / OnGrabDeselected（用于高亮等效果）
 		// 添加有效性检查，防止物体已被销毁
@@ -394,7 +399,22 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) cons
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
-	return GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, GrabTraceChannel, QueryParams);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, GrabTraceChannel, QueryParams);
+
+	if (bDrawGrabLineTraceDebug)
+	{
+		const float LifeTime = GrabLineTraceDebugDrawTime;
+		const FVector HitPoint = bHit ? OutHit.ImpactPoint : End;
+
+		DrawDebugLine(GetWorld(), Start, HitPoint, bHit ? FColor::Green : FColor::Red, false, LifeTime, 0, GrabLineTraceDebugThickness);
+
+		if (bHit)
+		{
+			DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 10.0f, FColor::Yellow, false, LifeTime);
+		}
+	}
+
+	return bHit;
 }
 
 void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
@@ -406,9 +426,6 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 		TargetedObject = nullptr;
 		TargetedBoneName = NAME_None;
 
-		// 触发委托
-		OnGrabTargetChanged.Broadcast(nullptr, OldTarget);
-
 		// 取消选中状态（通过接口）
 		if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
 		{
@@ -417,34 +434,6 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 	}
 }
 
-float ABasePCPlayer::CalculateDrawDistance() const
-{
-	if (!FirstPersonCamera)
-	{
-		return MaxDrawDistance;
-	}
-
-	// 射线检测目标位置
-	FHitResult Hit;
-	FVector Start = FirstPersonCamera->GetComponentLocation();
-	FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxShootDistance;
-
-	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
-
-	float TargetDist = MaxShootDistance;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, QueryParams))
-	{
-		TargetDist = FMath::Min(Hit.Distance, MaxShootDistance);
-	}
-
-	// 根据目标距离计算需要的拉弓距离
-	return FMath::GetMappedRangeValueClamped(
-		FVector2D(0.0f, MaxShootDistance),
-		FVector2D(MinDrawDistance, MaxDrawDistance),
-		TargetDist
-	);
-}
 
 void ABasePCPlayer::PlayNoArrowSound()
 {
