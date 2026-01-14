@@ -6,13 +6,12 @@
 #include "Skill/StarDrawMainStar.h"
 #include "Skill/StarDrawOtherStar.h"
 #include "Skill/SkillAsset.h"
+#include "Skill/SkillTypes.h"
 
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
 #include "Game/GameSettings.h"
-
-static const FName Tag_OtherStars(TEXT("OtherStars"));
 
 void AStarDrawManager::BeginPlay()
 {
@@ -25,18 +24,6 @@ void AStarDrawManager::BeginPlay()
 AStarDrawManager::AStarDrawManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
-
-	// 旧蓝图 CounterDirection：方向 i 的反方向映射
-	// 这里按我们定义的枚举顺序：
-	// Left <-> Right, Up <-> Down, LeftUp <-> RightDown, RightUp <-> LeftDown
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::Left), StarDrawDirectionToInt(EStarDrawDirection::Right));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::Right), StarDrawDirectionToInt(EStarDrawDirection::Left));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::Up), StarDrawDirectionToInt(EStarDrawDirection::Down));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::Down), StarDrawDirectionToInt(EStarDrawDirection::Up));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::LeftUp), StarDrawDirectionToInt(EStarDrawDirection::RightDown));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::RightDown), StarDrawDirectionToInt(EStarDrawDirection::LeftUp));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::RightUp), StarDrawDirectionToInt(EStarDrawDirection::LeftDown));
-	CounterDirection.Add(StarDrawDirectionToInt(EStarDrawDirection::LeftDown), StarDrawDirectionToInt(EStarDrawDirection::RightUp));
 }
 
 void AStarDrawManager::StartDraw(USceneComponent* InInputSource)
@@ -80,6 +67,7 @@ ESkillType AStarDrawManager::FinishDraw()
 	return CachedResult;
 }
 
+
 void AStarDrawManager::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -90,13 +78,13 @@ void AStarDrawManager::Tick(float DeltaSeconds)
 	}
 
 	UpdateFingerPointLocation(DeltaSeconds);
-	FingerPoint->SetFingerWorldLocation(FingerPointLocation);
 
 	if (bDebugDraw)
 	{
 		DrawDebugPoint(GetWorld(), FingerPointLocation, 6.f, FColor::Green, false, 0.f);
 	}
 }
+
 
 void AStarDrawManager::NotifyFingerTouchActor(AActor* TouchedActor)
 {
@@ -105,7 +93,8 @@ void AStarDrawManager::NotifyFingerTouchActor(AActor* TouchedActor)
 		return;
 	}
 
-	if (!TouchedActor->ActorHasTag(Tag_OtherStars))
+	// 统一：lower_snake_case
+	if (!TouchedActor->ActorHasTag(SkillTags::OtherStars))
 	{
 		return;
 	}
@@ -118,6 +107,7 @@ void AStarDrawManager::NotifyFingerTouchActor(AActor* TouchedActor)
 
 	TouchOtherStar(OtherStar);
 }
+
 
 void AStarDrawManager::FirstTouch()
 {
@@ -135,6 +125,7 @@ void AStarDrawManager::FirstTouch()
 	SpawnOtherStarsAround(FingerPointLocation);
 }
 
+
 void AStarDrawManager::TouchOtherStar(AStarDrawOtherStar* OtherStar)
 {
 	if (!OtherStar)
@@ -142,25 +133,25 @@ void AStarDrawManager::TouchOtherStar(AStarDrawOtherStar* OtherStar)
 		return;
 	}
 
-	const int32 Dir = StarDrawDirectionToInt(OtherStar->GetDirection());
+	const EStarDrawDirection CurrentDir = OtherStar->GetDirection();
 
 	// 蓝图：如果不是上一步的反方向才记录（避免来回抖动）
 	if (DirectionChoose.Num() > 0)
 	{
-		const int32 Last = DirectionChoose.Last();
-		const int32* Counter = CounterDirection.Find(Dir);
-		if (Counter && (*Counter == Last))
+		const EStarDrawDirection Last = DirectionChoose.Last();
+		if (StarDrawDirectionGetOpposite(CurrentDir) == Last)
 		{
 			return;
 		}
 	}
 
-	DirectionChoose.Add(Dir);
+	DirectionChoose.Add(CurrentDir);
 
 	const FVector HitLocation = OtherStar->GetActorLocation();
 	SpawnMainStarAt(HitLocation);
 	SpawnOtherStarsAround(HitLocation);
 }
+
 
 void AStarDrawManager::SpawnFingerPoint()
 {
@@ -238,35 +229,33 @@ void AStarDrawManager::SpawnOtherStarsAround(const FVector& CenterLocation)
 		OtherStarClass = AStarDrawOtherStar::StaticClass();
 	}
 
-	const TArray<FVector> Points = CalculateAdjacentPointsOnCylinder(PlayerPivotLocation, CenterLocation, LineLength);
-	if (Points.Num() != 8)
+	const TMap<EStarDrawDirection, FVector> PointsByDir = CalculateAdjacentPointsOnCylinder(PlayerPivotLocation, CenterLocation, LineLength);
+	if (PointsByDir.Num() != 8)
 	{
 		return;
 	}
 
-	static const EStarDrawDirection DirOrder[8] = {
-		EStarDrawDirection::Left,
-		EStarDrawDirection::Right,
-		EStarDrawDirection::Up,
-		EStarDrawDirection::Down,
-		EStarDrawDirection::LeftUp,
-		EStarDrawDirection::RightUp,
-		EStarDrawDirection::LeftDown,
-		EStarDrawDirection::RightDown
-	};
-
-	for (int32 i = 0; i < 8; ++i)
+	for (const TPair<EStarDrawDirection, FVector>& Pair : PointsByDir)
 	{
+		const EStarDrawDirection Dir = Pair.Key;
+		if (DirectionChoose.Num()>0 && StarDrawDirectionGetOpposite(Dir) == DirectionChoose.Last())
+		{
+			// 不生成上一步的反方向
+			continue;
+		}
+		const FVector& SpawnLoc = Pair.Value;
+
 		FActorSpawnParameters Params;
 		Params.Owner = this;
-		AStarDrawOtherStar* Other = World->SpawnActor<AStarDrawOtherStar>(OtherStarClass, Points[i], FRotator::ZeroRotator, Params);
+		AStarDrawOtherStar* Other = World->SpawnActor<AStarDrawOtherStar>(OtherStarClass, SpawnLoc, FRotator::ZeroRotator, Params);
 		if (Other)
 		{
-			Other->SetDirection(DirOrder[i]);
+			Other->SetDirection(Dir);
 			OtherStars.Add(Other);
 		}
 	}
 }
+
 
 void AStarDrawManager::ClearOtherStars()
 {
@@ -280,6 +269,7 @@ void AStarDrawManager::ClearOtherStars()
 	OtherStars.Reset();
 }
 
+
 void AStarDrawManager::ClearMainStars()
 {
 	for (AStarDrawMainStar* Star : MainStars)
@@ -292,6 +282,7 @@ void AStarDrawManager::ClearMainStars()
 	MainStars.Reset();
 }
 
+
 FVector AStarDrawManager::GetPlayerPivotLocation() const
 {
 	// 蓝图里是 TriggerCameraLocation = PlayerCameraManager.GetCameraLocation()
@@ -302,6 +293,7 @@ FVector AStarDrawManager::GetPlayerPivotLocation() const
 	}
 	return FVector::ZeroVector;
 }
+
 
 FVector AStarDrawManager::GetInputSourceLocation() const
 {
@@ -328,9 +320,10 @@ void AStarDrawManager::UpdateFingerPointLocation(float DeltaSeconds)
 	const FVector ControllerLocation = GetInputSourceLocation();
 	const FVector Forward = GetInputSourceForwardVector();
 	FingerPointLocation = CalculateProjectionPointOnCylinder(PlayerPivotLocation, ControllerLocation, Forward, Radius);
+	FingerPoint->SetActorLocation(FingerPointLocation);
 }
 
-TArray<FVector> AStarDrawManager::CalculateAdjacentPointsOnCylinder(const FVector& PlayerPivot, const FVector& CenterLocation, float InLineLength) const
+TMap<EStarDrawDirection, FVector> AStarDrawManager::CalculateAdjacentPointsOnCylinder(const FVector& PlayerPivot, const FVector& CenterLocation, float InLineLength) const
 {
 	// 对齐 Z（在蓝图库里 PlayerLocation.Z=StarLocation.Z）
 	FVector PlayerFlat = PlayerPivot;
@@ -354,8 +347,8 @@ TArray<FVector> AStarDrawManager::CalculateAdjacentPointsOnCylinder(const FVecto
 	const FVector LeftVector = OriginalFlat.RotateAngleAxis(ZitaDeg, FVector::UpVector);
 	const FVector RightVector = OriginalFlat.RotateAngleAxis(-ZitaDeg, FVector::UpVector);
 
-	FVector LeftPoint = PlayerFlat + LeftVector;
-	FVector RightPoint = PlayerFlat + RightVector;
+	const FVector LeftPoint = PlayerFlat + LeftVector;
+	const FVector RightPoint = PlayerFlat + RightVector;
 
 	const FVector UpVector = FVector(0, 0, InLineLength);
 	const FVector DownVector = FVector(0, 0, -InLineLength);
@@ -367,16 +360,16 @@ TArray<FVector> AStarDrawManager::CalculateAdjacentPointsOnCylinder(const FVecto
 	const FVector LeftDownPoint = LeftPoint + DownVector;
 	const FVector RightDownPoint = RightPoint + DownVector;
 
-	TArray<FVector> Result;
+	TMap<EStarDrawDirection, FVector> Result;
 	Result.Reserve(8);
-	Result.Add(LeftPoint);
-	Result.Add(RightPoint);
-	Result.Add(UpPoint);
-	Result.Add(DownPoint);
-	Result.Add(LeftUpPoint);
-	Result.Add(RightUpPoint);
-	Result.Add(LeftDownPoint);
-	Result.Add(RightDownPoint);
+	Result.Add(EStarDrawDirection::Left, LeftPoint);
+	Result.Add(EStarDrawDirection::Right, RightPoint);
+	Result.Add(EStarDrawDirection::Up, UpPoint);
+	Result.Add(EStarDrawDirection::Down, DownPoint);
+	Result.Add(EStarDrawDirection::LeftUp, LeftUpPoint);
+	Result.Add(EStarDrawDirection::RightUp, RightUpPoint);
+	Result.Add(EStarDrawDirection::LeftDown, LeftDownPoint);
+	Result.Add(EStarDrawDirection::RightDown, RightDownPoint);
 	return Result;
 }
 
@@ -427,20 +420,9 @@ FVector AStarDrawManager::CalculateProjectionPointOnCylinder(const FVector& Play
 	return Intersection;
 }
 
-FString AStarDrawManager::BuildSequenceString() const
-{
-	FString Seq;
-	for (int32 Dir : DirectionChoose)
-	{
-		Seq += FString::FromInt(Dir);
-	}
-	return Seq;
-}
-
 ESkillType AStarDrawManager::ResolveSkillFromDraw() const
 {
-	const FString SequenceString = BuildSequenceString();
-	if (SequenceString.IsEmpty())
+	if (DirectionChoose.Num() == 0)
 	{
 		return ESkillType::None;
 	}
@@ -450,11 +432,5 @@ ESkillType AStarDrawManager::ResolveSkillFromDraw() const
 		return ESkillType::None;
 	}
 
-	if (const ESkillType* Found = CachedSkillAsset->TrailToSkill.Find(SequenceString))
-	{
-		return *Found;
-	}
-
-	return ESkillType::None;
+	return CachedSkillAsset->GetSkillTypeFromTrail(DirectionChoose);
 }
-

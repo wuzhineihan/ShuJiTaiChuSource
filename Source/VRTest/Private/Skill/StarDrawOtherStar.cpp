@@ -5,13 +5,14 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 
-static const FName Tag_OtherStars(TEXT("OtherStars"));
+#include "Skill/SkillTypes.h"
 
 AStarDrawOtherStar::AStarDrawOtherStar()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	Tags.Add(Tag_OtherStars);
+	// 统一：lower_snake_case
+	Tags.Add(SkillTags::OtherStars);
 
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);

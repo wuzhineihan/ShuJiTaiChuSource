@@ -30,9 +30,6 @@ public:
 
 	void SetDrawManager(AStarDrawManager* InManager) { DrawManager = InManager; }
 
-	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
-	void SetFingerWorldLocation(const FVector& NewLocation);
-
 protected:
 	virtual void BeginPlay() override;
 

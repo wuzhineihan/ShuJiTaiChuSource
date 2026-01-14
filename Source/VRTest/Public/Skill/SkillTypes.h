@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Skill/StarDrawDirection.h"
 #include "SkillTypes.generated.h"
 
 /**
@@ -41,3 +42,30 @@ struct FSkillContext
 	bool bIsRightHand = true;
 };
 
+/**
+ * StarDraw 轨迹到技能的配置项（用于蓝图直观配置）。
+ * 运行时会预处理成字符串 Key（例如 "0247"）以便快速查找。
+ */
+USTRUCT(BlueprintType)
+struct FStarDrawTrailPair
+{
+	GENERATED_BODY()
+
+	/** 轨迹方向序列（按触碰顺序） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw")
+	TArray<EStarDrawDirection> Trail;
+
+	/** 该轨迹对应的技能类型 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw")
+	ESkillType Skill = ESkillType::None;
+};
+
+/**
+ * Skill 系统内使用的 Actor Tag / Name 常量。
+ * 约定：Tag 的字符串一律使用全小写 + 下划线（lower_snake_case）。
+ */
+namespace SkillTags
+{
+	/** StarDrawOtherStar 使用的 Actor Tag */
+	inline const FName OtherStars(TEXT("other_stars"));
+}

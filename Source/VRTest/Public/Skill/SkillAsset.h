@@ -26,9 +26,20 @@ class VRTEST_API USkillAsset : public UDataAsset
 public:
 	// ==================== 识别配置 ====================
 
-	/** 轨迹序列字符串 -> 技能类型。例："0247" -> EagleEye */
+	/** 蓝图配置：轨迹方向序列 -> 技能类型 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw")
+	TArray<FStarDrawTrailPair> StarDrawTrailPairs;
+
+	/**
+	 * 运行时缓存：轨迹序列字符串 -> 技能类型。例："0247" -> EagleEye。
+	 * 不对蓝图/编辑器开放配置，由 StarDrawTrailPairs 预处理生成。
+	 */
+	UPROPERTY(Transient)
 	TMap<FString, ESkillType> TrailToSkill;
+
+	/** 按方向序列查询对应技能；非法/找不到返回 None。 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|StarDraw")
+	ESkillType GetSkillTypeFromTrail(const TArray<EStarDrawDirection>& Trail) const;
 
 	// ==================== 表现配置 ====================
 
@@ -49,4 +60,14 @@ public:
 	/** SkillType -> StrategyClass（用于技能释放逻辑的策略模式） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|Strategy")
 	TMap<ESkillType, TSubclassOf<USkillStrategyBase>> StrategyClassMap;
+
+protected:
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+private:
+	void RebuildTrailToSkillCache();
+	FString BuildTrailKey(const TArray<EStarDrawDirection>& Trail) const;
 };

@@ -13,7 +13,7 @@ class UStaticMeshComponent;
 
 /**
  * OtherStar：围绕某个 MainStar 生成的 8 个候选点。
- * 蓝图里通过 ActorTag=OtherStars 判断；这里同样保留 Tag。
+ * 约定：Actor Tag 使用 lower_snake_case（other_stars）。
  */
 UCLASS(Blueprintable)
 class VRTEST_API AStarDrawOtherStar : public AActor

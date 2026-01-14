@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Skill/SkillTypes.h"
-#include "Skill/StarDrawDirection.h"
 #include "StarDrawManager.generated.h"
 
 class AStarDrawFingerPoint;
@@ -72,15 +71,10 @@ protected:
 	 * - 上/下：沿 Z 轴移动
 	 * - 左上/右上/左下/右下：组合
 	 */
-	TArray<FVector> CalculateAdjacentPointsOnCylinder(const FVector& PlayerPivot, const FVector& CenterLocation, float InLineLength) const;
+	TMap<EStarDrawDirection, FVector> CalculateAdjacentPointsOnCylinder(const FVector& PlayerPivot, const FVector& CenterLocation, float InLineLength) const;
 
 	float CalculateRadiusOnXY(const FVector& PlayerPivot, const FVector& ControllerLocation, const FVector& Forward, float Distance) const;
 	FVector CalculateProjectionPointOnCylinder(const FVector& PlayerPivot, const FVector& ControllerLocation, const FVector& Forward, float Radius) const;
-
-	/**
-	 * 将方向轨迹数组转为序列字符串（与蓝图 FinishDraw 拼接 int 的方式一致）。
-	 */
-	FString BuildSequenceString() const;
 
 	virtual ESkillType ResolveSkillFromDraw() const;
 
@@ -115,11 +109,8 @@ protected:
 
 	/** 轨迹方向数组（旧蓝图 DirectionChoose） */
 	UPROPERTY(BlueprintReadOnly, Category = "Skill|StarDraw|State")
-	TArray<int32> DirectionChoose;
+	TArray<EStarDrawDirection> DirectionChoose;
 
-	/** 反向方向映射（旧蓝图 CounterDirection） */
-	UPROPERTY()
-	TMap<int32, int32> CounterDirection;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Skill|StarDraw|Spawn")
 	TSubclassOf<AStarDrawFingerPoint> FingerPointClass;

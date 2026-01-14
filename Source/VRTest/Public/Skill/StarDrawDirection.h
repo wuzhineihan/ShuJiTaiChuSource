@@ -29,3 +29,18 @@ FORCEINLINE int32 StarDrawDirectionToInt(EStarDrawDirection Dir)
 	return static_cast<int32>(Dir);
 }
 
+FORCEINLINE EStarDrawDirection StarDrawDirectionGetOpposite(EStarDrawDirection Dir)
+{
+	switch (Dir)
+	{
+	case EStarDrawDirection::Left: return EStarDrawDirection::Right;
+	case EStarDrawDirection::Right: return EStarDrawDirection::Left;
+	case EStarDrawDirection::Up: return EStarDrawDirection::Down;
+	case EStarDrawDirection::Down: return EStarDrawDirection::Up;
+	case EStarDrawDirection::LeftUp: return EStarDrawDirection::RightDown;
+	case EStarDrawDirection::RightDown: return EStarDrawDirection::LeftUp;
+	case EStarDrawDirection::RightUp: return EStarDrawDirection::LeftDown;
+	case EStarDrawDirection::LeftDown: return EStarDrawDirection::RightUp;
+	default: return Dir;
+	}
+}
