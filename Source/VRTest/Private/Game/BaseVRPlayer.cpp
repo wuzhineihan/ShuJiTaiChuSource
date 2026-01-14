@@ -20,6 +20,7 @@ ABaseVRPlayer::ABaseVRPlayer()
 	// 创建 VR 摄像机
 	VRCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("VRCamera"));
 	VRCamera->SetupAttachment(VROrigin);
+	PlayerCamera = VRCamera;
 
 	// 创建背包碰撞区域（在蓝图设置变换）
 	BackpackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BackpackCollision"));

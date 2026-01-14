@@ -140,22 +140,26 @@ bool UPlayerSkillComponent::TryCastSkill(ESkillType SkillType, const FSkillConte
 	ABasePlayer* Player = CachedOwnerPlayer;
 	if (!Player)
 	{
+		UE_LOG(LogTemp,Warning, TEXT("PlayerSkillComponent::1"));
 		return false;
 	}
 
 	if (SkillType == ESkillType::None)
 	{
+		UE_LOG(LogTemp,Warning, TEXT("PlayerSkillComponent::2"));
 		return false;
 	}
 
 	if (!HasLearnedSkill(SkillType))
 	{
+		UE_LOG(LogTemp,Warning, TEXT("PlayerSkillComponent::3"));
 		return false;
 	}
 
-	USkillStrategyBase* Strategy = GetStrategyForSkill(SkillType);
+	ASkillStrategyBase* Strategy = GetStrategyForSkill(SkillType);
 	if (!Strategy)
 	{
+		UE_LOG(LogTemp,Warning, TEXT("PlayerSkillComponent::4"));
 		return false;
 	}
 
@@ -196,20 +200,52 @@ void UPlayerSkillComponent::DestroyStarDrawManager()
 	}
 }
 
-USkillStrategyBase* UPlayerSkillComponent::GetStrategyForSkill(ESkillType SkillType) const
+void UPlayerSkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (const TObjectPtr<USkillStrategyBase>* Cached = StrategyInstanceCache.Find(SkillType))
+	// 清理绘制会话
+	DestroyStarDrawManager();
+
+	// 清理策略实例（Actor）
+	for (TPair<ESkillType, TObjectPtr<ASkillStrategyBase>>& Pair : StrategyInstanceCache)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->Destroy();
+		}
+	}
+	StrategyInstanceCache.Reset();
+
+	Super::EndPlay(EndPlayReason);
+}
+
+ASkillStrategyBase* UPlayerSkillComponent::GetStrategyForSkill(ESkillType SkillType) const
+{
+	if (const TObjectPtr<ASkillStrategyBase>* Cached = StrategyInstanceCache.Find(SkillType))
 	{
 		return Cached->Get();
 	}
 
-	const TSubclassOf<USkillStrategyBase>* StrategyClass = StrategyClassMap.Find(SkillType);
+	const TSubclassOf<ASkillStrategyBase>* StrategyClass = StrategyClassMap.Find(SkillType);
 	if (!StrategyClass || !(*StrategyClass))
 	{
 		return nullptr;
 	}
 
-	USkillStrategyBase* StrategyObj = NewObject<USkillStrategyBase>(const_cast<UPlayerSkillComponent*>(this), *StrategyClass);
-	StrategyInstanceCache.Add(SkillType, StrategyObj);
-	return StrategyObj;
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters Params;
+	Params.Owner = GetOwner();
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ASkillStrategyBase* StrategyActor = World->SpawnActor<ASkillStrategyBase>(*StrategyClass, Params);
+	if (!StrategyActor)
+	{
+		return nullptr;
+	}
+
+	StrategyInstanceCache.Add(SkillType, StrategyActor);
+	return StrategyActor;
 }

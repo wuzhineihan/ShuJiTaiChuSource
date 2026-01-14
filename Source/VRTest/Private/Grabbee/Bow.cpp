@@ -346,10 +346,6 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 	// 检查是否是玩家的手
 	if (OtherComp && OtherComp->ComponentHasTag(FName("player_hand")))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ABow::OnStringCollisionBeginOverlap :%s hand"),
-			OtherComp->GetAttachParent() && Cast<UPlayerGrabHand>(OtherComp->GetAttachParent()) &&
-			Cast<UPlayerGrabHand>(OtherComp->GetAttachParent())->bIsRightHand ? TEXT("Right") : TEXT("Left"));
-
 		// 获取手组件
 		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
 		TryHandleStringHandEnter(Hand);

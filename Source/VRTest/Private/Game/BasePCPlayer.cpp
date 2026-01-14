@@ -21,6 +21,7 @@ ABasePCPlayer::ABasePCPlayer()
 	FirstPersonCamera->SetupAttachment(RootComponent);
 	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
+	PlayerCamera = FirstPersonCamera;
 
 	// 创建左手
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));

@@ -9,7 +9,7 @@
 
 class ABasePlayer;
 class AStarDrawManager;
-class USkillStrategyBase;
+class ASkillStrategyBase;
 
 /**
  * 玩家技能组件：
@@ -61,6 +61,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 不提供 GetOwnerPlayer()，统一在 BeginPlay 缓存并直接使用 CachedOwnerPlayer。
 
@@ -69,7 +70,7 @@ protected:
 	AStarDrawManager* SpawnStarDrawManager();
 	void DestroyStarDrawManager();
 
-	USkillStrategyBase* GetStrategyForSkill(ESkillType SkillType) const;
+	ASkillStrategyBase* GetStrategyForSkill(ESkillType SkillType) const;
 
 protected:
 	// ==================== 学习状态 ====================
@@ -84,10 +85,10 @@ protected:
 	 * 由 GameSettings->SkillAsset 在 BeginPlay 中初始化（DataAsset 驱动）。
 	 */
 	UPROPERTY(Transient)
-	TMap<ESkillType, TSubclassOf<USkillStrategyBase>> StrategyClassMap;
+	TMap<ESkillType, TSubclassOf<ASkillStrategyBase>> StrategyClassMap;
 
 	UPROPERTY(Transient)
-	mutable TMap<ESkillType, TObjectPtr<USkillStrategyBase>> StrategyInstanceCache;
+	mutable TMap<ESkillType, TObjectPtr<ASkillStrategyBase>> StrategyInstanceCache;
 
 	/** 缓存的 Owner（BasePlayer）。BeginPlay 中初始化。 */
 	UPROPERTY(Transient)

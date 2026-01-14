@@ -10,7 +10,7 @@
  * 技能类型枚举（框架层）。
  *
  * 说明：此处仅收敛“可被系统识别/路由”的技能类型。
- * 具体技能实现由策略类（USkillStrategyBase 的子类）承载。
+ * 具体技能实现由策略类（ASkillStrategyBase 的子类）承载。
  */
 UENUM(BlueprintType)
 enum class ESkillType : uint8

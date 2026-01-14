@@ -6,7 +6,6 @@
 #include "GameFramework/Actor.h"
 #include "StarDrawMainStar.generated.h"
 
-class USphereComponent;
 class UStaticMeshComponent;
 
 /** MainStar：轨迹经过的关键点（被确认的点）。 */
@@ -19,9 +18,7 @@ public:
 	AStarDrawMainStar();
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Skill|StarDraw")
-	USphereComponent* SphereCollision = nullptr;
-
+	// MainStar 不需要碰撞，Mesh 作为根组件
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Skill|StarDraw")
 	UStaticMeshComponent* Mesh = nullptr;
 };

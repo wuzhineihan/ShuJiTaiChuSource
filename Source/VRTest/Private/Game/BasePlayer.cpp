@@ -2,11 +2,14 @@
 
 
 #include "Game/BasePlayer.h"
+
+#include "Camera/CameraComponent.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Grabbee/Bow.h"
 #include "Game/GameSettings.h"
 #include "Skill/PlayerSkillComponent.h"
+#include "Materials/MaterialInterface.h"
 
 ABasePlayer::ABasePlayer()
 {
@@ -23,6 +26,32 @@ ABasePlayer::ABasePlayer()
 void ABasePlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 给玩家相机添加后处理材质（从 GameSettings 配置）
+	if (PlayerCamera)
+	{
+		if (UGameSettings* Settings = UGameSettings::Get())
+		{
+			if (UMaterialInterface* PPMat = Settings->GetPlayerCameraPostProcessMaterial())
+			{
+				// 避免重复添加同一个 Blendable
+				bool bAlreadyAdded = false;
+				for (const FWeightedBlendable& WB : PlayerCamera->PostProcessSettings.WeightedBlendables.Array)
+				{
+					if (WB.Object == PPMat)
+					{
+						bAlreadyAdded = true;
+						break;
+					}
+				}
+
+				if (!bAlreadyAdded)
+				{
+					PlayerCamera->PostProcessSettings.AddBlendable(PPMat, 1.0f);
+				}
+			}
+		}
+	}
 
 	// 统一设置手部的 PhysicsHandle 和 Inventory
 	if (LeftHand)

@@ -12,7 +12,7 @@ AStarDrawFingerPoint::AStarDrawFingerPoint()
 
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
-	SphereCollision->SetSphereRadius(5.f);
+	SphereCollision->SetSphereRadius(4.f);
 	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SphereCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
 

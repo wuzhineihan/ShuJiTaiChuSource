@@ -22,7 +22,6 @@ void UVRGrabHand::BeginPlay()
 	// 绑定 HandCollision 的 overlap 事件用于背包检测
 	if (HandCollision)
 	{
-		UE_LOG(LogTemp, Error, TEXT("VRGrabHand::BeginPlay - Binding HandCollision overlap events."));
 		HandCollision->OnComponentBeginOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionBeginOverlap);
 		HandCollision->OnComponentEndOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionEndOverlap);
 	}

@@ -344,8 +344,8 @@ TMap<EStarDrawDirection, FVector> AStarDrawManager::CalculateAdjacentPointsOnCyl
 	FVector OriginalFlat = OriginalVector;
 	OriginalFlat.Z = 0.f;
 
-	const FVector LeftVector = OriginalFlat.RotateAngleAxis(ZitaDeg, FVector::UpVector);
-	const FVector RightVector = OriginalFlat.RotateAngleAxis(-ZitaDeg, FVector::UpVector);
+	const FVector LeftVector = OriginalFlat.RotateAngleAxis(-ZitaDeg, FVector::UpVector);
+	const FVector RightVector = OriginalFlat.RotateAngleAxis(ZitaDeg, FVector::UpVector);
 
 	const FVector LeftPoint = PlayerFlat + LeftVector;
 	const FVector RightPoint = PlayerFlat + RightVector;
@@ -375,49 +375,69 @@ TMap<EStarDrawDirection, FVector> AStarDrawManager::CalculateAdjacentPointsOnCyl
 
 float AStarDrawManager::CalculateRadiusOnXY(const FVector& PlayerPivot, const FVector& ControllerLocation, const FVector& Forward, float DistanceValue) const
 {
-	FVector ForwardFlat = Forward;
-	ForwardFlat.Z = 0.f;
-	ForwardFlat = ForwardFlat.GetSafeNormal();
-	const FVector TargetLocation = ControllerLocation + ForwardFlat * DistanceValue;
+	const FVector TargetLocation = ControllerLocation + Forward * DistanceValue;
 	return FVector(TargetLocation.X - PlayerPivot.X, TargetLocation.Y - PlayerPivot.Y, 0.f).Size();
 }
 
 FVector AStarDrawManager::CalculateProjectionPointOnCylinder(const FVector& PlayerPivot, const FVector& ControllerLocation, const FVector& Forward, float RadiusValue) const
 {
-	// 将问题约化到 XY：光线与圆（以 PlayerPivot 为圆心，半径 RadiusValue）的交点
-	const FVector2D PlayerXY(PlayerPivot.X, PlayerPivot.Y);
-	const FVector2D ControllerXY(ControllerLocation.X, ControllerLocation.Y);
-	FVector2D DirXY(Forward.X, Forward.Y);
-	if (!DirXY.Normalize())
+	// 目标：从 ControllerLocation 沿 Forward 发射射线 R(t)=ControllerLocation+Forward*t，
+	// 与以 PlayerPivot 为轴、半径 RadiusValue 的无限圆柱面（绕世界 Z 轴）求交。
+	// 圆柱面方程（XY 平面）：(x-PlayerPivot.X)^2 + (y-PlayerPivot.Y)^2 = RadiusValue^2。
+	// 将射线代入并仅用 XY 分量求解 t。
+
+	const FVector2D PivotXY(PlayerPivot.X, PlayerPivot.Y);
+	const FVector2D OriginXY(ControllerLocation.X, ControllerLocation.Y);
+	const FVector2D DirXY(Forward.X, Forward.Y);
+
+	const float DirLenSq = DirXY.SquaredLength();
+	if (DirLenSq <= KINDA_SMALL_NUMBER)
 	{
+		// 射线几乎与圆柱轴平行（Forward XY 分量接近 0），无法与圆柱面稳定求交。
+		// 这里保持当前位置（不回退到某个错误的交点）。
 		return ControllerLocation;
 	}
 
-	const float A = DirXY.X * DirXY.X + DirXY.Y * DirXY.Y;
-	const float B = 2.f * (DirXY.X * (ControllerXY.X - PlayerXY.X) + DirXY.Y * (ControllerXY.Y - PlayerXY.Y));
-	const float C = FMath::Square(ControllerXY.X - PlayerXY.X) + FMath::Square(ControllerXY.Y - PlayerXY.Y) - RadiusValue * RadiusValue;
+	const FVector2D Delta = OriginXY - PivotXY;
+
+	// 解二次方程：a t^2 + b t + c = 0
+	// a = dx^2 + dy^2
+	// b = 2 * (dx*(ox-px) + dy*(oy-py))
+	// c = (ox-px)^2 + (oy-py)^2 - r^2
+	const float A = DirLenSq;
+	const float B = 2.f * FVector2D::DotProduct(DirXY, Delta);
+	const float C = Delta.SquaredLength() - RadiusValue * RadiusValue;
 
 	const float Discriminant = B * B - 4.f * A * C;
 	if (Discriminant < 0.f)
 	{
+		// 无实根：射线在 XY 上不与圆柱面相交
 		return ControllerLocation;
 	}
 
 	const float SqrtD = FMath::Sqrt(Discriminant);
-	const float t1 = (-B - SqrtD) / (2.f * A);
-	const float t2 = (-B + SqrtD) / (2.f * A);
-	float t = FMath::Min(t1, t2);
-	if (t < 0.f)
+	const float Inv2A = 1.f / (2.f * A);
+	const float t0 = (-B - SqrtD) * Inv2A;
+	const float t1 = (-B + SqrtD) * Inv2A;
+
+	// 选择最小的正根（最近的前向交点）
+	float t = TNumericLimits<float>::Max();
+	if (t0 >= 0.f)
 	{
-		t = FMath::Max(t1, t2);
+		t = t0;
 	}
-	if (t < 0.f)
+	if (t1 >= 0.f)
 	{
+		t = FMath::Min(t, t1);
+	}
+
+	if (t == TNumericLimits<float>::Max())
+	{
+		// 两个根都在射线反方向
 		return ControllerLocation;
 	}
 
-	FVector Intersection = ControllerLocation + Forward * t;
-	return Intersection;
+	return ControllerLocation + Forward * t;
 }
 
 ESkillType AStarDrawManager::ResolveSkillFromDraw() const

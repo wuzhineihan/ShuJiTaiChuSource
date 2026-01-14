@@ -10,7 +10,7 @@
 class AStarDrawFingerPoint;
 class AStarDrawMainStar;
 class AStarDrawOtherStar;
-class USkillStrategyBase;
+class ASkillStrategyBase;
 
 /**
  * SkillAsset：技能系统的统一配置资产。
@@ -59,7 +59,7 @@ public:
 
 	/** SkillType -> StrategyClass（用于技能释放逻辑的策略模式） */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|Strategy")
-	TMap<ESkillType, TSubclassOf<USkillStrategyBase>> StrategyClassMap;
+	TMap<ESkillType, TSubclassOf<ASkillStrategyBase>> StrategyClassMap;
 
 protected:
 	virtual void PostLoad() override;

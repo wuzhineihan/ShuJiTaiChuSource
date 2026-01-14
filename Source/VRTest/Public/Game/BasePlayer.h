@@ -9,6 +9,7 @@
 #include "Game/InventoryComponent.h"
 #include "BasePlayer.generated.h"
 
+class UCameraComponent;
 class UPhysicsHandleComponent;
 class UPlayerGrabHand;
 class ABow;
@@ -61,6 +62,9 @@ public:
 	/** 右手抓取组件（基类指针，子类创建具体类型） */
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UPlayerGrabHand* RightHand = nullptr;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Components")
+	UCameraComponent* PlayerCamera;
 
 	// ==================== 弓接口 ====================
 	

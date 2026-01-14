@@ -4,6 +4,7 @@
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Skill/SkillAsset.h"
+#include "Materials/MaterialInterface.h"
 
 UGameSettings::UGameSettings()
 {
@@ -42,4 +43,14 @@ USkillAsset* UGameSettings::GetSkillAsset() const
 		return nullptr;
 	}
 	return SkillAsset.LoadSynchronous();
+}
+
+UMaterialInterface* UGameSettings::GetPlayerCameraPostProcessMaterial() const
+{
+	if (PlayerCameraPostProcessMaterial.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameSettings: PlayerCameraPostProcessMaterial is not set!"));
+		return nullptr;
+	}
+	return PlayerCameraPostProcessMaterial.LoadSynchronous();
 }
