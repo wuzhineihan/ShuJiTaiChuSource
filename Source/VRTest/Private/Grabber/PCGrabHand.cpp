@@ -65,6 +65,8 @@ void UPCGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 void UPCGrabHand::TryGrab(bool bFromBackpack)
 {
+	if (bGrabLocked)
+		return;
 	// Step 1: 有效性检验
 	if (bIsHolding)
 	{
@@ -155,6 +157,9 @@ void UPCGrabHand::TryGrabOrRelease()
 
 void UPCGrabHand::DropToRaycastTarget()
 {
+	if (bGrabLocked)
+		return;
+	
 	if (!bIsHolding || !HeldActor)
 	{
 		return;

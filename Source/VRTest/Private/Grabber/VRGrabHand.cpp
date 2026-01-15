@@ -8,6 +8,7 @@
 #include "Components/BoxComponent.h"
 #include "Game/BasePlayer.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Tools/GameUtils.h"
 
 UVRGrabHand::UVRGrabHand()
 {
@@ -43,6 +44,12 @@ void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 void UVRGrabHand::TryGrab(bool bFromBackpack)
 {
+	// Step 0: 检查抓取锁（继承自父类）
+	if (bGrabLocked)
+	{
+		return;
+	}
+
 	// 如果调用者没有强制指定从背包抓取，则自动检测
 	if (!bFromBackpack)
 	{
@@ -123,6 +130,11 @@ void UVRGrabHand::OnHandCollisionEndOverlap(UPrimitiveComponent* OverlappedCompo
 
 void UVRGrabHand::TryRelease(bool bToBackpack)
 {
+	// Step 0: 检查抓取锁（继承自父类）
+	if (bGrabLocked)
+	{
+		return;
+	}
 
 	// VR特有：处理虚拟抓取
 	if (bIsVirtualGrabbing)
@@ -148,59 +160,52 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 
 AActor* UVRGrabHand::FindAngleClosestTarget()
 {
-	TArray<AActor*> OverlapActors;
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(GetOwner());
 
-	// 大范围球形检测
-	bool bHit = UKismetSystemLibrary::SphereOverlapActors(
+	// 使用 GameUtils 工具函数查找锥形范围内的所有 Actor
+	TArray<FActorWithAngle> ActorsInCone = UGameUtils::FindActorsInCone(
 		this,
 		GetComponentLocation(),
+		GetForwardVector(),
 		GravityGlovesDistance,
+		GravityGlovesAngle,
 		GrabObjectTypes,
-		nullptr,  // 不限制类型，用接口检查
-		IgnoreActors,
-		OverlapActors
+		IgnoreActors
 	);
 
-	if (!bHit || OverlapActors.Num() == 0)
+	// 筛选：必须实现 IGrabbable 接口且满足重力手套条件
+	for (const FActorWithAngle& Item : ActorsInCone)
 	{
-		return nullptr;
-	}
+		AActor* Actor = Item.Actor;
+		if (!Actor)
+		{
+			continue;
+		}
 
-	// 找到角度最近的目标
-	AActor* ClosestTarget = nullptr;
-	float SmallestAngle = GravityGlovesAngle;
-
-	FVector HandForward = GetForwardVector();
-
-	for (AActor* Actor : OverlapActors)
-	{
 		// 检查是否实现 IGrabbable 接口
-		IGrabbable* Grabbable = Cast<IGrabbable>(Actor);
-		if (!Grabbable)
-		{
-			continue;
-		}
-		
-		// 使用 CanBeGrabbedByGravityGlove 检查是否可以被重力手套选中
-		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor) || !IGrabbable::Execute_CanBeGrabbedBy(Actor,this))
+		if (!Actor->GetClass()->ImplementsInterface(UGrabbable::StaticClass()))
 		{
 			continue;
 		}
 
-		// 计算角度
-		FVector ToTarget = (Actor->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
-		float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(HandForward, ToTarget)));
-
-		if (Angle < SmallestAngle)
+		// 检查是否可以被重力手套抓取
+		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor))
 		{
-			SmallestAngle = Angle;
-			ClosestTarget = Actor;
+			continue;
 		}
+
+		// 检查是否可以被当前手抓取
+		if (!IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
+		{
+			continue;
+		}
+
+		// 找到第一个满足条件的（已按角度排序）
+		return Actor;
 	}
 
-	return ClosestTarget;
+	return nullptr;
 }
 
 void UVRGrabHand::VirtualGrab(AActor* Target)

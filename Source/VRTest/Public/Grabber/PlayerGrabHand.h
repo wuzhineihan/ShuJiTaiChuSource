@@ -122,6 +122,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	FTransform GrabOffset;
 
+	/** 抓取锁：为 true 时禁止 TryGrab/TryRelease（技能系统用，允许直接调用 GrabObject/ReleaseObject） */
+	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
+	bool bGrabLocked = false;
+
 	// ==================== 缓存组件 ====================
 
 	/** 缓存的 PhysicsHandleComponent（从 BasePlayer 获取，根据 bIsRightHand 选择） */
@@ -181,6 +185,13 @@ public:
 	 * 设置此手部使用的 Inventory（由 BasePlayer 在 BeginPlay 中调用）
 	 */
 	void SetInventory(UInventoryComponent* InInventory);
+
+	/**
+	 * 设置抓取锁（技��系统用）
+	 * @param bLock true=锁定（禁止 TryGrab/TryRelease），false=解锁
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Grab")
+	void SetGrabLock(bool bLock);
 
 protected:
 	// ==================== 目标查找 ====================

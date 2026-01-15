@@ -80,6 +80,12 @@ void UPlayerGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 
 void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 {
+	// Step 0: 检查抓取锁
+	if (bGrabLocked)
+	{
+		return;
+	}
+
 	// Step 1: 有效性检验
 	if (bIsHolding)
 	{
@@ -101,6 +107,12 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 
 void UPlayerGrabHand::TryRelease(bool bToBackpack)
 {
+	// Step 0: 检查抓取锁
+	if (bGrabLocked)
+	{
+		return;
+	}
+
 	// ValidateRelease 内部处理所有有效性检查
 	if (!(bIsHolding && HeldActor != nullptr))
 	{
@@ -390,6 +402,11 @@ void UPlayerGrabHand::SetPhysicsHandle(UPhysicsHandleComponent* InPhysicsHandle)
 void UPlayerGrabHand::SetInventory(UInventoryComponent* InInventory)
 {
 	CachedInventory = InInventory;
+}
+
+void UPlayerGrabHand::SetGrabLock(bool bLock)
+{
+	bGrabLocked = bLock;
 }
 
 // ==================== 内部实现 ====================

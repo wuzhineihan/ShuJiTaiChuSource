@@ -7,6 +7,7 @@
 #include "Skill/SkillTypes.h"
 #include "SkillAsset.generated.h"
 
+class UNiagaraSystem;
 class AStarDrawFingerPoint;
 class AStarDrawMainStar;
 class AStarDrawOtherStar;
@@ -54,7 +55,15 @@ public:
 	/** OtherStar 蓝图类（用于自定义模型/特效）。 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw|Visual")
 	TSubclassOf<AStarDrawOtherStar> OtherStarClass;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw|Visual")
+	UNiagaraSystem* DrawLineEffect;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw|Visual")
+	UNiagaraSystem* FingerPointEffect;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw|Visual")
+	UNiagaraSystem* StasisPointEffect;
 	// ==================== 策略配置 ====================
 
 	/** SkillType -> StrategyClass（用于技能释放逻辑的策略模式） */

@@ -11,6 +11,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Game/GameSettings.h"
 
 void AStarDrawManager::BeginPlay()
@@ -19,11 +21,21 @@ void AStarDrawManager::BeginPlay()
 
 	const UGameSettings* Settings = UGameSettings::Get();
 	CachedSkillAsset = Settings ? Settings->GetSkillAsset() : nullptr;
+	DrawLineEffect->SetAsset(CachedSkillAsset->DrawLineEffect);
+	FingerPointEffect->SetAsset(CachedSkillAsset->FingerPointEffect);
 }
 
 AStarDrawManager::AStarDrawManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	
+	DrawLineEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("DrawLineEffect"));
+	DrawLineEffect->SetupAttachment(RootComponent);
+	DrawLineEffect->SetVisibility(true);
+	
+	FingerPointEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FingerPointEffect"));
+	FingerPointEffect->SetupAttachment(RootComponent);
+	FingerPointEffect->SetVisibility(true);
 }
 
 void AStarDrawManager::StartDraw(USceneComponent* InInputSource)
@@ -55,15 +67,6 @@ ESkillType AStarDrawManager::FinishDraw()
 	bIsDrawing = false;
 	CachedResult = ResolveSkillFromDraw();
 
-	if (FingerPoint)
-	{
-		FingerPoint->Destroy();
-		FingerPoint = nullptr;
-	}
-
-	ClearOtherStars();
-	ClearMainStars();
-
 	return CachedResult;
 }
 
@@ -78,6 +81,7 @@ void AStarDrawManager::Tick(float DeltaSeconds)
 	}
 
 	UpdateFingerPointLocation(DeltaSeconds);
+	UpdateVFX();
 
 	if (bDebugDraw)
 	{
@@ -92,8 +96,7 @@ void AStarDrawManager::NotifyFingerTouchActor(AActor* TouchedActor)
 	{
 		return;
 	}
-
-	// 统一：lower_snake_case
+	
 	if (!TouchedActor->ActorHasTag(SkillTags::OtherStars))
 	{
 		return;
@@ -282,6 +285,37 @@ void AStarDrawManager::ClearMainStars()
 	MainStars.Reset();
 }
 
+// 新增统一清理函数
+void AStarDrawManager::CleanupAndDestroy()
+{
+	// 清理 Actor 持有的星星
+	ClearOtherStars();
+	ClearMainStars();
+
+	// 销毁 FingerPoint
+	if (FingerPoint)
+	{
+		FingerPoint->Destroy();
+		FingerPoint = nullptr;
+	}
+
+	// 停用并移除 Niagara VFX
+	if (DrawLineEffect)
+	{
+		DrawLineEffect->DeactivateImmediate();
+		DrawLineEffect->DestroyComponent();
+		DrawLineEffect = nullptr;
+	}
+	if (FingerPointEffect)
+	{
+		FingerPointEffect->DeactivateImmediate();
+		FingerPointEffect->DestroyComponent();
+		FingerPointEffect = nullptr;
+	}
+
+	// 最后自我销毁
+	Destroy();
+}
 
 FVector AStarDrawManager::GetPlayerPivotLocation() const
 {
@@ -321,6 +355,25 @@ void AStarDrawManager::UpdateFingerPointLocation(float DeltaSeconds)
 	const FVector Forward = GetInputSourceForwardVector();
 	FingerPointLocation = CalculateProjectionPointOnCylinder(PlayerPivotLocation, ControllerLocation, Forward, Radius);
 	FingerPoint->SetActorLocation(FingerPointLocation);
+}
+
+void AStarDrawManager::UpdateVFX()
+{
+	if (DrawLineEffect)
+	{
+		TArray<FVector> DrawLineLocations;
+		for (AStarDrawMainStar* Star : MainStars)
+			DrawLineLocations.Add(Star->GetActorLocation());
+		DrawLineLocations.Add(FingerPoint->GetActorLocation());
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(DrawLineEffect, FName("PointArray"), DrawLineLocations);
+	}
+	if (FingerPointEffect)
+	{
+		TArray<FVector> FingerPointLineLocations;
+		FingerPointLineLocations.Add(FingerPoint->GetActorLocation());
+		FingerPointLineLocations.Add(GetInputSourceLocation());
+		UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(FingerPointEffect, FName("PointArray"), FingerPointLineLocations);
+	}
 }
 
 TMap<EStarDrawDirection, FVector> AStarDrawManager::CalculateAdjacentPointsOnCylinder(const FVector& PlayerPivot, const FVector& CenterLocation, float InLineLength) const

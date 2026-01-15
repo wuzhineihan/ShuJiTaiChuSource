@@ -7,6 +7,7 @@
 #include "Skill/SkillTypes.h"
 #include "StarDrawManager.generated.h"
 
+class UNiagaraComponent;
 class AStarDrawFingerPoint;
 class AStarDrawMainStar;
 class AStarDrawOtherStar;
@@ -25,7 +26,13 @@ class VRTEST_API AStarDrawManager : public AActor
 
 public:
 	AStarDrawManager();
-
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UNiagaraComponent* DrawLineEffect;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UNiagaraComponent* FingerPointEffect;
+	
 	/** 开始绘制。InputSource：PC=Camera，VR=Hand。 */
 	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
 	virtual void StartDraw(USceneComponent* InInputSource);
@@ -33,6 +40,13 @@ public:
 	/** 结束绘制并返回识别结果。未识别/无效则返回 ESkillType::None�� */
 	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
 	virtual ESkillType FinishDraw();
+
+	/**
+	 * 统一清理接口：清理 Main/Other stars、清空 VFX（Niagara components），并自我销毁。
+	 * 玩家层（例如 PlayerSkillComponent）在调用 FinishDraw 获取结果后应调用此函数来完成收尾工作。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
+	void CleanupAndDestroy();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|StarDraw")
 	bool IsDrawing() const { return bIsDrawing; }
@@ -62,6 +76,7 @@ protected:
 	FVector GetInputSourceForwardVector() const;
 
 	void UpdateFingerPointLocation(float DeltaSeconds);
+	void UpdateVFX();
 
 	/**
 	 * 计算“圆柱面上的邻接点”——替代旧蓝图函数库。
@@ -95,7 +110,7 @@ protected:
 	float Distance = 60.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill|StarDraw|Config")
-	float LineLength = 30.f;
+	float LineLength =20.f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Skill|StarDraw|State")
 	float Radius = 0.f;

@@ -195,7 +195,8 @@ void UPlayerSkillComponent::DestroyStarDrawManager()
 {
 	if (StarDrawManager)
 	{
-		StarDrawManager->Destroy();
+		// 通过统一的 CleanupAndDestroy 接口完成清理；若不存在则直接销毁
+		StarDrawManager->CleanupAndDestroy();
 		StarDrawManager = nullptr;
 	}
 }

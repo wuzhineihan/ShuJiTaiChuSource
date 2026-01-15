@@ -4,13 +4,20 @@
 #include "Game/ShujiGameMode.h"
 #include "IXRTrackingSystem.h"
 #include "IHeadMountedDisplay.h"
+#include "Game/BaseVRPlayer.h"
 
 UClass* AShujiGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
 {
 	//如果设置了Default Pawn Class则优先使用
 	if (DefaultPawnClass)
+	{
+		if (DefaultPawnClass->IsChildOf(ABaseVRPlayer::StaticClass()))
+			bIsVRMode = true;
+		else
+			bIsVRMode = false;
 		return DefaultPawnClass;
-	
+	}
+		
 	if (GEngine && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
 	{
 		bIsVRMode = GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled();

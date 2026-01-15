@@ -11,6 +11,9 @@
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Skill/PlayerSkillComponent.h"
+#include "Skill/Stasis/StasisPoint.h"
+#include "Skill/Stasis/IStasisable.h"
+#include "Tools/GameUtils.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -183,8 +186,27 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 	}
 }
 
+void ABasePCPlayer::StartStarDraw()
+{
+	if (PCLeftHand->bIsHolding && PCRightHand->bIsHolding)
+		return;
+	
+	bool bIsRightHandFree = !PCRightHand->bIsHolding;
+	
+	if (PlayerSkillComponent)
+		PlayerSkillComponent->StartStarDraw(FirstPersonCamera, bIsRightHandFree);
+}
+
+void ABasePCPlayer::StopStarDraw()
+{
+	PlayerSkillComponent ->FinishStarDraw();
+}
+
 void ABasePCPlayer::TryThrow(bool bRightHand)
 {
+	if (bIsBowArmed)
+		return;
+	
 	UPCGrabHand* ThrowHand = bRightHand ? PCRightHand : PCLeftHand;
 	if (!ThrowHand || !FirstPersonCamera)
 	{
@@ -194,6 +216,13 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 	// 手里没东西就返回
 	if (!ThrowHand->bIsHolding || !ThrowHand->HeldActor)
 	{
+		return;
+	}
+
+	// 特殊处理：StasisPoint 投掷
+	if (AStasisPoint* StasisPoint = Cast<AStasisPoint>(ThrowHand->HeldActor))
+	{
+		HandleStasisPointThrow(ThrowHand, StasisPoint);
 		return;
 	}
 
@@ -221,6 +250,62 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ABasePCPlayer::TryThrow: LaunchTowards failed!"));
 	}
+}
+
+void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint* StasisPoint)
+{
+	if (!ThrowHand || !StasisPoint || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	// 1. 查找定身球目标（使用 GameUtils 工具函数）
+	FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
+	FVector CameraForward = FirstPersonCamera->GetForwardVector();
+
+	TArray<AActor*> IgnoreActors;
+	IgnoreActors.Add(this);
+	IgnoreActors.Add(StasisPoint);
+
+	// 使用与 VR 重力手套相同的检测对象类型
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+
+	// 查找锥形范围内的所有 Actor
+	TArray<FActorWithAngle> ActorsInCone = UGameUtils::FindActorsInCone(
+		this,
+		CameraLocation,
+		CameraForward,
+		StasisDetectionRadius,
+		StasisDetectionAngle,
+		ObjectTypes,
+		IgnoreActors
+	);
+
+	// 筛选出实现了 IStasisable 接口的目标（取角度最小的）
+	USceneComponent* TargetComponent = nullptr;
+	for (const FActorWithAngle& Item : ActorsInCone)
+	{
+		AActor* Actor = Item.Actor;
+		if (Actor && Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+		{
+			TargetComponent = Actor->GetRootComponent();
+			break;  // 已按角度排序，找到第一个即可
+		}
+	}
+
+	// 2. 计算发射速度
+	FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
+
+	// 3. 释放定身球（解除抓取）
+	ThrowHand->ReleaseObject();
+
+	// 4. 发射定身球
+	StasisPoint->Fire(InitVelocity, TargetComponent);
+
+	// 5. 解锁手部
+	ThrowHand->SetGrabLock(false);
 }
 
 // ==================== 弓箭操作 ====================
