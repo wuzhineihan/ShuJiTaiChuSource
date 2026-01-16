@@ -65,24 +65,24 @@ void UPCGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 void UPCGrabHand::TryGrab(bool bFromBackpack)
 {
+	// 先把 PC 特有的“抓箭进背包”逻辑放在最前面；一旦成功会直接 return。
+	// 注意：这里也要遵守 GrabLock。
 	if (bGrabLocked)
+	{
 		return;
-	// Step 1: 有效性检验
+	}
 	if (bIsHolding)
 	{
 		return;
 	}
 
-	// Step 2: 查找抓取目标
 	FName BoneName = NAME_None;
 	AActor* TargetActor = FindTarget(bFromBackpack, BoneName);
-	
 	if (!TargetActor)
 	{
 		return;
 	}
 
-	// PC 特有：如果尝试抓取的是箭，则直接存入背包并销毁
 	if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(TargetActor))
 	{
 		if (Weapon->WeaponType == EWeaponType::Arrow)
@@ -101,7 +101,7 @@ void UPCGrabHand::TryGrab(bool bFromBackpack)
 	if (Grabbable)
 	{
 		EGrabType GrabType = IGrabbable::Execute_GetGrabType(TargetActor);
-		
+
 		// 如果是 Free 类型，先将物体移动到手部位置
 		if (GrabType == EGrabType::Free)
 		{

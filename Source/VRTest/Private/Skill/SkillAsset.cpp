@@ -20,16 +20,22 @@ void USkillAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	const FProperty* ChangedProperty = PropertyChangedEvent.Property;
-	if (!ChangedProperty)
+	const FProperty* ChangedMemberProperty = PropertyChangedEvent.MemberProperty;
+
+	// 对数组 / struct 内成员修改：Property 往往是元素成员，MemberProperty 才是外层数组属性。
+	const FName ChangedName = ChangedProperty ? ChangedProperty->GetFName() : NAME_None;
+	const FName ChangedMemberName = ChangedMemberProperty ? ChangedMemberProperty->GetFName() : NAME_None;
+
+	const bool bStarDrawPairsChanged =
+		(ChangedName == GET_MEMBER_NAME_CHECKED(USkillAsset, StarDrawTrailPairs)) ||
+		(ChangedMemberName == GET_MEMBER_NAME_CHECKED(USkillAsset, StarDrawTrailPairs));
+
+	if (!bStarDrawPairsChanged)
 	{
 		return;
 	}
-
-	// 只在编辑 StarDrawTrailPairs 时重建，避免无谓开销
-	if (ChangedProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USkillAsset, StarDrawTrailPairs))
-	{
-		RebuildTrailToSkillCache();
-	}
+	UE_LOG(LogTemp,Warning,TEXT("2222"));
+	RebuildTrailToSkillCache();
 }
 #endif
 

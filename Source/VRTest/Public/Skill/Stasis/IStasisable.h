@@ -23,5 +23,8 @@ public:
 	void ExitStasis();
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Stasis")
-	void IsInStasis(bool& bIsInStasis);
+	bool IsInStasis();
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Stasis")
+	bool CanEnterStasis();
 };

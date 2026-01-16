@@ -93,7 +93,7 @@ protected:
 	void UpdateHandVelocity(float DeltaTime);
 
 	/** 查找定身球目标 */
-	USceneComponent* FindStasisTarget();
+	AActor* FindStasisTarget();
 
 	/** 触发发射 */
 	void FireStasisPoint();

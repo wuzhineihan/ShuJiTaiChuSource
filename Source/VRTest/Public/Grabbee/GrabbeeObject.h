@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Grabber/GrabTypes.h"
 #include "Grabber/IGrabbable.h"
+#include "Skill/Stasis/IStasisable.h"
 #include "GrabbeeObject.generated.h"
 
 class UPlayerGrabHand;
@@ -20,7 +21,7 @@ class ABaseCharacter;
  * 包含抓取类型、抓取状态、以及抓取/释放时的回调。
  */
 UCLASS()
-class VRTEST_API AGrabbeeObject : public AActor, public IGrabbable
+class VRTEST_API AGrabbeeObject : public AActor, public IGrabbable, public IStasisable
 {
 	GENERATED_BODY()
 	
@@ -84,6 +85,13 @@ public:
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnGrabSelected_Implementation() override;
 	virtual void OnGrabDeselected_Implementation() override;
+	
+	// ==================== IStasisable 接口实现 ====================
+	
+	virtual void EnterStasis_Implementation(double TimeToStasis) override;
+	virtual void ExitStasis_Implementation() override;
+	virtual bool IsInStasis_Implementation() override;
+	virtual bool CanEnterStasis_Implementation() override;
 
 	// ==================== 自有函数 ====================
 
@@ -108,4 +116,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Grab")
 	void ForceRelease();
+	
+protected:
+	bool bIsInStasis;
 };

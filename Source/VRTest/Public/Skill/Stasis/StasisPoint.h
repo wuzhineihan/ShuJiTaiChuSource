@@ -11,6 +11,7 @@
 #include "StasisPoint.generated.h"
 
 class USceneComponent;
+class UPrimitiveComponent;
 
 /**
  * Stasis Point actor that can be grabbed and thrown to apply stasis effect
@@ -45,8 +46,9 @@ public:
     float TimeToStasis;
 
     // Custom Events
+    /** 发射定身球：传入锁定目标 Actor，定身球内部决定追踪哪个组件 */
     UFUNCTION(BlueprintCallable, Category = "Stasis")
-    void Fire(FVector InitVelocity, USceneComponent* TrackTarget);
+    void Fire(FVector InitVelocity, AActor* TrackTargetActor);
 
     UFUNCTION(BlueprintCallable, Category = "Stasis")
     void EnterFollowingMode();
@@ -85,4 +87,18 @@ private:
     float SpringStiffness;
     float Damping;
     float SpringForceMin;
+    bool bGrabbed = false;
+
+    /** 当前抓取此定身球的手（用于碰撞忽略与状态恢复） */
+    UPROPERTY(Transient)
+    TObjectPtr<UPlayerGrabHand> HoldingHand = nullptr;
+
+    /** 握持/发射阶段：关闭自身碰撞并忽略与玩家当前手持物体的碰撞 */
+    void ApplyHeldCollisionRules();
+
+    /** 发射后：恢复自身碰撞（并尽量恢复忽略规则） */
+    void RestorePostFireCollisionRules();
+
+    /** 选择要追踪的组件（仅用于“普通可定身物体”，不做尸体/复杂角色特殊处理） */
+    static USceneComponent* ChooseTrackComponent(AActor* TargetActor);
 };

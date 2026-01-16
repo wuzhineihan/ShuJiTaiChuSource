@@ -89,7 +89,7 @@ void AVRStasisFireMonitor::UpdateHandVelocity(float DeltaTime)
 	LastHandLocation = CurrentLocation;
 }
 
-USceneComponent* AVRStasisFireMonitor::FindStasisTarget()
+AActor* AVRStasisFireMonitor::FindStasisTarget()
 {
 	if (!MonitoredHand)
 	{
@@ -119,14 +119,29 @@ USceneComponent* AVRStasisFireMonitor::FindStasisTarget()
 		IgnoreActors
 	);
 
-	// 筛选出实现了 IStasisable 接口的目标（取角度最小的）
+	AActor* TargetActor = nullptr;
+	// 筛选出实现了 IStasisable 接口且允许进入定身的目标（取角度最小的）
 	for (const FActorWithAngle& Item : ActorsInCone)
 	{
 		AActor* Actor = Item.Actor;
-		if (Actor && Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+		if (!Actor)
 		{
-			return Actor->GetRootComponent();
+			continue;
 		}
+
+		if (!Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+		{
+			continue;
+		}
+
+		// 只允许可进入定身的目标成为锁定目标
+		if (!IStasisable::Execute_CanEnterStasis(Actor))
+		{
+			continue;
+		}
+
+		// 按角度排序后，找到第一个即可
+		return Actor;
 	}
 
 	return nullptr;
@@ -140,7 +155,7 @@ void AVRStasisFireMonitor::FireStasisPoint()
 	}
 
 	// 1. 查找目标
-	USceneComponent* Target = FindStasisTarget();
+	AActor* TargetActor = FindStasisTarget();
 
 	// 2. 计算发射速度
 	FVector InitVelocity = LastVelocity * FireSpeedFactor;
@@ -149,7 +164,7 @@ void AVRStasisFireMonitor::FireStasisPoint()
 	MonitoredHand->ReleaseObject();
 
 	// 4. 发射定身球
-	StasisPoint->Fire(InitVelocity, Target);
+	StasisPoint->Fire(InitVelocity, TargetActor);
 
 	// 5. 解锁手部
 	MonitoredHand->SetGrabLock(false);
@@ -157,4 +172,3 @@ void AVRStasisFireMonitor::FireStasisPoint()
 	// 6. 销毁监视器
 	Destroy();
 }
-

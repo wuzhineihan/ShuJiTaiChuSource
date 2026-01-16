@@ -283,16 +283,29 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		IgnoreActors
 	);
 
-	// 筛选出实现了 IStasisable 接口的目标（取角度最小的）
-	USceneComponent* TargetComponent = nullptr;
+	// 筛选出实现了 IStasisable 接口且允许进入定身的目标（取角度最小的）
+	AActor* TargetActor = nullptr;
 	for (const FActorWithAngle& Item : ActorsInCone)
 	{
 		AActor* Actor = Item.Actor;
-		if (Actor && Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+		if (!Actor)
 		{
-			TargetComponent = Actor->GetRootComponent();
-			break;  // 已按角度排序，找到第一个即可
+			continue;
 		}
+
+		if (!Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+		{
+			continue;
+		}
+
+		// 只允许可进入定身的目标成为锁定目标
+		if (!IStasisable::Execute_CanEnterStasis(Actor))
+		{
+			continue;
+		}
+
+		TargetActor = Actor;
+		break; // 已按角度排序，找到第一个即可
 	}
 
 	// 2. 计算发射速度
@@ -302,7 +315,7 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 	ThrowHand->ReleaseObject();
 
 	// 4. 发射定身球
-	StasisPoint->Fire(InitVelocity, TargetComponent);
+	StasisPoint->Fire(InitVelocity, TargetActor);
 
 	// 5. 解锁手部
 	ThrowHand->SetGrabLock(false);
@@ -504,14 +517,14 @@ void ABasePCPlayer::UpdateTargetDetection()
 		// 添加有效性检查，防止物体已被销毁
 		if (OldTarget && IsValid(OldTarget))
 		{
-			if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+			if (Cast<IGrabbable>(OldTarget))
 			{
 				IGrabbable::Execute_OnGrabDeselected(OldTarget);
 			}
 		}
 		if (NewTarget && IsValid(NewTarget))
 		{
-			if (IGrabbable* NewGrabbable = Cast<IGrabbable>(NewTarget))
+			if (Cast<IGrabbable>(NewTarget))
 			{
 				IGrabbable::Execute_OnGrabSelected(NewTarget);
 			}
@@ -565,7 +578,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 		TargetedBoneName = NAME_None;
 
 		// 取消选中状态（通过接口）
-		if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+		if (Cast<IGrabbable>(OldTarget))
 		{
 			IGrabbable::Execute_OnGrabDeselected(OldTarget);
 		}
