@@ -11,6 +11,7 @@
 #include "Game/GameSettings.h"
 #include "Skill/PlayerSkillComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Game/CollisionConfig.h"
 
 ABasePlayer::ABasePlayer()
 {
@@ -21,7 +22,7 @@ ABasePlayer::ABasePlayer()
 
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionProfileName(FName("Profile_PlayerCapsule"));
+		Capsule->SetCollisionProfileName(CP_PLAYER_CAPSULE);
 	}
 
 	

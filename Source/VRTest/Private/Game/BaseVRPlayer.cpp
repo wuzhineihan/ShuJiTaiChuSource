@@ -8,6 +8,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Skill/PlayerSkillComponent.h"
+#include "Game/CollisionConfig.h"
 
 ABaseVRPlayer::ABaseVRPlayer()
 {
@@ -25,7 +26,7 @@ ABaseVRPlayer::ABaseVRPlayer()
 	// 创建背包碰撞区域（在蓝图设置变换）
 	BackpackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BackpackCollision"));
 	BackpackCollision->SetupAttachment(VRCamera);
-	BackpackCollision->SetCollisionProfileName(FName("Profile_PlayerBackpack"));
+	BackpackCollision->SetCollisionProfileName(CP_PLAYER_BACKPACK);
 	BackpackCollision->SetGenerateOverlapEvents(true);
 	BackpackCollision->OnComponentBeginOverlap.AddDynamic(this, &ABaseVRPlayer::OnBackpackBeginOverlap);
 	BackpackCollision->OnComponentEndOverlap.AddDynamic(this, &ABaseVRPlayer::OnBackpackEndOverlap);
@@ -60,7 +61,7 @@ ABaseVRPlayer::ABaseVRPlayer()
 	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(VRLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
-	LeftHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	LeftHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	VRLeftHand->HandCollision = LeftHandCollision;
 
@@ -74,7 +75,7 @@ ABaseVRPlayer::ABaseVRPlayer()
 	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(VRRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
-	RightHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	RightHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	VRRightHand->HandCollision = RightHandCollision;
 
@@ -179,7 +180,7 @@ void ABaseVRPlayer::SetVRHandRotationOffset(FRotator RotationOffset)
 void ABaseVRPlayer::OnBackpackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!OtherComp || OtherComp->GetCollisionObjectType() != ECC_GameTraceChannel1)
+	if (!OtherComp || OtherComp->GetCollisionObjectType() != OCC_PLAYER_HAND)
 	{
 		return;
 	}
@@ -194,7 +195,7 @@ void ABaseVRPlayer::OnBackpackBeginOverlap(UPrimitiveComponent* OverlappedCompon
 void ABaseVRPlayer::OnBackpackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	if (!OtherComp || OtherComp->GetCollisionObjectType() != ECC_GameTraceChannel1)
+	if (!OtherComp || OtherComp->GetCollisionObjectType() != OCC_PLAYER_HAND)
 	{
 		return;
 	}

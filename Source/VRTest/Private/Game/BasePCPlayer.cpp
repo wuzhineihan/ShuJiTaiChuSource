@@ -12,8 +12,7 @@
 #include "DrawDebugHelpers.h"
 #include "Skill/PlayerSkillComponent.h"
 #include "Skill/Stasis/StasisPoint.h"
-#include "Skill/Stasis/IStasisable.h"
-#include "Tools/GameUtils.h"
+#include "Game/CollisionConfig.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -36,7 +35,7 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
-	LeftHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	LeftHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	PCLeftHand->HandCollision = LeftHandCollision;
 
@@ -50,7 +49,7 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
-	RightHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	RightHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	PCRightHand->HandCollision = RightHandCollision;
 
@@ -233,7 +232,7 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 
 	// 通过射线计算投掷目标点（从摄像机朝前）
 	FHitResult Hit;
-	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, ECC_GameTraceChannel3);
+	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, TCC_PROJECTILE);
 
 	const FVector Start = FirstPersonCamera->GetComponentLocation();
 	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
@@ -257,65 +256,34 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		return;
 	}
 
-	// 1. 查找定身球目标（使用 GameUtils 工具函数）
-	FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
-	FVector CameraForward = FirstPersonCamera->GetForwardVector();
+	// 1) 计算发射上下文（PC：基于相机前向）
+	const FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
+	const FVector CameraForward = FirstPersonCamera->GetForwardVector();
 
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(this);
 	IgnoreActors.Add(StasisPoint);
+	// 额外的忽略对象（比如双手手持物）由 StasisPoint 内部结合 HoldingHand 处理��
+	// 这里仍保留调用端可传入的 IgnoreActors 扩展能力。
 
-	// 使用与 VR 重力手套相同的检测对象类型
-	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+	// 2) 计算初速度
+	const FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
 
-	// 查找锥形范围内的所有 Actor
-	TArray<FActorWithAngle> ActorsInCone = UGameUtils::FindActorsInCone(
+	// 3) 释放（解除抓取）
+	ThrowHand->ReleaseObject();
+
+	// 4) 发射：由定身球内部自行找目标，找不到则直飞并超时自毁
+	StasisPoint->Fire(
 		this,
 		CameraLocation,
 		CameraForward,
+		InitVelocity,
 		StasisDetectionRadius,
 		StasisDetectionAngle,
-		ObjectTypes,
 		IgnoreActors
 	);
 
-	// 筛选出实现了 IStasisable 接口且允许进入定身的目标（取角度最小的）
-	AActor* TargetActor = nullptr;
-	for (const FActorWithAngle& Item : ActorsInCone)
-	{
-		AActor* Actor = Item.Actor;
-		if (!Actor)
-		{
-			continue;
-		}
-
-		if (!Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
-		{
-			continue;
-		}
-
-		// 只允许可进入定身的目标成为锁定目标
-		if (!IStasisable::Execute_CanEnterStasis(Actor))
-		{
-			continue;
-		}
-
-		TargetActor = Actor;
-		break; // 已按角度排序，找到第一个即可
-	}
-
-	// 2. 计算发射速度
-	FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
-
-	// 3. 释放定身球（解除抓取）
-	ThrowHand->ReleaseObject();
-
-	// 4. 发射定身球
-	StasisPoint->Fire(InitVelocity, TargetActor);
-
-	// 5. 解锁手部
+	// 5) 解锁手部
 	ThrowHand->SetGrabLock(false);
 }
 

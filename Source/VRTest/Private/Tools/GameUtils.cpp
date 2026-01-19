@@ -3,6 +3,7 @@
 #include "Tools/GameUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Game/CollisionConfig.h"
 
 TArray<FActorWithAngle> UGameUtils::FindActorsInCone(
 	UObject* WorldContextObject,
@@ -78,15 +79,4 @@ TArray<FActorWithAngle> UGameUtils::FindActorsInCone(
 	});
 
 	return Results;
-}
-
-TArray<AActor*> UGameUtils::SweepByChannelTest(FVector Location, UObject* WorldContextObject)
-{
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	TArray<FOverlapResult> Overlaps;
-	World->OverlapMultiByChannel(Overlaps , Location, FQuat::Identity, ECC_GameTraceChannel2, FCollisionShape::MakeSphere(100.0f));
-	TArray<AActor*> OverlapActors;
-	for (FOverlapResult Overlap : Overlaps)
-		OverlapActors.Add(Overlap.GetActor());
-	return OverlapActors;
 }

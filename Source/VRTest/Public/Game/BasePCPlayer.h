@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
 #include "Game/BasePlayer.h"
+#include "Game/CollisionConfig.h"
 #include "BasePCPlayer.generated.h"
-
 class UPCGrabHand;
 class UCameraComponent;
 class IGrabbable;
@@ -60,9 +60,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	float MaxGrabDistance = 300.0f;
 
-	/** 抓取检测通道 */
+	/** 抓取检测通道 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
-	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_GameTraceChannel2;
+	TEnumAsByte<ECollisionChannel> GrabTraceChannel = TCC_GRAB;
 
 	/** 是否绘制抓取射线调试（线 + 命中点） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")

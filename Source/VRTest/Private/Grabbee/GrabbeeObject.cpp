@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Game/BaseCharacter.h"
+#include "Game/CollisionConfig.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -17,7 +18,7 @@ AGrabbeeObject::AGrabbeeObject()
 
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetCollisionProfileName(FName("Profile_Grabbable_Physics"));
+	MeshComponent->SetCollisionProfileName(CP_GRABBABLE_PHYSICS);
 
 	MeshComponent->SetRenderCustomDepth(true);
 }

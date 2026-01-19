@@ -6,6 +6,10 @@
 #include "Grabber/PlayerGrabHand.h"
 #include "Skill/SkillAsset.h"
 #include "Skill/Stasis/IStasisable.h"
+#include "Game/CollisionConfig.h"
+#include "Tools/GameUtils.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 AStasisPoint::AStasisPoint()
 {
@@ -13,7 +17,7 @@ AStasisPoint::AStasisPoint()
 
     // Create Sphere component
     Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
-    Sphere->SetCollisionProfileName("NoCollision");
+    Sphere->SetCollisionProfileName(CP_NO_COLLISION);
     Sphere->SetSphereRadius(32);
     RootComponent = Sphere;
 
@@ -24,6 +28,12 @@ AStasisPoint::AStasisPoint()
     // Initialize variables
     Target = nullptr;
     TimeToStasis = 0.0f;
+
+    // 定身目标检测默认 ObjectTypes：WorldDynamic + Pawn
+    TargetingObjectTypes = {
+        UEngineTypes::ConvertToObjectType(ECC_WorldDynamic),
+        UEngineTypes::ConvertToObjectType(ECC_PhysicsBody)
+    };
 
     // Initialize physics parameters
     SpringStiffness = 1000.0f;
@@ -69,7 +79,7 @@ void AStasisPoint::Tick(float DeltaTime)
     }
 }
 
-void AStasisPoint::Fire(FVector InitVelocity, AActor* TrackTargetActor)
+void AStasisPoint::FireWithTargetActor(FVector InitVelocity, AActor* TrackTargetActor)
 {
     // 发射前：恢复自身碰撞（否则无法触发 Overlap），但仍应忽略玩家手持物体
     RestorePostFireCollisionRules();
@@ -83,55 +93,125 @@ void AStasisPoint::Fire(FVector InitVelocity, AActor* TrackTargetActor)
     // Set target component chosen from actor
     Target = ChooseTrackComponent(TrackTargetActor);
 
-    // If no valid target, set target location far away in velocity direction
+    // If no valid target, keep old fallback behavior (far away)
     if (!Target || !Target->IsValidLowLevel())
     {
-        FVector CurrentLocation = GetActorLocation();
-        FVector NormalizedVelocity = InitVelocity.GetSafeNormal();
-        FVector FarLocation = CurrentLocation + (NormalizedVelocity * 1000000.0f);
+        const FVector NormalizedVelocity = InitVelocity.GetSafeNormal();
+        const FVector FarLocation = GetActorLocation() + (NormalizedVelocity * 1000000.0f);
         SetTargetLocation(FarLocation);
     }
 }
 
-USceneComponent* AStasisPoint::ChooseTrackComponent(AActor* TargetActor)
+AActor* AStasisPoint::FindStasisTarget(
+    UObject* WorldContextObject,
+    const FVector& Origin,
+    const FVector& AimDirection,
+    float DetectionRadius,
+    float DetectionAngleDegrees,
+    const TArray<AActor*>& IgnoreActors) const
 {
-    if (!TargetActor)
+    // 复用现有 GameUtils：SphereOverlap + 角度排序
+    const TArray<FActorWithAngle> ActorsInCone = UGameUtils::FindActorsInCone(
+        WorldContextObject,
+        Origin,
+        AimDirection,
+        DetectionRadius,
+        DetectionAngleDegrees,
+        TargetingObjectTypes,
+        IgnoreActors
+    );
+
+    for (const FActorWithAngle& Item : ActorsInCone)
     {
-        return nullptr;
+        AActor* Actor = Item.Actor;
+        if (!Actor)
+        {
+            continue;
+        }
+
+        if (!Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
+        {
+            continue;
+        }
+
+        if (!IStasisable::Execute_CanEnterStasis(Actor))
+        {
+            continue;
+        }
+
+        return Actor;
     }
 
-    // 默认追踪根组件即可（普通可定身物体）。
-    if (USceneComponent* Root = TargetActor->GetRootComponent())
+    return nullptr;
+}
+
+void AStasisPoint::StartNoTargetFlight(const FVector& Origin, const FVector& AimDirection, float MaxNoTargetDistance, float NoTargetLifeSeconds)
+{
+    const FVector Dir = AimDirection.GetSafeNormal();
+    const FVector FallbackDir = Dir.IsNearlyZero() ? GetActorForwardVector() : Dir;
+
+    SetTargetLocation(Origin + (FallbackDir * MaxNoTargetDistance));
+
+    // 超时自毁：避免无限飞行常驻
+    if (NoTargetLifeSeconds > 0.0f)
     {
-        return Root;
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().ClearTimer(NoTargetDestroyTimerHandle);
+            World->GetTimerManager().SetTimer(
+                NoTargetDestroyTimerHandle,
+                this,
+                &AActor::K2_DestroyActor,
+                NoTargetLifeSeconds,
+                false
+            );
+        }
+    }
+}
+
+void AStasisPoint::Fire(
+    UObject* WorldContextObject,
+    const FVector& Origin,
+    const FVector& AimDirection,
+    const FVector& InitVelocity,
+    float DetectionRadius,
+    float DetectionAngleDegrees,
+    const TArray<AActor*>& IgnoreActors,
+    float MaxNoTargetDistance,
+    float NoTargetLifeSeconds)
+{
+    // 发射前：打开碰撞（保证能触发 Overlap）并保持忽略玩家相关 Actor 的规则
+    RestorePostFireCollisionRules();
+
+    // 进入追踪模式
+    EnterTrackMode();
+
+    // 设置初速度
+    SetCurrentVelocity(InitVelocity);
+
+    // Fire 时不再依赖 Held 逻辑；若有旧的超时任务，清掉
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(NoTargetDestroyTimerHandle);
     }
 
-    // 极端兜底：找一个 SceneComponent
-    TArray<USceneComponent*> SceneComps;
-    TargetActor->GetComponents<USceneComponent>(SceneComps);
-    return SceneComps.Num() > 0 ? SceneComps[0] : nullptr;
-}
+    // 由定身球内部选目标
+    AActor* TargetActor = FindStasisTarget(
+        WorldContextObject,
+        Origin,
+        AimDirection,
+        DetectionRadius,
+        DetectionAngleDegrees,
+        IgnoreActors
+    );
 
-void AStasisPoint::EnterFollowingMode()
-{
-    // Set physics parameters for following mode
-    SpringStiffness = 1000.0f;
-    Damping = 100.0f;
-    SpringForceMin = 0.0f;
+    Target = ChooseTrackComponent(TargetActor);
 
-    // Apply to parent class if it has these properties
-    // Note: You'll need to implement SetSpringStiffness, SetDamping, 
-    // and SetSpringForceMin in AFakePhysicsHandleActor or call appropriate methods
-}
-
-void AStasisPoint::EnterTrackMode()
-{
-    // Set physics parameters for track mode
-    SpringStiffness = 20.0f;
-    Damping = 10.0f;
-    SpringForceMin = 1000.0f;
-
-    // Apply to parent class if it has these properties
+    if (!Target || !Target->IsValidLowLevel())
+    {
+        // 没目标：向足够远处直飞，并在一段时间后自毁
+        StartNoTargetFlight(Origin, AimDirection, MaxNoTargetDistance, NoTargetLifeSeconds);
+    }
 }
 
 void AStasisPoint::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
@@ -236,7 +316,7 @@ void AStasisPoint::ApplyHeldCollisionRules()
     // 1) 握在手里时直接关掉自身碰撞，避免与另一只手抓取物体互撞
     if (Sphere)
     {
-        Sphere->SetCollisionProfileName("NoCollision");
+        Sphere->SetCollisionProfileName(CP_NO_COLLISION);
     }
 
     // 2) 同时设置忽略：避免即便打开碰撞后（发射/其他原因）也与玩家手持物体互撞
@@ -281,7 +361,7 @@ void AStasisPoint::RestorePostFireCollisionRules()
     // 发射后需要重新打开碰撞，才能触发 Sphere overlap 来进入定身
     if (Sphere)
     {
-        Sphere->SetCollisionProfileName("Profile_StasisPoint_Fired");
+        Sphere->SetCollisionProfileName(CP_STASIS_POINT_FIRED);
         Sphere->SetGenerateOverlapEvents(true);
     }
 
@@ -315,4 +395,39 @@ void AStasisPoint::RestorePostFireCollisionRules()
         ApplyIgnoreForHand(HoldingHand);
         ApplyIgnoreForHand(HoldingHand->OtherHand);
     }
+}
+
+USceneComponent* AStasisPoint::ChooseTrackComponent(AActor* TargetActor)
+{
+    if (!TargetActor)
+    {
+        return nullptr;
+    }
+
+    // 默认追踪根组件
+    if (USceneComponent* Root = TargetActor->GetRootComponent())
+    {
+        return Root;
+    }
+
+    // 兜底：取第一个 SceneComponent
+    TArray<USceneComponent*> SceneComps;
+    TargetActor->GetComponents<USceneComponent>(SceneComps);
+    return SceneComps.Num() > 0 ? SceneComps[0] : nullptr;
+}
+
+void AStasisPoint::EnterFollowingMode()
+{
+    // following：更“紧”地跟随手
+    SpringStiffness = 1000.0f;
+    Damping = 100.0f;
+    SpringForceMin = 0.0f;
+}
+
+void AStasisPoint::EnterTrackMode()
+{
+    // track：更“软”地追踪目标，让飞行更平滑
+    SpringStiffness = 20.0f;
+    Damping = 10.0f;
+    SpringForceMin = 1000.0f;
 }

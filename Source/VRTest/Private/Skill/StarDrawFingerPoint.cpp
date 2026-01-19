@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Skill/StarDrawFingerPoint.h"
+#include "Game/CollisionConfig.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -13,7 +14,7 @@ AStarDrawFingerPoint::AStarDrawFingerPoint()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->SetSphereRadius(4.f);
-	SphereCollision->SetCollisionProfileName(FName("Profile_Star_Finger"));
+	SphereCollision->SetCollisionProfileName(CP_STAR_FINGER);
 	SphereCollision->SetGenerateOverlapEvents(true);
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));

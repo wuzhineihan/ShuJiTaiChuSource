@@ -1,13 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Grabber/VRGrabHand.h"
-#include "Game/InventoryComponent.h"
 #include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
-#include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Game/BasePlayer.h"
+#include "Tools/GameUtils.h"
+#include "Game/CollisionConfig.h"
 
 UVRGrabHand::UVRGrabHand()
 {
@@ -18,8 +17,7 @@ void UVRGrabHand::BeginPlay()
 {
 	Super::BeginPlay();
 	LastHandLocation = GetComponentLocation();
-
-	// HandCollision ? BaseVRPlayer ????????????????
+	
 	if (!HandCollision)
 	{
 		UE_LOG(LogTemp, Error, TEXT("VRGrabHand::BeginPlay - HandCollision is NULL!"));
@@ -152,7 +150,7 @@ AActor* UVRGrabHand::FindAngleClosestTarget()
 		Overlaps,
 		Origin,
 		FQuat::Identity,
-		ECC_GameTraceChannel2,
+		TCC_GRAB,
 		FCollisionShape::MakeSphere(GravityGlovesDistance),
 		QueryParams
 	);
@@ -398,7 +396,7 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 		Overlaps,
 		Origin,
 		FQuat::Identity,
-		ECC_GameTraceChannel2,
+		TCC_GRAB,
 		FCollisionShape::MakeSphere(GrabSphereRadius),
 		QueryParams
 	);
@@ -457,5 +455,4 @@ AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 
 	return nullptr;
 }
-
 

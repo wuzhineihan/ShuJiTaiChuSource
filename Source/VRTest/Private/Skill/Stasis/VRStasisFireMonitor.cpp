@@ -2,9 +2,7 @@
 
 #include "Skill/Stasis/VRStasisFireMonitor.h"
 #include "Skill/Stasis/StasisPoint.h"
-#include "Skill/Stasis/IStasisable.h"
 #include "Grabber/PlayerGrabHand.h"
-#include "Tools/GameUtils.h"
 
 AVRStasisFireMonitor::AVRStasisFireMonitor()
 {
@@ -89,64 +87,6 @@ void AVRStasisFireMonitor::UpdateHandVelocity(float DeltaTime)
 	LastHandLocation = CurrentLocation;
 }
 
-AActor* AVRStasisFireMonitor::FindStasisTarget()
-{
-	if (!MonitoredHand)
-	{
-		return nullptr;
-	}
-
-	FVector HandLocation = MonitoredHand->GetComponentLocation();
-	FVector VelocityDirection = LastVelocity.GetSafeNormal();
-
-	TArray<AActor*> IgnoreActors;
-	IgnoreActors.Add(MonitoredHand->GetOwner()); // 忽略玩家自身
-	IgnoreActors.Add(StasisPoint); // 忽略定身球自身
-
-	// 使用与手部相同的检测对象类型
-	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-	// 使用 GameUtils 查找锥形范围内的所有 Actor
-	TArray<FActorWithAngle> ActorsInCone = UGameUtils::FindActorsInCone(
-		this,
-		HandLocation,
-		VelocityDirection,
-		DetectionRadius,
-		DetectionAngle,
-		ObjectTypes,
-		IgnoreActors
-	);
-
-	AActor* TargetActor = nullptr;
-	// 筛选出实现了 IStasisable 接口且允许进入定身的目标（取角度最小的）
-	for (const FActorWithAngle& Item : ActorsInCone)
-	{
-		AActor* Actor = Item.Actor;
-		if (!Actor)
-		{
-			continue;
-		}
-
-		if (!Actor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
-		{
-			continue;
-		}
-
-		// 只允许可进入定身的目标成为锁定目标
-		if (!IStasisable::Execute_CanEnterStasis(Actor))
-		{
-			continue;
-		}
-
-		// 按角度排序后，找到第一个即可
-		return Actor;
-	}
-
-	return nullptr;
-}
-
 void AVRStasisFireMonitor::FireStasisPoint()
 {
 	if (!MonitoredHand || !StasisPoint)
@@ -154,21 +94,34 @@ void AVRStasisFireMonitor::FireStasisPoint()
 		return;
 	}
 
-	// 1. 查找目标
-	AActor* TargetActor = FindStasisTarget();
+	// 1) 计算发射上下文（VR：基于手部 LastVelocity 方向）
+	const FVector HandLocation = MonitoredHand->GetComponentLocation();
+	const FVector VelocityDirection = LastVelocity.GetSafeNormal();
 
-	// 2. 计算发射速度
-	FVector InitVelocity = LastVelocity * FireSpeedFactor;
+	TArray<AActor*> IgnoreActors;
+	IgnoreActors.Add(MonitoredHand->GetOwner()); // 忽略玩家自身
+	IgnoreActors.Add(StasisPoint); // 忽略定身球自身
 
-	// 3. 释放定身球
+	// 2) 计算发射速度
+	const FVector InitVelocity = LastVelocity * FireSpeedFactor;
+
+	// 3) 释放定身球
 	MonitoredHand->ReleaseObject();
 
-	// 4. 发射定身球
-	StasisPoint->Fire(InitVelocity, TargetActor);
+	// 4) 发射：由定身球内部自行找目标
+	StasisPoint->Fire(
+		this,
+		HandLocation,
+		VelocityDirection,
+		InitVelocity,
+		DetectionRadius,
+		DetectionAngle,
+		IgnoreActors
+	);
 
-	// 5. 解锁手部
+	// 5) 解锁手部
 	MonitoredHand->SetGrabLock(false);
 
-	// 6. 销毁监视器
+	// 6) 销毁监视器
 	Destroy();
 }

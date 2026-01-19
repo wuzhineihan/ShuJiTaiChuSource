@@ -8,6 +8,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Game/CollisionConfig.h"
 
 // ==================== IGrabbable 接口实现 ====================
 
@@ -15,9 +16,9 @@ ABaseEnemy::ABaseEnemy()
 {
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionProfileName(FName("Profile_EnemyCapsule"));
+		Capsule->SetCollisionProfileName(CP_ENEMY_CAPSULE);
 	}
-	GetMesh()->SetCollisionProfileName(FName("Profile_EnemyMesh_Alive"));
+	GetMesh()->SetCollisionProfileName(CP_ENEMY_MESH_ALIVE);
 	
 }
 
@@ -128,7 +129,7 @@ void ABaseEnemy::OnDeath_Implementation()
 	
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionProfileName(FName("NoCollision"));
+		Capsule->SetCollisionProfileName(CP_NO_COLLISION);
 	}
 
 	if (!bIsInStasis)
@@ -150,7 +151,7 @@ void ABaseEnemy::EnterRagdollMode()
 {
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
-		MeshComp->SetCollisionProfileName(FName("Profile_EnemyMesh_Ragdoll"));
+		MeshComp->SetCollisionProfileName(CP_ENEMY_MESH_RAGDOLL);
 		MeshComp->SetAllBodiesSimulatePhysics(true);
 		MeshComp->SetGenerateOverlapEvents(true);
 	}

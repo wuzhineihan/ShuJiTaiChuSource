@@ -9,6 +9,7 @@
 #include "NiagaraComponent.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Game/CollisionConfig.h"
 
 AArrow::AArrow()
 {
@@ -83,7 +84,7 @@ void AArrow::EnterIdleState()
 		}
 		
 		MeshComponent->SetSimulatePhysics(true);
-		MeshComponent->SetCollisionProfileName("Profile_Grabbable_Physics");
+		MeshComponent->SetCollisionProfileName(CP_GRABBABLE_PHYSICS);
 	}
 
 
@@ -119,7 +120,7 @@ void AArrow::EnterNockedState(ABow* Bow)
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionProfileName("NoCollision");
+		MeshComponent->SetCollisionProfileName(CP_NO_COLLISION);
 	}
 
 
@@ -150,7 +151,7 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 	{
 		MeshComponent->SetSimulatePhysics(false);
 		// 先完全禁用碰撞，让箭能飞起来
-		MeshComponent->SetCollisionProfileName("NoCollision");
+		MeshComponent->SetCollisionProfileName(CP_NO_COLLISION);
 		MeshComponent->SetMobility(EComponentMobility::Movable);
 	}
 
@@ -203,7 +204,7 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionProfileName("Profile_Arrow_Stuck");
+		MeshComponent->SetCollisionProfileName(CP_ARROW_STUCK);
 	}
 
 	// 禁用轨迹效果
@@ -326,7 +327,7 @@ void AArrow::PerformFlightTrace(float DeltaTime)
 		HitResult,
 		PreviousTipLocation,
 		CurrentTipLocation,
-		ECC_GameTraceChannel3,
+		TCC_PROJECTILE,
 		QueryParams
 	);
 

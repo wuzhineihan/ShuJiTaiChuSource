@@ -92,9 +92,6 @@ protected:
 	/** 更新手部速度 */
 	void UpdateHandVelocity(float DeltaTime);
 
-	/** 查找定身球目标 */
-	AActor* FindStasisTarget();
-
 	/** 触发发射 */
 	void FireStasisPoint();
 };

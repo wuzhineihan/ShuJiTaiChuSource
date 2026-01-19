@@ -10,6 +10,7 @@
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Game/CollisionConfig.h"
 
 ABow::ABow()
 {
@@ -24,13 +25,13 @@ ABow::ABow()
 	// 创建弓弦网格体
 	StringMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StringMesh"));
 	StringMesh->SetupAttachment(MeshComponent);
-	StringMesh->SetCollisionProfileName(FName("NoCollision"));
+	StringMesh->SetCollisionProfileName(CP_NO_COLLISION);
 
 	// 创建弓弦碰撞区域
 	StringCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("StringCollision"));
 	StringCollision->SetupAttachment(StringMesh);
 	StringCollision->SetBoxExtent(FVector(5.0f, 5.0f, 5.0f));
-	StringCollision->SetCollisionProfileName(FName("Profile_BowStringCollision"));
+	StringCollision->SetCollisionProfileName(CP_BOW_STRING_COLLISION);
 	StringCollision->OnComponentBeginOverlap.AddDynamic(this, &ABow::OnStringCollisionBeginOverlap);
 	StringCollision->OnComponentEndOverlap.AddDynamic(this, &ABow::OnStringCollisionEndOverlap);
 
@@ -183,7 +184,7 @@ void ABow::UpdateArrowTracePreview()
 	PathParams.MaxSimTime = 3.0f;
 	PathParams.bTraceWithCollision = true;
 	PathParams.bTraceComplex = false;
-	PathParams.TraceChannel = ECC_GameTraceChannel3;
+	PathParams.TraceChannel = TCC_PROJECTILE;
 	PathParams.ActorsToIgnore.Add(this);
 	PathParams.ActorsToIgnore.Add(BowOwner);
 	if (NockedArrow)
@@ -342,8 +343,8 @@ UPlayerGrabHand* ABow::GetHandFromCollision(UPrimitiveComponent* Comp) const
 void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	// 检查是否是玩家的手
-	if (OtherComp && OtherComp->GetCollisionObjectType() == ECC_GameTraceChannel1)
+	// 检查是否是玩家的手
+	if (OtherComp && OtherComp->GetCollisionObjectType() == OCC_PLAYER_HAND)
 	{
 		// 获取手组件
 		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
@@ -389,8 +390,8 @@ void ABow::TryHandleStringHandEnter(UPlayerGrabHand* Hand)
 void ABow::OnStringCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	// 检查是否是玩家的手离开
-	if (OtherComp && OtherComp->GetCollisionObjectType() == ECC_GameTraceChannel1)
+	// 检查是否是玩家的手离开
+	if (OtherComp && OtherComp->GetCollisionObjectType() == OCC_PLAYER_HAND)
 	{
 		InStringCollisionHand = nullptr;
 	}

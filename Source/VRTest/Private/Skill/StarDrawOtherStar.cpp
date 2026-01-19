@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Skill/StarDrawOtherStar.h"
+#include "Game/CollisionConfig.h"
 
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -17,7 +18,7 @@ AStarDrawOtherStar::AStarDrawOtherStar()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->SetSphereRadius(2.f);
-	SphereCollision->SetCollisionProfileName(FName("Profile_Star_Other"));
+	SphereCollision->SetCollisionProfileName(CP_STAR_OTHER);
 	SphereCollision->SetGenerateOverlapEvents(true);
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
