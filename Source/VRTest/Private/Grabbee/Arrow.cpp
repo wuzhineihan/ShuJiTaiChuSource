@@ -83,7 +83,7 @@ void AArrow::EnterIdleState()
 		}
 		
 		MeshComponent->SetSimulatePhysics(true);
-		MeshComponent->SetCollisionProfileName("IgnoreOnlyPawn");
+		MeshComponent->SetCollisionProfileName("Profile_Grabbable_Physics");
 	}
 
 
@@ -203,8 +203,7 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionProfileName("OverlapAllDynamic");
-		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+		MeshComponent->SetCollisionProfileName("Profile_Arrow_Stuck");
 	}
 
 	// 禁用轨迹效果
@@ -327,7 +326,7 @@ void AArrow::PerformFlightTrace(float DeltaTime)
 		HitResult,
 		PreviousTipLocation,
 		CurrentTipLocation,
-		ECC_Visibility,
+		ECC_GameTraceChannel3,
 		QueryParams
 	);
 

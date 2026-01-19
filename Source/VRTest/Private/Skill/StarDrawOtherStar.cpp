@@ -17,8 +17,8 @@ AStarDrawOtherStar::AStarDrawOtherStar()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->SetSphereRadius(2.f);
-	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	SphereCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	SphereCollision->SetCollisionProfileName(FName("Profile_Star_Other"));
+	SphereCollision->SetGenerateOverlapEvents(true);
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(SphereCollision);

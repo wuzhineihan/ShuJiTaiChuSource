@@ -13,8 +13,12 @@
 
 ABaseEnemy::ABaseEnemy()
 {
-	GetMesh()->SetCollisionProfileName("CharacterMesh");
-	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionProfileName(FName("Profile_EnemyCapsule"));
+	}
+	GetMesh()->SetCollisionProfileName(FName("Profile_EnemyMesh_Alive"));
+	
 }
 
 EGrabType ABaseEnemy::GetGrabType_Implementation() const
@@ -146,7 +150,7 @@ void ABaseEnemy::EnterRagdollMode()
 {
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
-		MeshComp->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
+		MeshComp->SetCollisionProfileName(FName("Profile_EnemyMesh_Ragdoll"));
 		MeshComp->SetAllBodiesSimulatePhysics(true);
 		MeshComp->SetGenerateOverlapEvents(true);
 	}

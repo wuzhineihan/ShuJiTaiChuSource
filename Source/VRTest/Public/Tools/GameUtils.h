@@ -56,5 +56,8 @@ public:
 		const TArray<TEnumAsByte<EObjectTypeQuery>>& ObjectTypes,
 		const TArray<AActor*>& IgnoreActors
 	);
+	
+	UFUNCTION(BlueprintCallable, Category = "Game|Utils")
+	static TArray<AActor*> SweepByChannelTest(FVector Location, UObject* WorldContextObject);
 };
 

@@ -6,6 +6,7 @@
 #include "Camera/CameraComponent.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Grabbee/Bow.h"
 #include "Game/GameSettings.h"
 #include "Skill/PlayerSkillComponent.h"
@@ -17,6 +18,12 @@ ABasePlayer::ABasePlayer()
 	AutoRecoverComponent = CreateDefaultSubobject<UAutoRecoverComponent>(TEXT("AutoRecoverComponent"));
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 	PlayerSkillComponent = CreateDefaultSubobject<UPlayerSkillComponent>(TEXT("PlayerSkillComponent"));
+
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionProfileName(FName("Profile_PlayerCapsule"));
+	}
+
 	
 	// 为左右手分别创建 PhysicsHandleComponent
 	LeftPhysicsHandle = CreateDefaultSubobject<UPhysicsHandleComponent>(TEXT("LeftPhysicsHandle"));

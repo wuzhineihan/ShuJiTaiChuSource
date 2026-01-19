@@ -25,10 +25,10 @@ ABaseVRPlayer::ABaseVRPlayer()
 	// 创建背包碰撞区域（在蓝图设置变换）
 	BackpackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BackpackCollision"));
 	BackpackCollision->SetupAttachment(VRCamera);
-	BackpackCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BackpackCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	BackpackCollision->SetCollisionProfileName(FName("Profile_PlayerBackpack"));
 	BackpackCollision->SetGenerateOverlapEvents(true);
-	BackpackCollision->ComponentTags.Add(FName("player_backpack"));
+	BackpackCollision->OnComponentBeginOverlap.AddDynamic(this, &ABaseVRPlayer::OnBackpackBeginOverlap);
+	BackpackCollision->OnComponentEndOverlap.AddDynamic(this, &ABaseVRPlayer::OnBackpackEndOverlap);
 
 	// 创建左手 MotionController
 	MotionControllerLeft = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("MotionControllerLeft"));
@@ -60,10 +60,8 @@ ABaseVRPlayer::ABaseVRPlayer()
 	USphereComponent* LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(VRLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
-	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	LeftHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
 	LeftHandCollision->SetGenerateOverlapEvents(true);
-	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
 	VRLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手抓取组件
@@ -76,10 +74,8 @@ ABaseVRPlayer::ABaseVRPlayer()
 	USphereComponent* RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(VRRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
-	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	RightHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
 	RightHandCollision->SetGenerateOverlapEvents(true);
-	RightHandCollision->ComponentTags.Add(FName("player_hand"));
 	VRRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用
@@ -178,4 +174,43 @@ void ABaseVRPlayer::SetVRHandRotationOffset(FRotator RotationOffset)
 	RotationOffset.Yaw *= -1.f;
 	RotationOffset.Roll *= -1.f;
 	VRRightHand->SetRelativeRotation(RotationOffset);
+}
+
+void ABaseVRPlayer::OnBackpackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (!OtherComp || OtherComp->GetCollisionObjectType() != ECC_GameTraceChannel1)
+	{
+		return;
+	}
+
+	if (UVRGrabHand* Hand = GetHandFromCollision(OtherComp))
+	{
+		Hand->bIsInBackpackArea = true;
+		PlaySimpleForceFeedback(Hand->bIsRightHand ? EControllerHand::Right : EControllerHand::Left);
+	}
+}
+
+void ABaseVRPlayer::OnBackpackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (!OtherComp || OtherComp->GetCollisionObjectType() != ECC_GameTraceChannel1)
+	{
+		return;
+	}
+
+	if (UVRGrabHand* Hand = GetHandFromCollision(OtherComp))
+	{
+		Hand->bIsInBackpackArea = false;
+	}
+}
+
+UVRGrabHand* ABaseVRPlayer::GetHandFromCollision(UPrimitiveComponent* Comp) const
+{
+	if (!Comp)
+	{
+		return nullptr;
+	}
+
+	return Cast<UVRGrabHand>(Comp->GetAttachParent());
 }

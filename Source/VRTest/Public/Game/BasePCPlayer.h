@@ -62,7 +62,7 @@ public:
 
 	/** 抓取检测通道 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
-	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
+	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_GameTraceChannel2;
 
 	/** 是否绘制抓取射线调试（线 + 命中点） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")
@@ -215,7 +215,7 @@ protected:
 	void UpdateTargetDetection();
 
 	/** 执行射线检测 */
-	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance) const;
+	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const;
 
 	/** 处理 StasisPoint 投掷 */
 	void HandleStasisPointThrow(UPCGrabHand* ThrowHand, class AStasisPoint* StasisPoint);

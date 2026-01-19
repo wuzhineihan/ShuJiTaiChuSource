@@ -36,9 +36,8 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
-	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
+	LeftHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	LeftHandCollision->SetGenerateOverlapEvents(true);
 	PCLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手
@@ -51,9 +50,8 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
-	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-	RightHandCollision->ComponentTags.Add(FName("player_hand"));
+	RightHandCollision->SetCollisionProfileName(FName("Profile_PlayerHand"));
+	RightHandCollision->SetGenerateOverlapEvents(true);
 	PCRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用
@@ -235,7 +233,7 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 
 	// 通过射线计算投掷目标点（从摄像机朝前）
 	FHitResult Hit;
-	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance);
+	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, ECC_GameTraceChannel3);
 
 	const FVector Start = FirstPersonCamera->GetComponentLocation();
 	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
@@ -472,7 +470,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
 
-	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance);
+	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 	
 	if (bTraceHit)
 	{
@@ -537,7 +535,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	}
 }
 
-bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) const
+bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const
 {
 	if (!FirstPersonCamera)
 	{
@@ -550,8 +548,7 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) cons
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, GrabTraceChannel, QueryParams);
-
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, TraceChannel, QueryParams);
 	if (bDrawGrabLineTraceDebug)
 	{
 		const float LifeTime = GrabLineTraceDebugDrawTime;
@@ -564,7 +561,6 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) cons
 			DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 10.0f, FColor::Yellow, false, LifeTime);
 		}
 	}
-
 	return bHit;
 }
 

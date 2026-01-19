@@ -24,13 +24,13 @@ ABow::ABow()
 	// 创建弓弦网格体
 	StringMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StringMesh"));
 	StringMesh->SetupAttachment(MeshComponent);
-	StringMesh->SetCollisionProfileName(FName("OverlapAllDynamic"));
+	StringMesh->SetCollisionProfileName(FName("NoCollision"));
 
 	// 创建弓弦碰撞区域
 	StringCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("StringCollision"));
 	StringCollision->SetupAttachment(StringMesh);
 	StringCollision->SetBoxExtent(FVector(5.0f, 5.0f, 5.0f));
-	StringCollision->SetCollisionProfileName(FName("OverlapAllDynamic"));
+	StringCollision->SetCollisionProfileName(FName("Profile_BowStringCollision"));
 	StringCollision->OnComponentBeginOverlap.AddDynamic(this, &ABow::OnStringCollisionBeginOverlap);
 	StringCollision->OnComponentEndOverlap.AddDynamic(this, &ABow::OnStringCollisionEndOverlap);
 
@@ -183,8 +183,7 @@ void ABow::UpdateArrowTracePreview()
 	PathParams.MaxSimTime = 3.0f;
 	PathParams.bTraceWithCollision = true;
 	PathParams.bTraceComplex = false;
-	PathParams.ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
-	PathParams.ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
+	PathParams.TraceChannel = ECC_GameTraceChannel3;
 	PathParams.ActorsToIgnore.Add(this);
 	PathParams.ActorsToIgnore.Add(BowOwner);
 	if (NockedArrow)
@@ -344,7 +343,7 @@ void ABow::OnStringCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponen
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	// 检查是否是玩家的手
-	if (OtherComp && OtherComp->ComponentHasTag(FName("player_hand")))
+	if (OtherComp && OtherComp->GetCollisionObjectType() == ECC_GameTraceChannel1)
 	{
 		// 获取手组件
 		UPlayerGrabHand* Hand = GetHandFromCollision(OtherComp);
@@ -391,7 +390,7 @@ void ABow::OnStringCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	// 检查是否是玩家的手离开
-	if (OtherComp->ComponentHasTag(FName("player_hand")))
+	if (OtherComp && OtherComp->GetCollisionObjectType() == ECC_GameTraceChannel1)
 	{
 		InStringCollisionHand = nullptr;
 	}

@@ -17,7 +17,7 @@ AGrabbeeObject::AGrabbeeObject()
 
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
+	MeshComponent->SetCollisionProfileName(FName("Profile_Grabbable_Physics"));
 
 	MeshComponent->SetRenderCustomDepth(true);
 }

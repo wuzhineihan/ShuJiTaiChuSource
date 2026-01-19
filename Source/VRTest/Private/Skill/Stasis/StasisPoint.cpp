@@ -13,7 +13,7 @@ AStasisPoint::AStasisPoint()
 
     // Create Sphere component
     Sphere = CreateDefaultSubobject<USphereComponent>(TEXT("Sphere"));
-    Sphere->SetCollisionProfileName("OverlapAllDynamic");
+    Sphere->SetCollisionProfileName("NoCollision");
     Sphere->SetSphereRadius(32);
     RootComponent = Sphere;
 
@@ -236,7 +236,7 @@ void AStasisPoint::ApplyHeldCollisionRules()
     // 1) 握在手里时直接关掉自身碰撞，避免与另一只手抓取物体互撞
     if (Sphere)
     {
-        Sphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Sphere->SetCollisionProfileName("NoCollision");
     }
 
     // 2) 同时设置忽略：避免即便打开碰撞后（发射/其他原因）也与玩家手持物体互撞
@@ -281,7 +281,8 @@ void AStasisPoint::RestorePostFireCollisionRules()
     // 发射后需要重新打开碰撞，才能触发 Sphere overlap 来进入定身
     if (Sphere)
     {
-        Sphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Sphere->SetCollisionProfileName("Profile_StasisPoint_Fired");
+        Sphere->SetGenerateOverlapEvents(true);
     }
 
     // 继续保持对玩家相关 Actor 的忽略，防止刚发射就撞到玩家双手持有物

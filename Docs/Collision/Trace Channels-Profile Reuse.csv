@@ -1,0 +1,8 @@
+﻿Profile复用,
+Bow_Body,Profile_Grabbable_Physics
+Bow_String,NoCollision
+Arrow_Idle,Profile_Grabbable_Physics
+Arrow_Nocked,NoCollision
+Arrow_Flying,NoCollision
+StasisPoint_Held,NoCollision
+Star_Main,NoCollision

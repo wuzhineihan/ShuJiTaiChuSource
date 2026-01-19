@@ -1,7 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Tools/GameUtils.h"
-#include "Kismet/KismetSystemLibrary.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 
 TArray<FActorWithAngle> UGameUtils::FindActorsInCone(
 	UObject* WorldContextObject,
@@ -19,46 +20,58 @@ TArray<FActorWithAngle> UGameUtils::FindActorsInCone(
 		return Results;
 	}
 
-	TArray<AActor*> OverlapActors;
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		return Results;
+	}
 
-	// 球形检测
-	bool bHit = UKismetSystemLibrary::SphereOverlapActors(
-		WorldContextObject,
+	FCollisionObjectQueryParams ObjectQueryParams;
+	for (const TEnumAsByte<EObjectTypeQuery>& ObjectType : ObjectTypes)
+	{
+		ObjectQueryParams.AddObjectTypesToQuery(UEngineTypes::ConvertToCollisionChannel(ObjectType));
+	}
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FindActorsInCone), false);
+	QueryParams.AddIgnoredActors(IgnoreActors);
+
+	TArray<FOverlapResult> Overlaps;
+	const bool bHit = World->OverlapMultiByObjectType(
+		Overlaps,
 		Origin,
-		Radius,
-		ObjectTypes,
-		nullptr,  // 不限制类型
-		IgnoreActors,
-		OverlapActors
+		FQuat::Identity,
+		ObjectQueryParams,
+		FCollisionShape::MakeSphere(Radius),
+		QueryParams
 	);
 
-	if (!bHit || OverlapActors.Num() == 0)
+	if (!bHit || Overlaps.Num() == 0)
 	{
 		return Results;
 	}
 
 	FVector NormalizedDirection = Direction.GetSafeNormal();
+	TSet<AActor*> VisitedActors;
 
-	// 计算所有 Actor 的角度
-	for (AActor* Actor : OverlapActors)
+	for (const FOverlapResult& Overlap : Overlaps)
 	{
-		if (!Actor)
+		AActor* Actor = Overlap.GetActor();
+		if (!Actor || VisitedActors.Contains(Actor))
 		{
 			continue;
 		}
+		VisitedActors.Add(Actor);
 
 		FVector ToTarget = (Actor->GetActorLocation() - Origin).GetSafeNormal();
 		float DotProduct = FVector::DotProduct(NormalizedDirection, ToTarget);
 		float Angle = FMath::RadiansToDegrees(FMath::Acos(DotProduct));
 
-		// 只添加在角度范围内的 Actor
 		if (Angle <= MaxAngleDegrees)
 		{
 			Results.Add(FActorWithAngle(Actor, Angle));
 		}
 	}
 
-	// 按角度从小到大排序
 	Results.Sort([](const FActorWithAngle& A, const FActorWithAngle& B)
 	{
 		return A.Angle < B.Angle;
@@ -67,3 +80,13 @@ TArray<FActorWithAngle> UGameUtils::FindActorsInCone(
 	return Results;
 }
 
+TArray<AActor*> UGameUtils::SweepByChannelTest(FVector Location, UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	TArray<FOverlapResult> Overlaps;
+	World->OverlapMultiByChannel(Overlaps , Location, FQuat::Identity, ECC_GameTraceChannel2, FCollisionShape::MakeSphere(100.0f));
+	TArray<AActor*> OverlapActors;
+	for (FOverlapResult Overlap : Overlaps)
+		OverlapActors.Add(Overlap.GetActor());
+	return OverlapActors;
+}

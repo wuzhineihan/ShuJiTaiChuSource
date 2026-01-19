@@ -13,8 +13,8 @@ AStarDrawFingerPoint::AStarDrawFingerPoint()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>(TEXT("SphereCollision"));
 	SetRootComponent(SphereCollision);
 	SphereCollision->SetSphereRadius(4.f);
-	SphereCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	SphereCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
+	SphereCollision->SetCollisionProfileName(FName("Profile_Star_Finger"));
+	SphereCollision->SetGenerateOverlapEvents(true);
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(SphereCollision);
