@@ -17,9 +17,10 @@ ABaseEnemy::ABaseEnemy()
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
 		Capsule->SetCollisionProfileName(CP_ENEMY_CAPSULE);
+		Capsule->SetGenerateOverlapEvents(true);
 	}
 	GetMesh()->SetCollisionProfileName(CP_ENEMY_MESH_ALIVE);
-	
+	GetMesh()->SetGenerateOverlapEvents(true);
 }
 
 EGrabType ABaseEnemy::GetGrabType_Implementation() const

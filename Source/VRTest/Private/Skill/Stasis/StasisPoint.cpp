@@ -285,11 +285,8 @@ void AStasisPoint::OnSphereBeginOverlap(
     bool bFromSweep,
     const FHitResult& SweepResult)
 {
-    if (!OtherActor)
-    {
-        return;
-    }
-
+    GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, 
+                    TEXT("Enter Stasis - Overlapped Actor: ") + OtherActor->GetName());
     // Check if the other actor implements IStasisable
     if (OtherActor->GetClass()->ImplementsInterface(UStasisable::StaticClass()))
     {
@@ -363,6 +360,8 @@ void AStasisPoint::RestorePostFireCollisionRules()
     {
         Sphere->SetCollisionProfileName(CP_STASIS_POINT_FIRED);
         Sphere->SetGenerateOverlapEvents(true);
+        GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, 
+                    TEXT("Stasis Point Collision Restored"));
     }
 
     // 继续保持对玩家相关 Actor 的忽略，防止刚发射就撞到玩家双手持有物
