@@ -86,10 +86,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FName TargetedBoneName;
 
-	/** 射线检测的碰撞点位置（用于丢弃物体等操作） */
-	UPROPERTY(BlueprintReadOnly, Category = "Grab")
-	FVector TraceTargetLocation = FVector::ZeroVector;
-
 	/** 射线检测是否命中目标 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	bool bTraceHit = false;

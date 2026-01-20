@@ -45,14 +45,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
     float TimeToStasis;
 
-    // Custom Events
-    /**
-     * 兼容旧接口：外部先算好目标再传入。
-     * 建议改用：Fire(WorldContextObject, Origin, AimDirection, InitVelocity, ...)
-     */
-    UFUNCTION(BlueprintCallable, Category = "Stasis", meta=(DeprecatedFunction, DeprecationMessage="Use Fire(WorldContextObject, Origin, AimDirection, InitVelocity, ...) so StasisPoint can find target internally."))
-    void FireWithTargetActor(FVector InitVelocity, AActor* TrackTargetActor);
-
     /**
      * 发射定身球：由定身球内部自行进行“SphereOverlap + 角度筛选 + IStasisable 筛选”，并决定追踪目标。
      * - PC：调用端传入 Origin=CameraLocation, AimDirection=CameraForward

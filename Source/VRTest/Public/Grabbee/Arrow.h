@@ -33,6 +33,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
 	virtual void Tick(float DeltaTime) override;
@@ -63,7 +64,10 @@ public:
 
 	/** 着火持续时间 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow|Combat")
-	float OnFireDuration = 5.0f;
+	float ArrowOnFireDuration = 5.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow|Combat")
+	float FireEffectTime = 5.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Arrow|Combat")
 	float ImpulseStrengthMultiplier = 2.0f;
@@ -133,6 +137,14 @@ public:
 protected:
 	// ==================== 内部函数 ====================
 	
+	/** 被附着目标 Actor EndPlay 时回调：让箭回到 Idle */
+	UFUNCTION()
+	void OnAttachedTargetEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+
+	/** 绑定/解绑附着目标的 OnEndPlay 委托 */
+	void BindAttachedTarget(AActor* NewTarget);
+	void UnbindAttachedTarget();
+
 	/** 飞行时执行 LineTrace 检测碰撞 */
 	void PerformFlightTrace(float DeltaTime);
 
@@ -150,4 +162,8 @@ protected:
 
 	/** 上一帧箭头位置（用于 LineTrace） */
 	FVector PreviousTipLocation;
+
+	/** 当前插中的目标 Actor（用于在目标 EndPlay 时解除附着并恢复 Idle） */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> AttachedTargetActor = nullptr;
 };

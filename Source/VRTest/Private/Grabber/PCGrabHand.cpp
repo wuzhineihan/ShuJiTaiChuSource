@@ -5,9 +5,7 @@
 #include "Camera/CameraComponent.h"
 #include "Grabber/IGrabbable.h"
 #include "Grabber/GrabTypes.h"
-#include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
-#include "GameFramework/Character.h"
 
 UPCGrabHand::UPCGrabHand()
 {
@@ -189,13 +187,32 @@ void UPCGrabHand::DropToRaycastTarget()
 	// 先释放（解除 PhysicsHandle 控制）
 	ReleaseObject();
 
-	// 没有命中目标点则正常释放即可
-	if (!PCPlayer->bTraceHit || !DroppedObject || Cast<USkeletalMeshComponent>(DroppedPrimitive))
+	// 如果对象无效或是骨骼网格（sweep/移动策略不同），则直接结束
+	if (!DroppedObject || Cast<USkeletalMeshComponent>(DroppedPrimitive))
 	{
 		return;
 	}
 
-	const FVector TargetLocation = PCPlayer->TraceTargetLocation;
+	// 丢弃时重新做一次射线检测：使用 Projectile 通道（比抓取通道更“广泛”）
+	FVector TargetLocation; // 显式在分支内赋值，避免静态分析误报
+	if (PCPlayer->FirstPersonCamera)
+	{
+		const FVector Start = PCPlayer->FirstPersonCamera->GetComponentLocation();
+		const FVector End = Start + PCPlayer->FirstPersonCamera->GetForwardVector() * PCPlayer->MaxGrabDistance;
+
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PCHandDropTrace), false);
+		QueryParams.AddIgnoredActor(PCPlayer);
+		QueryParams.AddIgnoredActor(DroppedObject);
+
+		FHitResult Hit;
+		const bool bHit = PCPlayer->GetWorld()->LineTraceSingleByChannel(Hit, Start, End, TCC_PROJECTILE, QueryParams);
+		TargetLocation = bHit ? Hit.ImpactPoint : End;
+	}
+	else
+	{
+		// 摄像机无效时，直接丢到手前方一点（兜底）
+		TargetLocation = GetComponentLocation();
+	}
 
 	// 如果没有可用 Primitive，就退化为 Actor sweep（效果不如 component sweep 可靠）
 	if (!DroppedPrimitive)

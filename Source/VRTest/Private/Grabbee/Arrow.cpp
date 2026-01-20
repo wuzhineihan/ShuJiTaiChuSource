@@ -8,7 +8,6 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "Kismet/GameplayStatics.h"
 #include "Game/CollisionConfig.h"
 
 AArrow::AArrow()
@@ -57,6 +56,48 @@ void AArrow::BeginPlay()
 	EnterIdleState();
 }
 
+void AArrow::OnAttachedTargetEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason)
+{
+	if (!Actor || Actor != AttachedTargetActor)
+	{
+		return;
+	}
+
+	UnbindAttachedTarget();
+	EnterIdleState();
+}
+
+void AArrow::BindAttachedTarget(AActor* NewTarget)
+{
+	if (NewTarget == AttachedTargetActor)
+	{
+		return;
+	}
+
+	UnbindAttachedTarget();
+	AttachedTargetActor = NewTarget;
+	if (AttachedTargetActor)
+	{
+		AttachedTargetActor->OnEndPlay.AddDynamic(this, &AArrow::OnAttachedTargetEndPlay);
+	}
+}
+
+void AArrow::UnbindAttachedTarget()
+{
+	if (AttachedTargetActor)
+	{
+		AttachedTargetActor->OnEndPlay.RemoveDynamic(this, &AArrow::OnAttachedTargetEndPlay);
+		AttachedTargetActor = nullptr;
+	}
+}
+
+void AArrow::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 箭自身离开关卡/销毁时，解绑目标委托，避免悬挂引用
+	UnbindAttachedTarget();
+	Super::EndPlay(EndPlayReason);
+}
+
 void AArrow::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -72,6 +113,9 @@ void AArrow::Tick(float DeltaTime)
 
 void AArrow::EnterIdleState()
 {
+	// 退出 Stuck 状态时不再关心旧目标
+	UnbindAttachedTarget();
+	
 	ArrowState = EArrowState::Idle;
 	
 	// 启用物理模拟
@@ -218,6 +262,9 @@ void AArrow::EnterStuckState(USceneComponent* HitComponent, FName BoneName)
 	{
 		HitBoneName = BoneName;
 		AttachToComponent(HitComponent, FAttachmentTransformRules::KeepWorldTransform, BoneName);
+
+		// 绑定目标 Actor EndPlay：目标消失时让箭恢复 Idle
+		BindAttachedTarget(HitComponent->GetOwner());
 	}
 
 	bCanGrab = true;
@@ -243,7 +290,7 @@ void AArrow::CatchFire()
 	}
 
 	// 设置熄灭计时器
-	GetWorldTimerManager().SetTimer(FireTimerHandle, this, &AArrow::OnFireTimerExpired, OnFireDuration, false);
+	GetWorldTimerManager().SetTimer(FireTimerHandle, this, &AArrow::OnFireTimerExpired, ArrowOnFireDuration, false);
 }
 
 void AArrow::Extinguish()
@@ -280,7 +327,7 @@ void AArrow::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 	{
 		EnterIdleState();
 	}
-	
+
 	// 调用父类处理抓取逻辑
 	Super::OnGrabbed_Implementation(Hand);
 }
@@ -356,9 +403,6 @@ void AArrow::HandleHit(const FHitResult& HitResult)
 	AActor* HitActor = HitResult.GetActor();
 	UPrimitiveComponent* HitComp = HitResult.GetComponent();
 
-	// 造成伤害
-	DealDamage(HitActor);
-
 	// 获取命中骨骼名称（如果是骨骼网格体）
 	FName BoneName = HitResult.BoneName;
 
@@ -392,6 +436,9 @@ void AArrow::HandleHit(const FHitResult& HitResult)
 	{
 		HitComp->AddImpulseAtLocation(ImpulseDir * ImpulseStrength, HitResult.ImpactPoint, HitResult.BoneName);
 	}
+	
+	// 造成伤害
+	DealDamage(HitActor);
 }
 
 // ==================== IEffectable 接口 ====================
@@ -427,11 +474,12 @@ void AArrow::DealDamage(AActor* HitActor)
 		Effect.Amount = ArrowDamage;
 		Effect.Causer = this;
 		Effect.Instigator = OwningCharacter;
-
+		Effect.Duration = 0.f;
 		// 如果箭着火，添加火焰效果
 		if (bOnFire)
 		{
 			Effect.EffectTypes.Add(EEffectType::Fire);
+			Effect.Duration = FireEffectTime;
 		}
 
 		IEffectable::Execute_ApplyEffect(HitActor, Effect);

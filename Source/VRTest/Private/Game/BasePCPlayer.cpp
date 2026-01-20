@@ -442,9 +442,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 	
 	if (bTraceHit)
 	{
-		// 保存射线碰撞点位置
-		TraceTargetLocation = Hit.Location;
-		
 		AActor* HitActor = Hit.GetActor();
 		
 		// 检查是否实现 IGrabbable 接口
@@ -465,11 +462,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 				NewBoneName = Hit.BoneName;
 			}
 		}
-	}
-	else
-	{
-		// 没有命中任何目标
-		TraceTargetLocation = FVector::ZeroVector;
 	}
 
 	// 检查目标是否发生变化

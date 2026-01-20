@@ -79,29 +79,6 @@ void AStasisPoint::Tick(float DeltaTime)
     }
 }
 
-void AStasisPoint::FireWithTargetActor(FVector InitVelocity, AActor* TrackTargetActor)
-{
-    // 发射前：恢复自身碰撞（否则无法触发 Overlap），但仍应忽略玩家手持物体
-    RestorePostFireCollisionRules();
-
-    // Switch to track mode
-    EnterTrackMode();
-
-    // Set initial velocity
-    SetCurrentVelocity(InitVelocity);
-
-    // Set target component chosen from actor
-    Target = ChooseTrackComponent(TrackTargetActor);
-
-    // If no valid target, keep old fallback behavior (far away)
-    if (!Target || !Target->IsValidLowLevel())
-    {
-        const FVector NormalizedVelocity = InitVelocity.GetSafeNormal();
-        const FVector FarLocation = GetActorLocation() + (NormalizedVelocity * 1000000.0f);
-        SetTargetLocation(FarLocation);
-    }
-}
-
 AActor* AStasisPoint::FindStasisTarget(
     UObject* WorldContextObject,
     const FVector& Origin,

@@ -45,4 +45,5 @@
 
 #define CP_STAR_FINGER FName(TEXT("Profile_Star_Finger"))
 #define CP_STAR_OTHER FName(TEXT("Profile_Star_Other"))
+#define CP_DEBRIS FName(TEXT("Profile_Debris"))	
 
