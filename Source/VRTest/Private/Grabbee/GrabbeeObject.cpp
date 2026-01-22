@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Game/BaseCharacter.h"
+#include "Game/CollisionConfig.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -17,7 +18,7 @@ AGrabbeeObject::AGrabbeeObject()
 
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
+	MeshComponent->SetCollisionProfileName(CP_GRABBABLE_PHYSICS);
 
 	MeshComponent->SetRenderCustomDepth(true);
 }
@@ -120,6 +121,8 @@ void AGrabbeeObject::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 	{
 		bIsSelected = false;
 	}
+	
+	Execute_ExitStasis(this);
 }
 
 void AGrabbeeObject::OnReleased_Implementation(UPlayerGrabHand* Hand)
@@ -161,6 +164,34 @@ void AGrabbeeObject::OnGrabDeselected_Implementation()
 {
 	bIsSelected = false;
 	MeshComponent->SetCustomDepthStencilValue(0); // 使用 setter 方法确保渲染状态更新
+}
+
+void AGrabbeeObject::EnterStasis_Implementation(double TimeToStasis)
+{
+	if (UPrimitiveComponent* Primitive = Execute_GetGrabPrimitive(this))
+	{
+		Primitive->SetSimulatePhysics(false);
+		bIsInStasis = true;
+	}
+}
+
+void AGrabbeeObject::ExitStasis_Implementation()
+{
+	if (UPrimitiveComponent* Primitive = Execute_GetGrabPrimitive(this))
+	{
+		Primitive->SetSimulatePhysics(true);
+		bIsInStasis = false;
+	}
+}
+
+bool AGrabbeeObject::IsInStasis_Implementation()
+{
+	return bIsInStasis;
+}
+
+bool AGrabbeeObject::CanEnterStasis_Implementation()
+{
+	return !bIsHeld;
 }
 
 // ==================== 自有函数 ====================

@@ -79,7 +79,6 @@ public:
 
 	// ==================== VR 背包检测 ====================
 	
-	/** 手是否在背包区域内（通过 HandCollision overlap 检测） */
 	UPROPERTY(BlueprintReadOnly, Category = "VR|Backpack")
 	bool bIsInBackpackArea = false;
 
@@ -107,17 +106,8 @@ protected:
 	 */
 	void VirtualRelease(bool bLaunch = false);
 
-	// ==================== 背包 Overlap 事件 ====================
 	
-	/** HandCollision 进入背包区域 */
-	UFUNCTION()
-	void OnHandCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	/** HandCollision 离开背包区域 */
-	UFUNCTION()
-	void OnHandCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	// ==================== 内部函数 ====================
 	

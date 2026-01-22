@@ -2,18 +2,25 @@
 
 
 #include "Game/BaseEnemy.h"
+
 #include "Grabber/GrabTypes.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Game/CollisionConfig.h"
 
 // ==================== IGrabbable 接口实现 ====================
 
 ABaseEnemy::ABaseEnemy()
 {
-	GetMesh()->SetCollisionProfileName("CharacterMesh");
-	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionProfileName(CP_ENEMY_CAPSULE);
+		Capsule->SetGenerateOverlapEvents(true);
+	}
+	GetMesh()->SetCollisionProfileName(CP_ENEMY_MESH_ALIVE);
+	GetMesh()->SetGenerateOverlapEvents(true);
 }
 
 EGrabType ABaseEnemy::GetGrabType_Implementation() const
@@ -55,6 +62,7 @@ void ABaseEnemy::OnGrabbed_Implementation(UPlayerGrabHand* Hand)
 	{
 		ControllingHands.Add(Hand);
 	}
+	Execute_ExitStasis(this);
 }
 
 void ABaseEnemy::OnReleased_Implementation(UPlayerGrabHand* Hand)
@@ -75,33 +83,77 @@ void ABaseEnemy::OnGrabDeselected_Implementation()
 	// 尸体不需要取消选中效果，空实现
 }
 
+void ABaseEnemy::EnterStasis_Implementation(double TimeToStasis)
+{
+	// 死亡敌人不允许被定身（体验差，已禁用）
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsInStasis = true;
+	// TODO: 活着的敌人被定身逻辑
+}
+
+void ABaseEnemy::ExitStasis_Implementation()
+{
+	if (bIsDead)
+	{
+		EnterRagdollMode();
+		return;
+	}
+	
+	bIsInStasis = false;
+	// TODO: 活着的敌人退出定身逻辑
+}
+
+bool ABaseEnemy::IsInStasis_Implementation()
+{
+	return bIsInStasis;
+}
+
+bool ABaseEnemy::CanEnterStasis_Implementation()
+{
+	// 彻底禁止对尸体施加定身
+	if (bIsDead)
+	{
+		return false;
+	}
+
+	// TODO: 活着的敌人是否允许进入定身（例如抗性/状态/AI等）
+	return true;
+}
+
 void ABaseEnemy::OnDeath_Implementation()
 {
 	Super::OnDeath_Implementation();
-
-	// 1. 设置 Capsule 碰撞为 NoCollision
+	
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionProfileName(FName("NoCollision"));
+		Capsule->SetCollisionProfileName(CP_NO_COLLISION);
 	}
 
-	// 2. 设置 Mesh 为 Ragdoll 并开启物理模拟
-	if (USkeletalMeshComponent* MeshComp = GetMesh())
-	{
-		MeshComp->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
-		MeshComp->SetAllBodiesSimulatePhysics(true);
-	}
-
-	// 3. 禁用 CharacterMovement 组件
+	if (!bIsInStasis)
+		EnterRagdollMode();
+	
 	if (UCharacterMovementComponent* Movement = GetCharacterMovement())
 	{
 		Movement->DisableMovement();
 		Movement->StopMovementImmediately();
 	}
-
-	// 4. 删除 AliveComponent
+	
 	if (AliveComponent)
 	{
 		AliveComponent->DestroyComponent();
+	}
+}
+
+void ABaseEnemy::EnterRagdollMode()
+{
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetCollisionProfileName(CP_ENEMY_MESH_RAGDOLL);
+		MeshComp->SetAllBodiesSimulatePhysics(true);
+		MeshComp->SetGenerateOverlapEvents(true);
 	}
 }

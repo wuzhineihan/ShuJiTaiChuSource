@@ -4,13 +4,15 @@
 #include "Grabber/PCGrabHand.h"
 #include "Game/InventoryComponent.h"
 #include "Grabber/IGrabbable.h"
-#include "Grabbee/GrabbeeWeapon.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Skill/PlayerSkillComponent.h"
+#include "Skill/Stasis/StasisPoint.h"
+#include "Game/CollisionConfig.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -21,6 +23,7 @@ ABasePCPlayer::ABasePCPlayer()
 	FirstPersonCamera->SetupAttachment(RootComponent);
 	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
+	PlayerCamera = FirstPersonCamera;
 
 	// 创建左手
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
@@ -32,9 +35,8 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
-	LeftHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	LeftHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-	LeftHandCollision->ComponentTags.Add(FName("player_hand"));
+	LeftHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
+	LeftHandCollision->SetGenerateOverlapEvents(true);
 	PCLeftHand->HandCollision = LeftHandCollision;
 
 	// 创建右手
@@ -47,9 +49,8 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
-	RightHandCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	RightHandCollision->SetCollisionResponseToAllChannels(ECR_Overlap);
-	RightHandCollision->ComponentTags.Add(FName("player_hand"));
+	RightHandCollision->SetCollisionProfileName(CP_PLAYER_HAND);
+	RightHandCollision->SetGenerateOverlapEvents(true);
 	PCRightHand->HandCollision = RightHandCollision;
 
 	// 设置双手引用
@@ -127,6 +128,12 @@ void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
+			// 绘制互斥：PC 绘制时禁用双手抓取
+			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
+			{
+				return;
+			}
+
 			PCLeftHand->TryGrabOrRelease();
 		}
 	}
@@ -151,6 +158,12 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 		// 徒手模式
 		if (bPressed)
 		{
+			// 绘制互斥：PC 绘制时禁用双手抓取
+			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
+			{
+				return;
+			}
+
 			PCRightHand->TryGrabOrRelease();
 		}
 	}
@@ -159,15 +172,119 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 		if (bIsAiming)
 		{
 			if (bPressed)
-            {
-            	StartDrawBow();
-            }
-            else
-            {
-            	ReleaseBowString();
-            }
+			{
+				StartDrawBow();
+			}
+			else
+			{
+				ReleaseBowString();
+			}
 		}
 	}
+}
+
+void ABasePCPlayer::StartStarDraw()
+{
+	if (PCLeftHand->bIsHolding && PCRightHand->bIsHolding)
+		return;
+	
+	bool bIsRightHandFree = !PCRightHand->bIsHolding;
+	
+	if (PlayerSkillComponent)
+		PlayerSkillComponent->StartStarDraw(FirstPersonCamera, bIsRightHandFree);
+}
+
+void ABasePCPlayer::StopStarDraw()
+{
+	PlayerSkillComponent ->FinishStarDraw();
+}
+
+void ABasePCPlayer::TryThrow(bool bRightHand)
+{
+	if (bIsBowArmed)
+		return;
+	
+	UPCGrabHand* ThrowHand = bRightHand ? PCRightHand : PCLeftHand;
+	if (!ThrowHand || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	// 手里没东西就返回
+	if (!ThrowHand->bIsHolding || !ThrowHand->HeldActor)
+	{
+		return;
+	}
+
+	// 特殊处理：StasisPoint 投掷
+	if (AStasisPoint* StasisPoint = Cast<AStasisPoint>(ThrowHand->HeldActor))
+	{
+		HandleStasisPointThrow(ThrowHand, StasisPoint);
+		return;
+	}
+
+	// 只有 GrabbeeObject 才允许投掷
+	AGrabbeeObject* ThrowObject = Cast<AGrabbeeObject>(ThrowHand->HeldActor);
+	if (!ThrowObject)
+	{
+		return;
+	}
+
+	// 通过射线计算投掷目标点（从摄像机朝前）
+	FHitResult Hit;
+	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, TCC_PROJECTILE);
+
+	const FVector Start = FirstPersonCamera->GetComponentLocation();
+	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
+	const FVector TargetPoint = bHit ? Hit.ImpactPoint : End;
+
+	// 先释放（解除 PhysicsHandle / 附着），再发射
+	ThrowHand->ReleaseObject();
+
+	// LaunchTowards 内部会清速度并加冲量
+	bool bSuccess = ThrowObject->LaunchTowards(TargetPoint, ThrowArcParam);
+	if (!bSuccess)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ABasePCPlayer::TryThrow: LaunchTowards failed!"));
+	}
+}
+
+void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint* StasisPoint)
+{
+	if (!ThrowHand || !StasisPoint || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	// 1) 计算发射上下文（PC：基于相机前向）
+	const FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
+	const FVector CameraForward = FirstPersonCamera->GetForwardVector();
+
+	TArray<AActor*> IgnoreActors;
+	IgnoreActors.Add(this);
+	IgnoreActors.Add(StasisPoint);
+	// 额外的忽略对象（比如双手手持物）由 StasisPoint 内部结合 HoldingHand 处理��
+	// 这里仍保留调用端可传入的 IgnoreActors 扩展能力。
+
+	// 2) 计算初速度
+	const FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
+
+	// 3) 释放（解除抓取）
+	ThrowHand->ReleaseObject();
+
+	// 4) 发射：由定身球内部自行找目标，找不到则直飞并超时自毁
+	StasisPoint->Fire(
+		this,
+		CameraLocation,
+		CameraForward,
+		InitVelocity,
+		StasisDetectionRadius,
+		StasisDetectionAngle,
+		IgnoreActors
+	);
+
+	// 5) 解锁手部
+	ThrowHand->SetGrabLock(false);
 }
 
 // ==================== 弓箭操作 ====================
@@ -321,13 +438,10 @@ void ABasePCPlayer::UpdateTargetDetection()
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
 
-	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance);
+	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 	
 	if (bTraceHit)
 	{
-		// 保存射线碰撞点位置
-		TraceTargetLocation = Hit.Location;
-		
 		AActor* HitActor = Hit.GetActor();
 		
 		// 检查是否实现 IGrabbable 接口
@@ -349,11 +463,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 			}
 		}
 	}
-	else
-	{
-		// 没有命中任何目标
-		TraceTargetLocation = FVector::ZeroVector;
-	}
 
 	// 检查目标是否发生变化
 	if (NewTarget != TargetedObject)
@@ -366,14 +475,14 @@ void ABasePCPlayer::UpdateTargetDetection()
 		// 添加有效性检查，防止物体已被销毁
 		if (OldTarget && IsValid(OldTarget))
 		{
-			if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+			if (Cast<IGrabbable>(OldTarget))
 			{
 				IGrabbable::Execute_OnGrabDeselected(OldTarget);
 			}
 		}
 		if (NewTarget && IsValid(NewTarget))
 		{
-			if (IGrabbable* NewGrabbable = Cast<IGrabbable>(NewTarget))
+			if (Cast<IGrabbable>(NewTarget))
 			{
 				IGrabbable::Execute_OnGrabSelected(NewTarget);
 			}
@@ -386,7 +495,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	}
 }
 
-bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) const
+bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const
 {
 	if (!FirstPersonCamera)
 	{
@@ -399,8 +508,7 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) cons
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, GrabTraceChannel, QueryParams);
-
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, TraceChannel, QueryParams);
 	if (bDrawGrabLineTraceDebug)
 	{
 		const float LifeTime = GrabLineTraceDebugDrawTime;
@@ -413,7 +521,6 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance) cons
 			DrawDebugPoint(GetWorld(), OutHit.ImpactPoint, 10.0f, FColor::Yellow, false, LifeTime);
 		}
 	}
-
 	return bHit;
 }
 
@@ -427,7 +534,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 		TargetedBoneName = NAME_None;
 
 		// 取消选中状态（通过接口）
-		if (IGrabbable* OldGrabbable = Cast<IGrabbable>(OldTarget))
+		if (Cast<IGrabbable>(OldTarget))
 		{
 			IGrabbable::Execute_OnGrabDeselected(OldTarget);
 		}

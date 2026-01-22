@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
 #include "Game/BasePlayer.h"
+#include "Game/CollisionConfig.h"
 #include "BasePCPlayer.generated.h"
-
 class UPCGrabHand;
 class UCameraComponent;
 class IGrabbable;
@@ -60,9 +60,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	float MaxGrabDistance = 300.0f;
 
-	/** 抓取检测通道 */
+	/** 抓取检测通道 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
-	TEnumAsByte<ECollisionChannel> GrabTraceChannel = ECC_Visibility;
+	TEnumAsByte<ECollisionChannel> GrabTraceChannel = TCC_GRAB;
 
 	/** 是否绘制抓取射线调试（线 + 命中点） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")
@@ -85,10 +85,6 @@ public:
 	/** 当前瞄准的骨骼名（如果目标是骨骼网格体） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FName TargetedBoneName;
-
-	/** 射线检测的碰撞点位置（用于丢弃物体等操作） */
-	UPROPERTY(BlueprintReadOnly, Category = "Grab")
-	FVector TraceTargetLocation = FVector::ZeroVector;
 
 	/** 射线检测是否命中目标 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
@@ -117,6 +113,37 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	bool bIsDrawingBow = false;
 
+	// ==================== 投掷（PC） ====================
+
+	/** 最大投掷射线距离（摄像机前方） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw")
+	float MaxThrowDistance = 1000.0f;
+
+	/** 投掷抛物线弧度参数（0-1，越小越平） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw", meta=(ClampMin="0.0", ClampMax="1.0"))
+	float ThrowArcParam = 0.35f;
+
+	// ==================== 定身术（PC） ====================
+
+	/** 定身球发射速度倍数（相对于摄像机前向） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
+	float StasisFireSpeedScalar = 1000.0f;
+
+	/** 定身球目标检测半径 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
+	float StasisDetectionRadius = 1000.0f;
+
+	/** 定身球目标检测最大角度（度） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
+	float StasisDetectionAngle = 30.0f;
+
+	/**
+	 * 投掷入口（唯一入口）。
+	 * @param bRightHand true=右手投掷，false=左手投掷。
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Throw")
+	void TryThrow(bool bRightHand);
+
 	// ==================== 重写基类 ====================
 	
 	/** 重写：进入/退出弓箭模式 */
@@ -138,6 +165,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleRightTrigger(bool bPressed);
+	
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void StartStarDraw();
+	
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void StopStarDraw();
 
 	// ==================== 弓箭操作 ====================
 	
@@ -178,7 +211,10 @@ protected:
 	void UpdateTargetDetection();
 
 	/** 执行射线检测 */
-	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance) const;
+	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const;
+
+	/** 处理 StasisPoint 投掷 */
+	void HandleStasisPointThrow(UPCGrabHand* ThrowHand, class AStasisPoint* StasisPoint);
 
 	/** 当手抓取物体时的回调 */
 	UFUNCTION()

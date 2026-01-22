@@ -11,6 +11,7 @@ class UCameraComponent;
 class UMotionControllerComponent;
 class UBoxComponent;
 class UWidgetInteractionComponent;
+class UPrimitiveComponent;
 
 /**
  * VR 模式玩家基类
@@ -112,4 +113,15 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Tools")
 	void SetVRHandRotationOffset(FRotator RotationOffset);
+
+	// Backpack overlap handling (Obj_PlayerHand)
+	UFUNCTION()
+	void OnBackpackBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnBackpackEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	UVRGrabHand* GetHandFromCollision(UPrimitiveComponent* Comp) const;
 };

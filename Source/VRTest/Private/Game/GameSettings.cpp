@@ -3,6 +3,8 @@
 #include "Game/GameSettings.h"
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
+#include "Skill/SkillAsset.h"
+#include "Materials/MaterialInterface.h"
 
 UGameSettings::UGameSettings()
 {
@@ -33,3 +35,22 @@ TSubclassOf<AArrow> UGameSettings::GetArrowClass() const
 	return ArrowClass.LoadSynchronous();
 }
 
+USkillAsset* UGameSettings::GetSkillAsset() const
+{
+	if (SkillAsset.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameSettings: SkillAsset is not set!"));
+		return nullptr;
+	}
+	return SkillAsset.LoadSynchronous();
+}
+
+UMaterialInterface* UGameSettings::GetPlayerCameraPostProcessMaterial() const
+{
+	if (PlayerCameraPostProcessMaterial.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameSettings: PlayerCameraPostProcessMaterial is not set!"));
+		return nullptr;
+	}
+	return PlayerCameraPostProcessMaterial.LoadSynchronous();
+}

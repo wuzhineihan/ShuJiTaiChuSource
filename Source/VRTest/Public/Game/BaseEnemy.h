@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Game/BaseCharacter.h"
 #include "Grabber/IGrabbable.h"
+#include "Skill/Stasis/IStasisable.h"
 #include "BaseEnemy.generated.h"
 
 /**
@@ -13,7 +14,7 @@
  * 实现 IGrabbable 接口，允许死亡后被拖拽。
  */
 UCLASS()
-class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable
+class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable, public IStasisable
 {
 	GENERATED_BODY()
 
@@ -36,7 +37,19 @@ public:
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
 	virtual void OnGrabSelected_Implementation() override;
 	virtual void OnGrabDeselected_Implementation() override;
+	
+	// ==================== IStasisable 接口实现 ======================================
+	virtual void EnterStasis_Implementation(double TimeToStasis) override;
+	virtual void ExitStasis_Implementation() override;
+	virtual bool IsInStasis_Implementation() override;
+	virtual bool CanEnterStasis_Implementation() override;
 
 	// Override OnDeath
 	virtual void OnDeath_Implementation() override;
+	
+protected:
+	UFUNCTION(BlueprintCallable)
+	void EnterRagdollMode();
+	
+	bool bIsInStasis = false;	
 };

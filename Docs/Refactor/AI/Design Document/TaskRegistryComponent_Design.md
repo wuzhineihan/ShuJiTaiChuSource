@@ -11,9 +11,9 @@
   - [3. 接口定义 (C++ API)](#3-接口定义-c-api)
   - [4. 目录结构](#4-目录结构)
   - [5. API 速查 (External API Summary)](#5-api-速查-external-api-summary)
-    - [Commands (Commanders \& Executors)](#commands-commanders--executors)
-    - [Queries (Decision Makers)](#queries-decision-makers)
-    - [Events (Listeners)](#events-listeners)
+    - [功能命令](#功能命令)
+    - [查询](#查询)
+    - [委托](#委托)
   - [6. 使用示例 (Example)](#6-使用示例-example)
     - [场景: AI 执行攻击任务](#场景-ai-执行攻击任务)
       - [Step 1: 执行者 (Executor) - MeleeComponent](#step-1-执行者-executor---meleecomponent)
@@ -127,19 +127,19 @@ private:
 
 ## 5. API 速查 (External API Summary)
 
-### Commands (Commanders & Executors)
+### 功能命令
 | 函数名 | 角色 | 说明 |
 | :--- | :--- | :--- |
 | **`ExecuteTask(Tag)`** | AIController | 尝试启动指定 Tag 的任务。返回是否成功启动。 |
 | **`RegisterTask(Tag, Delegate)`** | Executor | (C++ Only) 将自身的功能函数注册到组件。 |
 | **`NotifyTaskFinished(Tag, Success)`** | Executor | 任务完成后调用，触发广播。 |
 
-### Queries (Decision Makers)
+### 查询
 | 函数名 | 角色 | 说明 |
 | :--- | :--- | :--- |
 | **`GetRegisteredTasks()`** | AIController | 获取当前所有已注册的任务列表，用于状态判断和决策剪枝。 |
 
-### Events (Listeners)
+### 委托
 | 事件名 | 角色 | 说明 |
 | :--- | :--- | :--- |
 | **`OnTaskFinished`** | AIController | 监听任务结束。Payload: `TaskTag`, `bSuccess`。 |

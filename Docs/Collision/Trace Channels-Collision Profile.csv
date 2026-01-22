@@ -1,0 +1,11 @@
+﻿Name,Profile_PlayerCapsule,Profile_PlayerHand,Profile_PlayerBackpack,Profile_EnemyCapsule,Profile_EnemyMesh_Alive,Profile_EnemyMesh_Ragdoll,Profile_Grabbable_Physics,Profile_BowStringCollision,Profile_Arrow_Stuck,Profile_StasisPoint_Fired,Profile_Star_Finger,Profile_Star_Other
+,,,,,,,,,,,,
+Collision Enabled,Query And Physics,Query Only,Query Only,Query And Physics,Query And Physics,Query And Physics,Query And Physics,Query Only,Query Only,Query Only,Query Only,Query Only
+Object Type,Pawn,Obj_PlayerHand,WorldDynamic,Pawn,PhysicsBody,PhysicsBody,PhysicsBody,WorldDynamic,WorldDynamic,WorldDynamic,WorldDynamic,WorldDynamic
+Trace_Grab,Ignore,Ignore,Ignore,Ignore,Ignore,Block,Block,Ignore,Block,Ignore,Ignore,Ignore
+Trace_Projectile,Ignore,Ignore,Ignore,Ignore,Block,Block,Block,Ignore,Ignore,Ignore,Ignore,Ignore
+WorldStatic,Block,Overlap,Ignore,Block,Block,Block,Block,Ignore,Ignore,Ignore,Ignore,Ignore
+WorldDynamic,Block,Overlap,Ignore,Block,Block,Block,Block,Ignore,Ignore,Overlap,Overlap,Overlap
+Pawn,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore,Ignore
+PhysicsBody,Block,Overlap,Ignore,Ignore,Block,Block,Block,Ignore,Ignore,Overlap,Ignore,Ignore
+Obj_PlayerHand,Ignore,Ignore,Overlap,Ignore,Ignore,Ignore,Ignore,Overlap,Ignore,Ignore,Ignore,Ignore

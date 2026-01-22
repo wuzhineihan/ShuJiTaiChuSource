@@ -1,13 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Grabber/VRGrabHand.h"
-#include "Game/InventoryComponent.h"
 #include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
-#include "Components/BoxComponent.h"
-#include "Game/BasePlayer.h"
-#include "Kismet/KismetSystemLibrary.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Tools/GameUtils.h"
+#include "Game/CollisionConfig.h"
 
 UVRGrabHand::UVRGrabHand()
 {
@@ -18,15 +17,8 @@ void UVRGrabHand::BeginPlay()
 {
 	Super::BeginPlay();
 	LastHandLocation = GetComponentLocation();
-
-	// 绑定 HandCollision 的 overlap 事件用于背包检测
-	if (HandCollision)
-	{
-		UE_LOG(LogTemp, Error, TEXT("VRGrabHand::BeginPlay - Binding HandCollision overlap events."));
-		HandCollision->OnComponentBeginOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionBeginOverlap);
-		HandCollision->OnComponentEndOverlap.AddDynamic(this, &UVRGrabHand::OnHandCollisionEndOverlap);
-	}
-	else
+	
+	if (!HandCollision)
 	{
 		UE_LOG(LogTemp, Error, TEXT("VRGrabHand::BeginPlay - HandCollision is NULL!"));
 	}
@@ -44,6 +36,12 @@ void UVRGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActorComp
 
 void UVRGrabHand::TryGrab(bool bFromBackpack)
 {
+	// Step 0: 检查抓取锁（继承自父类）
+	if (bGrabLocked)
+	{
+		return;
+	}
+
 	// 如果调用者没有强制指定从背包抓取，则自动检测
 	if (!bFromBackpack)
 	{
@@ -101,29 +99,15 @@ AActor* UVRGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
 	return nullptr;
 }
 
-void UVRGrabHand::OnHandCollisionBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                                              UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	// 检查是否是背包碰撞区域（通过 Tag 检测）
-	if (OtherComp && OtherComp->ComponentHasTag(FName("player_backpack")))
-	{
-		PlayerCharacter->PlaySimpleForceFeedback(bIsRightHand ? EControllerHand::Right : EControllerHand::Left);
-		bIsInBackpackArea = true;
-	}
-}
 
-void UVRGrabHand::OnHandCollisionEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	// 检查是否离开背包碰撞区域
-	if (OtherComp && OtherComp->ComponentHasTag(FName("player_backpack")))
-	{
-		bIsInBackpackArea = false;
-	}
-}
 
 void UVRGrabHand::TryRelease(bool bToBackpack)
 {
+	// Step 0: 检查抓取锁（继承自父类）
+	if (bGrabLocked)
+	{
+		return;
+	}
 
 	// VR特有：处理虚拟抓取
 	if (bIsVirtualGrabbing)
@@ -149,60 +133,81 @@ void UVRGrabHand::TryRelease(bool bToBackpack)
 
 AActor* UVRGrabHand::FindAngleClosestTarget()
 {
-	TArray<AActor*> OverlapActors;
-	TArray<AActor*> IgnoreActors;
-	IgnoreActors.Add(GetOwner());
-
-	// 大范围球形检测
-	bool bHit = UKismetSystemLibrary::SphereOverlapActors(
-		this,
-		GetComponentLocation(),
-		GravityGlovesDistance,
-		GrabObjectTypes,
-		nullptr,  // 不限制类型，用接口检查
-		IgnoreActors,
-		OverlapActors
-	);
-
-	if (!bHit || OverlapActors.Num() == 0)
+	UWorld* World = GetWorld();
+	if (!World)
 	{
 		return nullptr;
 	}
 
-	// 找到角度最近的目标
-	AActor* ClosestTarget = nullptr;
-	float SmallestAngle = GravityGlovesAngle;
+	const FVector Origin = GetComponentLocation();
+	const FVector Forward = GetForwardVector().GetSafeNormal();
 
-	FVector HandForward = GetForwardVector();
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRGravityGloves), false);
+	QueryParams.AddIgnoredActor(GetOwner());
 
-	for (AActor* Actor : OverlapActors)
+	const bool bHit = World->OverlapMultiByChannel(
+		Overlaps,
+		Origin,
+		FQuat::Identity,
+		TCC_GRAB,
+		FCollisionShape::MakeSphere(GravityGlovesDistance),
+		QueryParams
+	);
+
+	if (!bHit || Overlaps.Num() == 0)
 	{
-		// 检查是否实现 IGrabbable 接口
-		IGrabbable* Grabbable = Cast<IGrabbable>(Actor);
-		if (!Grabbable)
+		return nullptr;
+	}
+
+	TArray<FActorWithAngle> Candidates;
+	TSet<AActor*> VisitedActors;
+
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* Actor = Overlap.GetActor();
+		if (!Actor || VisitedActors.Contains(Actor))
 		{
 			continue;
 		}
-		
-		// 使用 CanBeGrabbedByGravityGlove 检查是否可以被重力手套选中
-		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor) || !IGrabbable::Execute_CanBeGrabbedBy(Actor,this))
+		VisitedActors.Add(Actor);
+
+		if (!Actor->GetClass()->ImplementsInterface(UGrabbable::StaticClass()))
 		{
 			continue;
 		}
 
-		// 计算角度
-		FVector ToTarget = (Actor->GetActorLocation() - GetComponentLocation()).GetSafeNormal();
-		float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(HandForward, ToTarget)));
-
-		if (Angle < SmallestAngle)
+		if (!IGrabbable::Execute_CanBeGrabbedByGravityGlove(Actor))
 		{
-			SmallestAngle = Angle;
-			ClosestTarget = Actor;
+			continue;
+		}
+
+		if (!IGrabbable::Execute_CanBeGrabbedBy(Actor, this))
+		{
+			continue;
+		}
+
+		const FVector ToTarget = (Actor->GetActorLocation() - Origin).GetSafeNormal();
+		const float Angle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(Forward, ToTarget)));
+		if (Angle <= GravityGlovesAngle)
+		{
+			Candidates.Add(FActorWithAngle(Actor, Angle));
 		}
 	}
 
-	return ClosestTarget;
+	Candidates.Sort([](const FActorWithAngle& A, const FActorWithAngle& B)
+	{
+		return A.Angle < B.Angle;
+	});
+
+	if (Candidates.Num() > 0)
+	{
+		return Candidates[0].Actor;
+	}
+
+	return nullptr;
 }
+
 
 void UVRGrabHand::VirtualGrab(AActor* Target)
 {
@@ -375,75 +380,79 @@ bool UVRGrabHand::IsInGravityGlovesAngle(AActor* Target) const
 AActor* UVRGrabHand::PerformSphereTrace(FName& OutBoneName) const
 {
 	OutBoneName = NAME_None;
-	
-	TArray<AActor*> IgnoreActors;
-	IgnoreActors.Add(GetOwner());
 
-	TArray<FHitResult> HitResults;
-	FVector Start = GetComponentLocation();
-	FVector End = Start; // 原地球形扫描
-	
-	// 使用 SphereTraceMultiForObjects 来获取所有碰撞物体
-	bool bHit = UKismetSystemLibrary::SphereTraceMultiForObjects(
-		this,
-		Start,
-		End,
-		GrabSphereRadius,
-		GrabObjectTypes,
-		false,  // bTraceComplex
-		IgnoreActors,
-		EDrawDebugTrace::ForDuration,
-		HitResults,
-		true    // bIgnoreSelf
-	);
-	
-	if (!bHit || HitResults.Num() == 0)
+	UWorld* World = GetWorld();
+	if (!World)
 	{
 		return nullptr;
 	}
-	
-	// 遍历所有碰撞结果，找到最近的实现了 IGrabbable 接口的物体
-	AActor* ClosestGrabbableActor = nullptr;
-	float ClosestDistance = FLT_MAX;
-	FName ClosestBoneName = NAME_None;
-	
-	for (const FHitResult& HitResult : HitResults)
+
+	const FVector Origin = GetComponentLocation();
+	TArray<FOverlapResult> Overlaps;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRGrabOverlap), false);
+	QueryParams.AddIgnoredActor(GetOwner());
+
+	const bool bHit = World->OverlapMultiByChannel(
+		Overlaps,
+		Origin,
+		FQuat::Identity,
+		TCC_GRAB,
+		FCollisionShape::MakeSphere(GrabSphereRadius),
+		QueryParams
+	);
+
+	if (!bHit || Overlaps.Num() == 0)
 	{
-		AActor* HitActor = HitResult.GetActor();
-		if (!HitActor)
+		return nullptr;
+	}
+
+	AActor* ClosestGrabbableActor = nullptr;
+	float ClosestDistanceSq = FLT_MAX;
+	FName ClosestBoneName = NAME_None;
+	TSet<AActor*> VisitedActors;
+
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* HitActor = Overlap.GetActor();
+		if (!HitActor || VisitedActors.Contains(HitActor))
 		{
 			continue;
 		}
-		
-		// 检查是否实现 IGrabbable 接口
+		VisitedActors.Add(HitActor);
+
 		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
 		if (!Grabbable)
 		{
 			continue;
 		}
-		
-		// 检查是否可以被抓取
+
 		if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, this))
 		{
 			continue;
 		}
-		
-		// 计算距离
-		float Distance = HitResult.Distance;
-		if (Distance < ClosestDistance)
+
+		const UPrimitiveComponent* HitComp = Overlap.Component.Get();
+		const FVector TargetLocation = HitComp ? HitComp->GetComponentLocation() : HitActor->GetActorLocation();
+		const float DistanceSq = FVector::DistSquared(Origin, TargetLocation);
+		if (DistanceSq < ClosestDistanceSq)
 		{
-			ClosestDistance = Distance;
+			ClosestDistanceSq = DistanceSq;
 			ClosestGrabbableActor = HitActor;
-			ClosestBoneName = HitResult.BoneName;
+			ClosestBoneName = NAME_None;
+
+			if (const USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(HitComp))
+			{
+				ClosestBoneName = SkelMesh->FindClosestBone(Origin);
+			}
 		}
 	}
-	
+
 	if (ClosestGrabbableActor)
 	{
 		OutBoneName = ClosestBoneName;
 		return ClosestGrabbableActor;
 	}
-	
+
 	return nullptr;
 }
 
