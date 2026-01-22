@@ -25,6 +25,9 @@
 /** Trace Channel: Trace_Projectile (DefaultEngine.ini: ECC_GameTraceChannel3) */
 #define TCC_PROJECTILE ECC_GameTraceChannel3
 
+/** Object Channel: Obj_PlayerCamera (DefaultEngine.ini: ECC_GameTraceChannel4) */
+#define OCC_PLAYER_CAMERA ECC_GameTraceChannel4
+
 // -------------------- Collision Profiles --------------------
 // Use these instead of raw strings like "Profile_PlayerHand".
 
@@ -47,3 +50,5 @@
 #define CP_STAR_OTHER FName(TEXT("Profile_Star_Other"))
 #define CP_DEBRIS FName(TEXT("Profile_Debris"))	
 
+#define CP_GRASS_HIDE FName(TEXT("Profile_GrassHide"))
+#define CP_PLAYER_CAMERA_COLLISION FName(TEXT("Profile_PlayerCameraCollision"))

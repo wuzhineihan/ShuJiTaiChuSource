@@ -65,6 +65,9 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UCameraComponent* PlayerCamera;
+	
+	
+	virtual USceneComponent* GetTrackOrigin() const override;
 
 	// ==================== 弓接口 ====================
 	
@@ -92,6 +95,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Controller")
 	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
+	
+	//===================== GrassHide ====================
+	UFUNCTION(BlueprintCallable, Category = "GrassHide")
+	void SetCameraInGrass(bool bInGrass);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
@@ -111,6 +118,9 @@ protected:
 	/** 当前持有的弓（弓箭模式下不为空） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
 	ABow* CurrentBow = nullptr;
+	
+	UPROPERTY(Transient)
+	bool bCameraInGrass = false;
 	
 	/** 生成弓 Actor */
 	virtual ABow* SpawnBow();

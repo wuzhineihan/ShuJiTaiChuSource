@@ -78,6 +78,13 @@ void ABasePlayer::BeginPlay()
 
 // ==================== 弓 ====================
 
+USceneComponent* ABasePlayer::GetTrackOrigin() const
+{
+	if (!bCameraInGrass)
+		return PlayerCamera;
+	return nullptr;
+}
+
 bool ABasePlayer::CheckBowFirstPickedUp()
 {
 	if (bHasBow)
@@ -146,6 +153,11 @@ bool ABasePlayer::GetBowArmed() const
 void ABasePlayer::PlaySimpleForceFeedback(EControllerHand Hand)
 {
 	// 子类实现
+}
+
+void ABasePlayer::SetCameraInGrass(bool bInGrass)
+{
+	bCameraInGrass = bInGrass;
 }
 
 ABow* ABasePlayer::SpawnBow()

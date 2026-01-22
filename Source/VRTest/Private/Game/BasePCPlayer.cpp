@@ -13,6 +13,9 @@
 #include "Skill/PlayerSkillComponent.h"
 #include "Skill/Stasis/StasisPoint.h"
 #include "Game/CollisionConfig.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PawnMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -24,6 +27,14 @@ ABasePCPlayer::ABasePCPlayer()
 	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
 	PlayerCamera = FirstPersonCamera;
+
+	// Camera collision (probe)
+	CameraCollision = CreateDefaultSubobject<USphereComponent>(TEXT("CameraCollision"));
+	CameraCollision->SetupAttachment(FirstPersonCamera);
+	CameraCollision->InitSphereRadius(CameraCollisionRadius);
+	CameraCollision->SetCollisionProfileName(CP_PLAYER_CAMERA_COLLISION);
+	CameraCollision->SetGenerateOverlapEvents(true);
+	CameraCollision->SetCanEverAffectNavigation(false);
 
 	// 创建左手
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
@@ -56,6 +67,14 @@ ABasePCPlayer::ABasePCPlayer()
 	// 设置双手引用
 	PCLeftHand->OtherHand = PCRightHand;
 	PCRightHand->OtherHand = PCLeftHand;
+
+	if (UCharacterMovementComponent* CharMove = GetCharacterMovement())
+	{
+		CharMove->GetNavAgentPropertiesRef().bCanCrouch = true;
+		CharMove->SetCrouchedHalfHeight(PCCrouchedHalfHeight);
+		CharMove->MaxWalkSpeedCrouched = PCMaxCrouchWalkSpeed;
+		CharMove->bCanWalkOffLedgesWhenCrouching = false;
+	}
 }
 
 void ABasePCPlayer::BeginPlay()
@@ -71,6 +90,12 @@ void ABasePCPlayer::BeginPlay()
 	{
 		PCRightHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
 	}
+	
+	if (FirstPersonCamera)
+		RegularCameraRelativeZ = FirstPersonCamera->GetRelativeLocation().Z;
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+		RegularCapsuleHalfHeight = Capsule->GetUnscaledCapsuleHalfHeight();
+	bIsCrouchCameraInterping = false;
 }
 
 void ABasePCPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -85,10 +110,10 @@ void ABasePCPlayer::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	if (!bIsBowArmed)
-	{
 		UpdateTargetDetection();
-	}
 	
+	if (bIsCrouchCameraInterping)
+		UpdateCrouchCameraInterp(DeltaTime);
 }
 
 // ==================== 重写基类 ====================
@@ -112,11 +137,6 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	}
 	
 	Super::SetBowArmed(bArmed);
-}
-
-USceneComponent* ABasePCPlayer::GetTrackOrigin() const
-{
-	return FirstPersonCamera;
 }
 
 // ==================== 输入处理 ====================
@@ -197,6 +217,45 @@ void ABasePCPlayer::StartStarDraw()
 void ABasePCPlayer::StopStarDraw()
 {
 	PlayerSkillComponent ->FinishStarDraw();
+}
+
+void ABasePCPlayer::SetCrouched(bool bCrouch)
+{
+	UCharacterMovementComponent* CharMove = GetCharacterMovement();
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (!CharMove || !Capsule || !FirstPersonCamera)
+	{
+		return;
+	}
+
+	const bool bWasCrouching = CharMove->IsCrouching();
+
+	if (bCrouch)
+	{
+		if (bWasCrouching)
+		{
+			return;
+		}
+
+		float HalfHeightBefore = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+		float HalfHeightAfter = CharMove->CrouchedHalfHeight;
+		FirstPersonCamera->AddRelativeLocation(FVector(0,0,HalfHeightBefore - HalfHeightAfter));
+		bIsCrouchCameraInterping = true;
+		Crouch();
+	}
+	else
+	{
+		if (!bWasCrouching)
+		{
+			return;
+		}
+		
+		float HalfHeightBefore = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+		float HalfHeightAfter = RegularCapsuleHalfHeight;
+		FirstPersonCamera->AddRelativeLocation(FVector(0,0,HalfHeightBefore - HalfHeightAfter));
+		bIsCrouchCameraInterping = true;
+		UnCrouch();
+	}
 }
 
 void ABasePCPlayer::TryThrow(bool bRightHand)
@@ -545,4 +604,24 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 void ABasePCPlayer::PlayNoArrowSound()
 {
 	// TODO: 播放无箭音效
+}
+
+void ABasePCPlayer::UpdateCrouchCameraInterp(float DeltaTime)
+{
+	if (!FirstPersonCamera)
+	{
+		return;
+	}
+
+	FVector Rel = FirstPersonCamera->GetRelativeLocation();
+	Rel.Z = FMath::FInterpTo(Rel.Z, RegularCameraRelativeZ, DeltaTime, PCCrouchCameraInterpSpeed);
+
+	const float Dist = FMath::Abs(Rel.Z - RegularCameraRelativeZ);
+	if (Dist <= PCCrouchCameraStopThreshold)
+	{
+		Rel.Z = RegularCameraRelativeZ;
+		bIsCrouchCameraInterping = false;
+	}
+
+	FirstPersonCamera->SetRelativeLocation(Rel);
 }

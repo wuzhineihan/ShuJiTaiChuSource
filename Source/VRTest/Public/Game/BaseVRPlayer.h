@@ -79,6 +79,12 @@ public:
 	/** 右手抓取组件（VR 具体类型，与 BasePlayer::RightHand 指向同一对象） */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
 	UVRGrabHand* VRRightHand;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR|Components")
+	class USphereComponent* CameraCollision;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Components|CameraCollision", meta=(ClampMin="0.0"))
+	float CameraCollisionRadius = 12.0f;
 
 	// ==================== 配置参数 ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR|Components")
@@ -124,4 +130,11 @@ protected:
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 	UVRGrabHand* GetHandFromCollision(UPrimitiveComponent* Comp) const;
+
+	/**
+	 * 每帧同步 Pawn 胶囊体与相机：
+	 * - XY：将胶囊体水平对齐到相机，同时反向偏移 VROrigin
+	 * - Z：根据相机相对高度动态调整胶囊体半高，并设置 VROrigin 相对Z做补偿
+	 */
+	void UpdateCapsuleToCamera();
 };

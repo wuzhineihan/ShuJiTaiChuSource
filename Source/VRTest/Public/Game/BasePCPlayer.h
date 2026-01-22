@@ -53,6 +53,12 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* RightHandCollision;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USphereComponent* CameraCollision;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|CameraCollision", meta=(ClampMin="0.0"))
+	float CameraCollisionRadius = 12.0f;
 
 	// ==================== 目标检测配置 ====================
 
@@ -60,7 +66,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	float MaxGrabDistance = 300.0f;
 
-	/** 抓取检测通道 */
+	/** 抓取检测通道 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	TEnumAsByte<ECollisionChannel> GrabTraceChannel = TCC_GRAB;
 
@@ -136,7 +142,23 @@ public:
 	/** 定身球目标检测最大角度（度） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisDetectionAngle = 30.0f;
+	
+	
+	// ==================== Movement ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float PCCrouchedHalfHeight = 40.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float PCMaxCrouchWalkSpeed = 200.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch")
+	float PCCrouchCameraInterpSpeed = 12.0f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Crouch", meta=(ClampMin="0.01"))
+	float PCCrouchCameraStopThreshold = 0.5f;
 
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetCrouched(bool bCrouch);
 	/**
 	 * 投掷入口（唯一入口）。
 	 * @param bRightHand true=右手投掷，false=左手投掷。
@@ -148,9 +170,6 @@ public:
 	
 	/** 重写：进入/退出弓箭模式 */
 	virtual void SetBowArmed(bool bArmed) override;
-
-	/** 重写：返回摄像机作为追踪原点 */
-	virtual USceneComponent* GetTrackOrigin() const override;
 
 	// ==================== 输入处理 ======================================
 	
@@ -223,4 +242,15 @@ protected:
 
 	/** 播放无箭音效 */
 	void PlayNoArrowSound();
+	
+	UPROPERTY(Transient)
+	bool bIsCrouchCameraInterping = false;
+	
+	UPROPERTY(Transient)
+	float RegularCameraRelativeZ = 0.0f;
+	
+	UPROPERTY(Transient)
+	float RegularCapsuleHalfHeight = 0.0f;
+	
+	void UpdateCrouchCameraInterp(float DeltaTime);
 };

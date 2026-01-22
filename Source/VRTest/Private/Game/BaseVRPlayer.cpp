@@ -9,6 +9,7 @@
 #include "Components/WidgetInteractionComponent.h"
 #include "Skill/PlayerSkillComponent.h"
 #include "Game/CollisionConfig.h"
+#include "Components/CapsuleComponent.h"
 
 ABaseVRPlayer::ABaseVRPlayer()
 {
@@ -22,6 +23,14 @@ ABaseVRPlayer::ABaseVRPlayer()
 	VRCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("VRCamera"));
 	VRCamera->SetupAttachment(VROrigin);
 	PlayerCamera = VRCamera;
+
+	// Camera collision (probe)
+	CameraCollision = CreateDefaultSubobject<USphereComponent>(TEXT("CameraCollision"));
+	CameraCollision->SetupAttachment(VRCamera);
+	CameraCollision->InitSphereRadius(CameraCollisionRadius);
+	CameraCollision->SetCollisionProfileName(CP_PLAYER_CAMERA_COLLISION);
+	CameraCollision->SetGenerateOverlapEvents(true);
+	CameraCollision->SetCanEverAffectNavigation(false);
 
 	// 创建背包碰撞区域（在蓝图设置变换）
 	BackpackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BackpackCollision"));
@@ -109,6 +118,49 @@ void ABaseVRPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 void ABaseVRPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	UpdateCapsuleToCamera();
+}
+
+void ABaseVRPlayer::UpdateCapsuleToCamera()
+{
+	if (!VRCamera || !VROrigin)
+	{
+		return;
+	}
+
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (!Capsule)
+	{
+		return;
+	}
+
+	// ==================== Z：根据相机相对高度动态设置胶囊体半高，并修正 VROrigin 相对Z ====================
+	// 说明：这里用相机相对 VROrigin 的高度（HMD 高度），避免把世界坐标引入计算。
+	const float HMDHeight = VRCamera->GetRelativeLocation().Z;
+	const float ClampedHeight = FMath::Clamp(HMDHeight, 20.f, 1000.f);
+	const float TargetHalfHeight = ClampedHeight * 0.5f;
+
+	Capsule->SetCapsuleHalfHeight(TargetHalfHeight, false);
+
+	// ��囊体半高变化会以中心缩放，为保持“胶囊底部=地面基准”，让 VROrigin 的相对Z = -HalfHeight
+	FVector OriginRelLoc = VROrigin->GetRelativeLocation();
+	OriginRelLoc.Z = -TargetHalfHeight;
+	VROrigin->SetRelativeLocation(OriginRelLoc);
+
+	// ==================== XY：将胶囊体水平对齐到相机，同时反向偏移 VROrigin ====================
+	const FVector CameraLoc = VRCamera->GetComponentLocation();
+	const FVector CapsuleLoc = Capsule->GetComponentLocation();
+	FVector DeltaLoc = CameraLoc - CapsuleLoc;
+	DeltaLoc.Z = 0.f;
+
+	if (DeltaLoc.IsNearlyZero())
+	{
+		return;
+	}
+
+	Capsule->AddWorldOffset(DeltaLoc, false, nullptr, ETeleportType::None);
+	VROrigin->AddWorldOffset(-DeltaLoc, false, nullptr, ETeleportType::None);
 }
 
 // ==================== 输入处理 ====================
@@ -158,7 +210,6 @@ void ABaseVRPlayer::HandleGrip(UVRGrabHand* Hand, bool bPressed, bool bIsLeft)
 		Hand->TryRelease();
 	}
 }
-
 
 // ==================== 重写基类 ====================
 
