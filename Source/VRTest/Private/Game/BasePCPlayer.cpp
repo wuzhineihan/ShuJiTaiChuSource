@@ -238,7 +238,7 @@ void ABasePCPlayer::SetCrouched(bool bCrouch)
 		}
 
 		float HalfHeightBefore = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
-		float HalfHeightAfter = CharMove->CrouchedHalfHeight;
+		float HalfHeightAfter = CharMove->GetCrouchedHalfHeight();
 		FirstPersonCamera->AddRelativeLocation(FVector(0,0,HalfHeightBefore - HalfHeightAfter));
 		bIsCrouchCameraInterping = true;
 		Crouch();
