@@ -54,3 +54,18 @@ UMaterialInterface* UGameSettings::GetPlayerCameraPostProcessMaterial() const
 	}
 	return PlayerCameraPostProcessMaterial.LoadSynchronous();
 }
+
+UAudioNormalSoundAsset* UGameSettings::GetNormalSoundAsset() const
+{
+	if (NormalSoundAsset.IsNull())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GameSettings: NormalSoundAsset is not set!"));
+		return nullptr;
+	}
+	return NormalSoundAsset.LoadSynchronous();
+}
+
+float UGameSettings::GetGlobalVolumeMultiplier() const
+{
+	return GlobalVolumeMultiplier;
+}

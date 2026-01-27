@@ -3,12 +3,12 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "AudioNormalSoundSet.generated.h"
+#include "AudioNormalSoundAsset.generated.h"
 
 class USoundBase;
 
 UCLASS(BlueprintType)
-class VRTEST_API UAudioNormalSoundSet : public UDataAsset
+class VRTEST_API UAudioNormalSoundAsset : public UDataAsset
 {
 	GENERATED_BODY()
 

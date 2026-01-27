@@ -7,6 +7,7 @@
 #include "Grabber/PlayerGrabHand.h"
 #include "Game/BaseCharacter.h"
 #include "Game/CollisionConfig.h"
+#include "Audio/AudioSubsystem.h"
 
 AGrabbeeObject::AGrabbeeObject()
 {
@@ -26,6 +27,12 @@ AGrabbeeObject::AGrabbeeObject()
 void AGrabbeeObject::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CachedAudioSubsystem = nullptr;
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		CachedAudioSubsystem = GI->GetSubsystem<UAudioSubsystem>();
+	}
 }
 
 // ==================== IGrabbable 接口实现 ====================

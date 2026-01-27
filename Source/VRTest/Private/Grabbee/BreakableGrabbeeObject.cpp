@@ -2,12 +2,14 @@
 
 #include "Grabbee/BreakableGrabbeeObject.h"
 
+#include "Audio/AudioSubsystem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Kismet/GameplayStatics.h"
 #include "Game/CollisionConfig.h"
+#include "Game/MyGameplayTags.h"
 #include "Grabbee/Arrow.h"
 
 ABreakableGrabbeeObject::ABreakableGrabbeeObject()
@@ -119,6 +121,7 @@ void ABreakableGrabbeeObject::Break()
 
 	FVector Loc = GeometryCollection->GetCenterOfMass();
 	SpawnForceField(FTransform(Loc));
+	CachedAudioSubsystem->PlayNormalSoundAtLocation(MyProjectTags::TAG_NormalSound_JarBreak,Loc);
 
 	// AI noise (approx. BP MakeNoise call).
 	if (NoiseRange > 0.0f)

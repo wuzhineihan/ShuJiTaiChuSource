@@ -8,9 +8,11 @@
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+#include "Audio/AudioSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Game/CollisionConfig.h"
+#include "Game/MyGameplayTags.h"
 
 ABow::ABow()
 {
@@ -142,8 +144,9 @@ void ABow::FireArrow()
 
     // 发射箭
     NockedArrow->EnterFlyingState(FiringSpeed);
-
-
+	
+	CachedAudioSubsystem->PlayNormalSound2D(MyProjectTags::TAG_NormalSound_ArrowShoot);
+	
     // 清除引用
     NockedArrow = nullptr;
 
@@ -423,7 +426,19 @@ void ABow::UpdateStringPosition(float DeltaTime)
         {
             TargetPos = RestPos + PullVector.GetSafeNormal() * MaxPullDistance;
             PullDist = MaxPullDistance;
-        	//TODO : 拉满音效
+        	
+            if (!bPlayedTightSound)
+            {
+                if (CachedAudioSubsystem)
+                {
+                    CachedAudioSubsystem->PlayNormalSound2D(MyProjectTags::TAG_NormalSound_BowStringTight);
+                }
+                bPlayedTightSound = true;
+            }
+        }
+        else
+        {
+            bPlayedTightSound = false;
         }
 
         CurrentGrabSpot = TargetPos;

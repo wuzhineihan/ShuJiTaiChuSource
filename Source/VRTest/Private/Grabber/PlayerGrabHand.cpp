@@ -6,8 +6,8 @@
 #include "Grabbee/GrabbeeWeapon.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/SphereComponent.h"
 #include "Game/BasePlayer.h"
+#include "Audio/AudioSubsystem.h"
 
 UPlayerGrabHand::UPlayerGrabHand()
 {
@@ -23,6 +23,15 @@ UPlayerGrabHand::UPlayerGrabHand()
 void UPlayerGrabHand::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CachedAudioSubsystem = nullptr;
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			CachedAudioSubsystem = GI->GetSubsystem<UAudioSubsystem>();
+		}
+	}
 	
 	PlayerCharacter = Cast<ABasePlayer>(GetOwner());
 	if (!PlayerCharacter)
@@ -379,7 +388,7 @@ void UPlayerGrabHand::ReleaseObject()
 	}
 
 	// 通知物体被释放（通过接口）
-	if (IGrabbable* Grabbable = Cast<IGrabbable>(ReleasedActor))
+	if (ReleasedActor && ReleasedActor->GetClass()->ImplementsInterface(UGrabbable::StaticClass()))
 	{
 		IGrabbable::Execute_OnReleased(ReleasedActor, this);
 	}

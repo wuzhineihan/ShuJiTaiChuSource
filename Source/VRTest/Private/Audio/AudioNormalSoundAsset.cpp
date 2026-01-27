@@ -1,8 +1,8 @@
-#include "Audio/AudioNormalSoundSet.h"
+#include "Audio/AudioNormalSoundAsset.h"
 
 #include "Sound/SoundBase.h"
 
-USoundBase* UAudioNormalSoundSet::GetNormalSound(FGameplayTag SoundTag) const
+USoundBase* UAudioNormalSoundAsset::GetNormalSound(FGameplayTag SoundTag) const
 {
 	if (!SoundTag.IsValid())
 	{
@@ -16,4 +16,3 @@ USoundBase* UAudioNormalSoundSet::GetNormalSound(FGameplayTag SoundTag) const
 
 	return nullptr;
 }
-

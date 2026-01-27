@@ -7,6 +7,7 @@
 #include "Skill/StarDrawOtherStar.h"
 #include "Skill/SkillAsset.h"
 #include "Skill/SkillTypes.h"
+#include "Audio/AudioSubsystem.h"
 
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -14,10 +15,17 @@
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "Game/GameSettings.h"
+#include "Game/MyGameplayTags.h"
 
 void AStarDrawManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CachedAudioSubsystem = nullptr;
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		CachedAudioSubsystem = GI->GetSubsystem<UAudioSubsystem>();
+	}
 
 	const UGameSettings* Settings = UGameSettings::Get();
 	CachedSkillAsset = Settings ? Settings->GetSkillAsset() : nullptr;
@@ -153,6 +161,8 @@ void AStarDrawManager::TouchOtherStar(AStarDrawOtherStar* OtherStar)
 	const FVector HitLocation = OtherStar->GetActorLocation();
 	SpawnMainStarAt(HitLocation);
 	SpawnOtherStarsAround(HitLocation);
+	
+	CachedAudioSubsystem->PlayNormalSound2D(MyProjectTags::TAG_NormalSound_StarHit);
 }
 
 

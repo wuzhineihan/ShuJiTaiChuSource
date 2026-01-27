@@ -12,6 +12,7 @@ class AStarDrawFingerPoint;
 class AStarDrawMainStar;
 class AStarDrawOtherStar;
 class USkillAsset;
+class UAudioSubsystem;
 
 /**
  * 星图绘制管理器（Actor）。
@@ -37,7 +38,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
 	virtual void StartDraw(USceneComponent* InInputSource);
 
-	/** 结束绘制并返回识别结果。未识别/无效则返回 ESkillType::None�� */
+	/** 结束绘制并返回识别结果。未识别/无效则返回 ESkillType::None */
 	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
 	virtual ESkillType FinishDraw();
 
@@ -61,6 +62,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioSubsystem> CachedAudioSubsystem = nullptr;
 
 	void FirstTouch();
 	void TouchOtherStar(AStarDrawOtherStar* OtherStar);

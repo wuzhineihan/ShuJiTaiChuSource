@@ -13,6 +13,7 @@ class UPlayerGrabHand;
 class UStaticMeshComponent;
 class UPrimitiveComponent;
 class ABaseCharacter;
+class UAudioSubsystem;
 
 /**
  * 可抓取物体基类
@@ -30,6 +31,9 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioSubsystem> CachedAudioSubsystem = nullptr;
 
 public:
 	// ==================== 组件 ====================

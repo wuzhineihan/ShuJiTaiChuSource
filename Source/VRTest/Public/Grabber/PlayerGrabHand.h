@@ -14,6 +14,7 @@ class UInventoryComponent;
 class UPhysicsHandleComponent;
 class USphereComponent;
 class ABasePlayer;
+class UAudioSubsystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectGrabbed, AActor*, GrabbedActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnObjectReleased, AActor*, ReleasedActor);
@@ -36,6 +37,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioSubsystem> CachedAudioSubsystem = nullptr;
 
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;

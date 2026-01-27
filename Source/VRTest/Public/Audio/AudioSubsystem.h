@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Audio/AudioNormalSoundAsset.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "AudioSubsystem.generated.h"
 
@@ -14,18 +15,40 @@ class VRTEST_API UAudioSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
-public:
-	/**
-	 * 播放 2D 音效/音乐。
-	 * @param WorldContextObject 传入任意能拿到 World 的对象（PlayerController/Actor/Component 等）。
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	void PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f);
+protected:
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioNormalSoundAsset> NormalSoundAsset = nullptr;
 
-	/**
-	 * 在世界坐标播放一次性音效。
-	 * @param WorldContextObject 传入任意能拿到 World 的对象（PlayerController/Actor/Component 等）。
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	void PlaySoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f);
+	UPROPERTY(Transient)
+	float CachedGlobalVolumeMultiplier = 1.0f;
+	
+	// base function
+    UFUNCTION(BlueprintCallable, Category = "Audio")
+    void PlaySound2D(USoundBase* Sound, float VolumeMultiplier = 1.f, 
+    	float PitchMultiplier = 1.f,float StartTime = 0.f);
+    
+    UFUNCTION(BlueprintCallable, Category = "Audio")
+    void PlaySoundAtLocation(USoundBase* Sound, FVector Location, 
+    	FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, 
+    	float PitchMultiplier = 1.f, float StartTime = 0.f);
+
+    UFUNCTION(BlueprintCallable, Category = "Audio")
+    void PlaySoundAttached(USoundBase* Sound, USceneComponent* AttachToComponent, 
+    	FName AttachPointName = NAME_None, FVector Location = FVector::ZeroVector, 
+    	EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, 
+    	bool bStopWhenAttachedToDestroyed = true, float VolumeMultiplier = 1.f, 
+    	float PitchMultiplier = 1.f, float StartTime = 0.f);
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	//outer called function
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayNormalSound2D(FGameplayTag SoundTag);
+	
+	UFUNCTION(BlueprintCallable, Category = "Audio")
+	void PlayNormalSoundAtLocation(FGameplayTag SoundTag, FVector Location);
+	
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Audio/AudioNormalSoundAsset.h"
 #include "Engine/DeveloperSettings.h"
 #include "GameSettings.generated.h"
 
@@ -48,16 +49,24 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Player|PostProcess")
 	TSoftObjectPtr<UMaterialInterface> PlayerCameraPostProcessMaterial;
 
-	/** 获取 SkillAsset（同步加载）。未配置则返回 nullptr。 */
-	UFUNCTION(BlueprintCallable, Category = "Game Settings")
-	USkillAsset* GetSkillAsset() const;
+	// ==================== Audio ====================
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	TSoftObjectPtr<UAudioNormalSoundAsset> NormalSoundAsset;
 
-	/** 获取玩家相机后处理材质（同步加载）。未配置则返回 nullptr。 */
-	UFUNCTION(BlueprintCallable, Category = "Game Settings")
-	UMaterialInterface* GetPlayerCameraPostProcessMaterial() const;
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "Audio")
+	float GlobalVolumeMultiplier = 1.0f;
 
 	// ==================== 辅助函数 ====================
 	
+	/** 获取 SkillAsset（同步加载）。未配置则返回 nullptr。 */
+    UFUNCTION(BlueprintCallable, Category = "Game Settings")
+    USkillAsset* GetSkillAsset() const;
+
+    /** 获取玩家相机后处理材质（同步加载）。未配置则返回 nullptr。 */
+    UFUNCTION(BlueprintCallable, Category = "Game Settings")
+    UMaterialInterface* GetPlayerCameraPostProcessMaterial() const;
+
 	/** 获取弓的类（同步加载） */
 	UFUNCTION(BlueprintCallable, Category = "Game Settings")
 	TSubclassOf<ABow> GetBowClass() const;
@@ -65,4 +74,10 @@ public:
 	/** 获取箭的类（同步加载） */
 	UFUNCTION(BlueprintCallable, Category = "Game Settings")
 	TSubclassOf<AArrow> GetArrowClass() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Game Settings")
+	UAudioNormalSoundAsset* GetNormalSoundAsset() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Game Settings")
+	float GetGlobalVolumeMultiplier() const;
 };

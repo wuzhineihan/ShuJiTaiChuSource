@@ -1,12 +1,15 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Grabber/VRGrabHand.h"
+
+#include "Audio/AudioSubsystem.h"
 #include "Grabber/IGrabbable.h"
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Tools/GameUtils.h"
 #include "Game/CollisionConfig.h"
+#include "Game/MyGameplayTags.h"
 
 UVRGrabHand::UVRGrabHand()
 {
@@ -262,6 +265,7 @@ void UVRGrabHand::VirtualRelease(bool bLaunch)
 		if (AGrabbeeObject* GrabbeeObj = Cast<AGrabbeeObject>(ReleasedTarget))
 		{
 			GrabbeeObj->LaunchTowards(GetComponentLocation(), LaunchArcParam);
+			CachedAudioSubsystem->PlayNormalSound2D(MyProjectTags::TAG_NormalSound_GravityGloveDragBack);
 		}
 	}
 

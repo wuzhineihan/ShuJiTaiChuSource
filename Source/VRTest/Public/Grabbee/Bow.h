@@ -128,6 +128,9 @@ public:
 	/** 弓的持有者（用于伤害归属） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	ABasePlayer* BowOwner = nullptr;
+
+	/** 是否已经播放过拉满弦的音效 */
+	bool bPlayedTightSound = false;
 	
 	// ==================== 重写 ====================
 	
