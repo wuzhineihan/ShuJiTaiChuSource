@@ -423,7 +423,7 @@ void ABasePCPlayer::StartDrawBow()
 	PCRightHand->GrabObject(ArrowActor);
 
 	bIsDrawingBow = true;
-	
+
 	// 计算弓弦位置
 	FVector StringRestPos = CurrentBow->StringRestPosition ? 
 		CurrentBow->StringRestPosition->GetComponentLocation() : 
@@ -437,10 +437,7 @@ void ABasePCPlayer::StartDrawBow()
 
 	// PC 模式：如果右手此时已经在弓弦碰撞区域内，BeginOverlap 不会再次触发。
 	// 主动调用 Bow 的接口复用 OnStringCollisionBeginOverlap 的搭箭/抓弦逻辑。
-	if (CurrentBow)
-	{
-		CurrentBow->TryHandleStringHandEnter(PCRightHand);
-	}
+	CurrentBow->TryHandleStringHandEnter(PCRightHand);
 
 	// PC 简化方案：固定拉弓
 	// 用“摄像机前向的反方向”把右手拉到一个固定距离（相对摄像机坐标系），

@@ -107,7 +107,7 @@ public:
 	 * 注意：这是“手的位置偏移”，不是 Bow::MaxPullDistance。
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
-	float PCDrawDistance = 30.0f;
+	float PCDrawDistance = 50.0f;
 
 	// ==================== 弓箭状态 ====================
 	
@@ -194,7 +194,7 @@ public:
 	// ==================== 弓箭操作 ====================
 	
 	/**
-	 * 开始瞄准
+	 * 开始瞄准（左手过渡到瞄准位置，取出箭并由右手抓住）
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void StartAiming();
@@ -206,7 +206,7 @@ public:
 	void StopAiming();
 
 	/**
-	 * 开始拉弓
+	 * ?????????????????????????????TryHandleStringHandEnter??????????
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void StartDrawBow();

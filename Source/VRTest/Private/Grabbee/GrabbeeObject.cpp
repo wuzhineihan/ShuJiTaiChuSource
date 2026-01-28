@@ -20,6 +20,7 @@ AGrabbeeObject::AGrabbeeObject()
 	// 默认启用物理模拟
 	MeshComponent->SetSimulatePhysics(true);
 	MeshComponent->SetCollisionProfileName(CP_GRABBABLE_PHYSICS);
+	MeshComponent->SetUseCCD(true);
 
 	MeshComponent->SetRenderCustomDepth(true);
 }

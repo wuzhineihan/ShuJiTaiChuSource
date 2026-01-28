@@ -19,6 +19,7 @@ AHitNoiseMaker::AHitNoiseMaker()
 	// Prefer collision profile (configured in Project Settings -> Collision).
 	Mesh->SetCollisionProfileName(CP_HIT_NOISE_MAKER);
 	Mesh->SetGenerateOverlapEvents(false);
+	Mesh->SetSimulatePhysics(false);
 
 	// Default sound tag for this actor.
 	HitSoundTag = MyProjectTags::TAG_NormalSound_HitNoise;
@@ -36,13 +37,8 @@ void AHitNoiseMaker::ApplyEffect_Implementation(const FEffect& Effect)
 
 void AHitNoiseMaker::TriggerNoise()
 {
+	UE_LOG(LogTemp, Warning, TEXT("TriggerNoiseMaker"));
 	const FVector Location = GetActorLocation();
-
-	// Legacy helper: old BP sets nearest enemy's Can_Hear=true (AI prototype path).
-	if (bLegacySetNearestEnemyCanHear)
-	{
-		UMyFunctionLibrary::FindNearestEnemy(this, Location);
-	}
 
 	APawn* InstigatorPawn = UGameplayStatics::GetPlayerPawn(this, 0);
 	MakeNoise(NoiseLoudness, InstigatorPawn, Location, NoiseRange);
