@@ -4,8 +4,8 @@
 
 #include "Skill/StarDrawManager.h"
 #include "Skill/SkillStrategyBase.h"
-#include "Game/BasePlayer.h"
-#include "Game/BasePCPlayer.h"
+#include "Game/Characters/BasePlayer.h"
+#include "Game/Characters/BasePCPlayer.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Game/GameSettings.h"
 #include "Skill/SkillAsset.h"

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 
 #include "Camera/CameraComponent.h"
 #include "Grabber/PlayerGrabHand.h"

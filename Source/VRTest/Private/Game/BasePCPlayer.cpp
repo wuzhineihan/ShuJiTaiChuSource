@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/BasePCPlayer.h"
+#include "Game/Characters/BasePCPlayer.h"
 #include "Grabber/PCGrabHand.h"
 #include "Game/InventoryComponent.h"
 #include "Grabber/IGrabbable.h"

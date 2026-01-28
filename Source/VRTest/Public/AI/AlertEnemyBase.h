@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Game/BaseEnemy.h"
+#include "Game/Characters/BaseEnemy.h"
 #include "AlertEnemyBase.generated.h"
 
 class UEventBusComponent;

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Game/BaseEnemy.h"
+#include "Game/Characters/BaseEnemy.h"
 
 #include "Grabber/GrabTypes.h"
 #include "Grabber/PlayerGrabHand.h"

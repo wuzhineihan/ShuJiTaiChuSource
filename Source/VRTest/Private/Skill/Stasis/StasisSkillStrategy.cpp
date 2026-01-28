@@ -3,7 +3,7 @@
 #include "Skill/Stasis/StasisSkillStrategy.h"
 #include "Skill/Stasis/StasisPoint.h"
 #include "Skill/Stasis/VRStasisFireMonitor.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "Game/ShujiGameMode.h"
 #include "Grabber/PlayerGrabHand.h"
 #include "Skill/SkillTypes.h"

@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Game/BaseVRPlayer.h"
+#include "Game/Characters/BaseVRPlayer.h"
 #include "Grabber/VRGrabHand.h"
 #include "Camera/CameraComponent.h"
 #include "MotionControllerComponent.h"

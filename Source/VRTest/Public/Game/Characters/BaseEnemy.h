@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/BaseCharacter.h"
+#include "Game/Characters/BaseCharacter.h"
 #include "Grabber/IGrabbable.h"
 #include "Skill/Stasis/IStasisable.h"
 #include "BaseEnemy.generated.h"

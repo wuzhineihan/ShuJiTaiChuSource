@@ -4,7 +4,7 @@
 #include "Game/ShujiGameMode.h"
 #include "IXRTrackingSystem.h"
 #include "IHeadMountedDisplay.h"
-#include "Game/BaseVRPlayer.h"
+#include "Game/Characters/BaseVRPlayer.h"
 
 UClass* AShujiGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
 {

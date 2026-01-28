@@ -6,7 +6,7 @@
 #include "Grabbee/GrabbeeWeapon.h"
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "Audio/AudioSubsystem.h"
 
 UPlayerGrabHand::UPlayerGrabHand()

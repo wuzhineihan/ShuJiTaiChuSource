@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "BaseVRPlayer.generated.h"
 
 class UVRGrabHand;

@@ -3,7 +3,7 @@
 #include "Grabbee/Bow.h"
 #include "Grabbee/Arrow.h"
 #include "Grabber/PlayerGrabHand.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "NiagaraComponent.h"

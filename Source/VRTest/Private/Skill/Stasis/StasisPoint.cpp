@@ -7,7 +7,7 @@
 #include "Skill/SkillAsset.h"
 #include "Skill/Stasis/IStasisable.h"
 #include "Game/CollisionConfig.h"
-#include "Tools/GameUtils.h"
+#include "Game/GameUtils.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 

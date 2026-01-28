@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Grabber/PCGrabHand.h"
-#include "Game/BasePCPlayer.h"
+#include "Game/Characters/BasePCPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Grabber/IGrabbable.h"
 #include "Grabber/GrabTypes.h"

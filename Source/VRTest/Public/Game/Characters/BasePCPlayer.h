@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "Game/CollisionConfig.h"
 #include "BasePCPlayer.generated.h"
 class UPCGrabHand;

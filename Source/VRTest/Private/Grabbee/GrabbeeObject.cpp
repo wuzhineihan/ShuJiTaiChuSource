@@ -5,7 +5,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Grabber/PlayerGrabHand.h"
-#include "Game/BaseCharacter.h"
+#include "Game/Characters/BaseCharacter.h"
 #include "Game/CollisionConfig.h"
 #include "Audio/AudioSubsystem.h"
 

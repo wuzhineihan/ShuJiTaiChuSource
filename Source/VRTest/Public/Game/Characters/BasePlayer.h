@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Game/BaseCharacter.h"
+#include "Game/Characters/BaseCharacter.h"
 #include "Effect/FallDamageComponent.h"
 #include "Effect/AutoRecoverComponent.h"
 #include "Game/InventoryComponent.h"

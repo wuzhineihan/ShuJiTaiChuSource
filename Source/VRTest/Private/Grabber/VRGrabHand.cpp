@@ -7,7 +7,7 @@
 #include "Grabbee/GrabbeeObject.h"
 #include "Grabbee/GrabbeeWeapon.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Tools/GameUtils.h"
+#include "Game/GameUtils.h"
 #include "Game/CollisionConfig.h"
 #include "Game/MyGameplayTags.h"
 

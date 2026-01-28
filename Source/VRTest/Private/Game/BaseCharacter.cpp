@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "Game/BaseCharacter.h"
+#include "Game/Characters/BaseCharacter.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()

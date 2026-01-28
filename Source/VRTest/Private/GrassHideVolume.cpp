@@ -3,7 +3,7 @@
 
 #include "GrassHideVolume.h"
 #include "Components/BrushComponent.h"
-#include "Game/BasePlayer.h"
+#include "Game/Characters/BasePlayer.h"
 #include "Game/CollisionConfig.h"
 #include "Audio/AudioSubsystem.h"
 #include "Game/MyGameplayTags.h"
