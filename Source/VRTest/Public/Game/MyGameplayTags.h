@@ -16,4 +16,5 @@ namespace MyProjectTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_NormalSound_BowStringTight);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_NormalSound_ArrowShoot);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_NormalSound_JarBreak);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_NormalSound_HitNoise);
 }

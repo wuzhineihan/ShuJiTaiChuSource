@@ -10,5 +10,6 @@ namespace MyProjectTags
 	UE_DEFINE_GAMEPLAY_TAG(TAG_NormalSound_BowStringTight, "NormalSound.BowStringTight");
 	UE_DEFINE_GAMEPLAY_TAG(TAG_NormalSound_ArrowShoot, "NormalSound.ArrowShoot");
 	UE_DEFINE_GAMEPLAY_TAG(TAG_NormalSound_JarBreak, "NormalSound.JarBreak");
+	UE_DEFINE_GAMEPLAY_TAG(TAG_NormalSound_HitNoise, "NormalSound.HitNoise");
 }
 

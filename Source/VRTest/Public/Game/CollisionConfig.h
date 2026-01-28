@@ -52,3 +52,6 @@
 
 #define CP_GRASS_HIDE FName(TEXT("Profile_GrassHide"))
 #define CP_PLAYER_CAMERA_COLLISION FName(TEXT("Profile_PlayerCameraCollision"))
+
+// Scene
+#define CP_HIT_NOISE_MAKER FName(TEXT("Profile_HitNoiseMaker"))
