@@ -34,6 +34,7 @@
 #define CP_NO_COLLISION FName(TEXT("NoCollision"))
 
 #define CP_PLAYER_CAPSULE FName(TEXT("Profile_PlayerCapsule"))
+#define CP_PLAYER_CAPSULE_CLIMBING FName(TEXT("Profile_PlayerCapsule_Climbing"))
 #define CP_PLAYER_HAND FName(TEXT("Profile_PlayerHand"))
 #define CP_PLAYER_BACKPACK FName(TEXT("Profile_PlayerBackpack"))
 
@@ -52,6 +53,7 @@
 
 #define CP_GRASS_HIDE FName(TEXT("Profile_GrassHide"))
 #define CP_PLAYER_CAMERA_COLLISION FName(TEXT("Profile_PlayerCameraCollision"))
+#define CP_CLIMBABLE_VOLUME FName(TEXT("Profile_ClimbableVolume"))
 
 // Scene
 #define CP_HIT_NOISE_MAKER FName(TEXT("Profile_HitNoiseMaker"))

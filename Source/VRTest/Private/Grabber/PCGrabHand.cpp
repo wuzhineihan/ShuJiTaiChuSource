@@ -163,6 +163,15 @@ void UPCGrabHand::DropToRaycastTarget()
 		return;
 	}
 
+	if (HeldActor->GetClass()->ImplementsInterface(UGrabbable::StaticClass()))
+	{
+		if (IGrabbable::Execute_GetGrabType(HeldActor) == EGrabType::Custom)
+		{
+			ReleaseObject();
+			return;
+		}
+	}
+
 	if (!PCPlayer)
 	{
 		return;

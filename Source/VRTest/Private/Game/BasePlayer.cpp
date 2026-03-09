@@ -10,8 +10,10 @@
 #include "Grabbee/Bow.h"
 #include "Game/GameSettings.h"
 #include "Skill/PlayerSkillComponent.h"
+#include "Game/PlayerClimbComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Game/CollisionConfig.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 ABasePlayer::ABasePlayer()
 {
@@ -19,6 +21,7 @@ ABasePlayer::ABasePlayer()
 	AutoRecoverComponent = CreateDefaultSubobject<UAutoRecoverComponent>(TEXT("AutoRecoverComponent"));
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 	PlayerSkillComponent = CreateDefaultSubobject<UPlayerSkillComponent>(TEXT("PlayerSkillComponent"));
+	PlayerClimbComponent = CreateDefaultSubobject<UPlayerClimbComponent>(TEXT("PlayerClimbComponent"));
 
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
@@ -158,6 +161,109 @@ void ABasePlayer::PlaySimpleForceFeedback(EControllerHand Hand)
 void ABasePlayer::SetCameraInGrass(bool bInGrass)
 {
 	bCameraInGrass = bInGrass;
+}
+
+void ABasePlayer::EnterClimbState()
+{
+	if (bInClimbState)
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (!MoveComp || !Capsule)
+	{
+		return;
+	}
+
+	CachedCapsuleCollisionProfileBeforeClimb = Capsule->GetCollisionProfileName();
+	Capsule->SetCollisionProfileName(CP_PLAYER_CAPSULE_CLIMBING);
+
+	CachedMovementModeBeforeClimb = static_cast<uint8>(MoveComp->MovementMode);
+	CachedCustomMovementModeBeforeClimb = MoveComp->CustomMovementMode;
+	CachedGravityScaleBeforeClimb = MoveComp->GravityScale;
+
+	MoveComp->StopMovementImmediately();
+	MoveComp->SetMovementMode(MOVE_Flying);
+	MoveComp->GravityScale = 0.0f;
+
+	bInClimbState = true;
+}
+
+void ABasePlayer::ExitClimbState()
+{
+	if (!bInClimbState)
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+	if (MoveComp)
+	{
+		MoveComp->StopMovementImmediately();
+		MoveComp->GravityScale = CachedGravityScaleBeforeClimb;
+
+		const EMovementMode PreviousMode = static_cast<EMovementMode>(CachedMovementModeBeforeClimb);
+		if (PreviousMode == MOVE_Custom)
+		{
+			MoveComp->SetMovementMode(MOVE_Custom, CachedCustomMovementModeBeforeClimb);
+		}
+		else
+		{
+			MoveComp->SetMovementMode(PreviousMode);
+		}
+	}
+
+	if (Capsule)
+	{
+		const FName RestoreProfile = CachedCapsuleCollisionProfileBeforeClimb.IsNone()
+			? CP_PLAYER_CAPSULE
+			: CachedCapsuleCollisionProfileBeforeClimb;
+		Capsule->SetCollisionProfileName(RestoreProfile);
+	}
+	CachedCapsuleCollisionProfileBeforeClimb = NAME_None;
+
+	bInClimbState = false;
+}
+
+void ABasePlayer::RegisterClimbGrip(UPlayerGrabHand* Hand, AActor* ClimbActor)
+{
+	if (PlayerClimbComponent)
+	{
+		PlayerClimbComponent->RegisterClimbGrip(Hand, ClimbActor);
+	}
+}
+
+void ABasePlayer::UnregisterClimbGrip(UPlayerGrabHand* Hand, AActor* ClimbActor)
+{
+	if (PlayerClimbComponent)
+	{
+		PlayerClimbComponent->UnregisterClimbGrip(Hand, ClimbActor);
+	}
+}
+
+bool ABasePlayer::HasAnyValidClimbGrip()
+{
+	return PlayerClimbComponent && PlayerClimbComponent->HasAnyValidClimbGrip();
+}
+
+void ABasePlayer::TryExitClimbStateIfNoValidGrip()
+{
+	if (PlayerClimbComponent)
+	{
+		PlayerClimbComponent->TryExitClimbStateIfNoValidGrip();
+	}
+}
+
+float ABasePlayer::GetCapsuleBottomZ() const
+{
+	if (const UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		return Capsule->GetComponentLocation().Z - Capsule->GetScaledCapsuleHalfHeight();
+	}
+	return GetActorLocation().Z;
 }
 
 ABow* ABasePlayer::SpawnBow()

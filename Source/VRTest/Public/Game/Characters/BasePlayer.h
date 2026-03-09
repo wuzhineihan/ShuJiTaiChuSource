@@ -14,12 +14,14 @@ class UPhysicsHandleComponent;
 class UPlayerGrabHand;
 class ABow;
 class UPlayerSkillComponent;
+class UPlayerClimbComponent;
+class AActor;
 
 /**
  * 玩家基类
  * 
- * 包含所有玩家共有的组件和功能。
- * PC 和 VR 玩家各自继承此类。
+ * 包含所有玩家共有的组件和功能�?
+ * PC �?VR 玩家各自继承此类�?
  */
 UCLASS()
 class VRTEST_API ABasePlayer : public ABaseCharacter
@@ -47,6 +49,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPlayerSkillComponent* PlayerSkillComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPlayerClimbComponent* PlayerClimbComponent;
+
 	/** 左手物理抓取组件 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPhysicsHandleComponent* LeftPhysicsHandle;
@@ -55,11 +60,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPhysicsHandleComponent* RightPhysicsHandle;
 
-	/** 左手抓取组件（基类指针，子类创建具体类型） */
+	/** 左手抓取组件（基类指针，子类创建具体类型�?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UPlayerGrabHand* LeftHand = nullptr;
 
-	/** 右手抓取组件（基类指针，子类创建具体类型） */
+	/** 右手抓取组件（基类指针，子类创建具体类型�?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Components")
 	UPlayerGrabHand* RightHand = nullptr;
 	
@@ -69,32 +74,48 @@ public:
 	
 	virtual USceneComponent* GetTrackOrigin() const override;
 
-	// ==================== 弓接口 ====================
+	// ==================== 弓接�?====================
 	
 	/**
 	 * 首次获得弓时调用（游戏流程触发）
-	 * 会自动进入弓箭模式
-	 * @return true=首次获得弓，false=已获得过弓
+	 * 会自动进入弓箭模�?
+	 * @return true=首次获得弓，false=已获得过�?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	virtual bool CheckBowFirstPickedUp();
 
 	/**
 	 * 切换弓箭模式
-	 * @param bArmed true=进入弓箭模式，false=退出
+	 * @param bArmed true=进入弓箭模式，false=退�?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	virtual void SetBowArmed(bool bArmed);
 
 	/**
 	 * 获取当前是否处于弓箭模式
-	 * @return true=处于弓箭模式，false=未处于弓箭模式
+	 * @return true=处于弓箭模式，false=未处于弓箭模�?
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Bow")
 	virtual bool GetBowArmed() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Controller")
 	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	virtual void EnterClimbState();
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	virtual void ExitClimbState();
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	void RegisterClimbGrip(UPlayerGrabHand* Hand, AActor* ClimbActor);
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	void UnregisterClimbGrip(UPlayerGrabHand* Hand, AActor* ClimbActor);
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	bool HasAnyValidClimbGrip();
+	UFUNCTION(BlueprintCallable, Category = "Climb")
+	void TryExitClimbStateIfNoValidGrip();
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Climb")
+	bool IsInClimbState() const { return bInClimbState; }
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Climb")
+	float GetCapsuleBottomZ() const;
 	
 	//===================== GrassHide ====================
 	UFUNCTION(BlueprintCallable, Category = "GrassHide")
@@ -104,7 +125,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
 	APlayerController* PlayerController;
 
-	// ==================== 弓相关 ====================
+	// ==================== 弓相�?====================
 	
 	/** 是否已获得弓（游戏流程中获得，永久持有） */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
@@ -121,10 +142,21 @@ protected:
 	
 	UPROPERTY(Transient)
 	bool bCameraInGrass = false;
-	
-	/** 生成弓 Actor */
+	UPROPERTY(Transient)
+	bool bInClimbState = false;
+	UPROPERTY(Transient)
+	FName CachedCapsuleCollisionProfileBeforeClimb = NAME_None;
+	UPROPERTY(Transient)
+	uint8 CachedMovementModeBeforeClimb = 0;
+	UPROPERTY(Transient)
+	uint8 CachedCustomMovementModeBeforeClimb = 0;
+	UPROPERTY(Transient)
+	float CachedGravityScaleBeforeClimb = 1.0f;
+
+	/** 生成�?Actor */
 	virtual ABow* SpawnBow();
 
 	/** 销毁弓 Actor */
 	virtual void DestroyBow();
 };
+

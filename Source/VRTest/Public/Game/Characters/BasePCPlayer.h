@@ -91,6 +91,8 @@ public:
 	/** 当前瞄准的骨骼名（如果目标是骨骼网格体） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FName TargetedBoneName;
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	FVector TargetedImpactPoint = FVector::ZeroVector;
 
 	/** 射线检测是否命中目标 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
@@ -184,6 +186,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleRightTrigger(bool bPressed);
+	
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void HandleMoveInput(FVector2D MoveInput);
 	
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StartStarDraw();

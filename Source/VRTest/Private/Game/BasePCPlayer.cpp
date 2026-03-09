@@ -74,6 +74,7 @@ ABasePCPlayer::ABasePCPlayer()
 		CharMove->SetCrouchedHalfHeight(PCCrouchedHalfHeight);
 		CharMove->MaxWalkSpeedCrouched = PCMaxCrouchWalkSpeed;
 		CharMove->bCanWalkOffLedgesWhenCrouching = false;
+		CharMove->BrakingDecelerationFlying = 5000;
 	}
 }
 
@@ -200,6 +201,28 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 				ReleaseBowString();
 			}
 		}
+	}
+}
+
+void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
+{
+	switch (EMovementMode MovementMode = GetCharacterMovement()->MovementMode)
+	{
+	case MOVE_Walking:
+			AddMovementInput(GetActorRightVector(), MoveInput.X);
+			AddMovementInput(GetActorForwardVector(), MoveInput.Y);
+		break;
+	case MOVE_Flying:
+		{
+			const FRotator Rotation = GetControlRotation();
+			const FRotator YawRotation(0, Rotation.Yaw, 0);
+			const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+			AddMovementInput(Rotation.Vector(), MoveInput.Y);
+			AddMovementInput(RightDirection, MoveInput.X);
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -493,6 +516,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	FHitResult Hit;
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
+	FVector NewImpactPoint = FVector::ZeroVector;
 
 	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 	
@@ -516,6 +540,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 				NewTarget = HitActor;
 				// 保存骨骼名（如果有）
 				NewBoneName = Hit.BoneName;
+				NewImpactPoint = Hit.ImpactPoint;
 			}
 		}
 	}
@@ -526,6 +551,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 		AActor* OldTarget = TargetedObject;
 		TargetedObject = NewTarget;
 		TargetedBoneName = NewBoneName;
+		TargetedImpactPoint = NewImpactPoint;
 
 		// 调用物体的 OnGrabSelected / OnGrabDeselected（用于高亮等效果）
 		// 添加有效性检查，防止物体已被销毁
@@ -548,6 +574,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	{
 		// 目标相同但骨骼名可能变化
 		TargetedBoneName = NewBoneName;
+		TargetedImpactPoint = NewImpactPoint;
 	}
 }
 
@@ -588,6 +615,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 		AActor* OldTarget = TargetedObject;
 		TargetedObject = nullptr;
 		TargetedBoneName = NAME_None;
+		TargetedImpactPoint = FVector::ZeroVector;
 
 		// 取消选中状态（通过接口）
 		if (Cast<IGrabbable>(OldTarget))

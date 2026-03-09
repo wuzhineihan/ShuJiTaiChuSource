@@ -7,7 +7,6 @@
 #include "Game/CollisionConfig.h"
 #include "Game/MyGameplayTags.h"
 #include "Kismet/GameplayStatics.h"
-#include "MyFunctionLibrary.h"
 
 AHitNoiseMaker::AHitNoiseMaker()
 {
