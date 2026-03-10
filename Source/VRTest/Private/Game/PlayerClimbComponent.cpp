@@ -130,6 +130,7 @@ void UPlayerClimbComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 		{
 			bLandingRecover = false;
 			LandingElapsed = 0.0f;
+			LandingNoProgressElapsed = 0.0f;
 			return;
 		}
 
@@ -197,6 +198,7 @@ void UPlayerClimbComponent::BeginLandingRecover()
 
 	bLandingRecover = true;
 	LandingElapsed = 0.0f;
+	LandingNoProgressElapsed = 0.0f;
 	LandingStartZ = OwnerPlayer->GetActorLocation().Z;
 	LandingTargetZ = LandingStartZ + (DesiredBottomZ - CurrentBottomZ);
 	SetComponentTickEnabled(true);
@@ -220,14 +222,36 @@ void UPlayerClimbComponent::UpdateLandingRecover(float DeltaSeconds)
 		: LandingTargetZ;
 	const float CurrentZ = OwnerPlayer->GetActorLocation().Z;
 	const float DeltaZRaw = DesiredZ - CurrentZ;
-	const float DeltaZ = FMath::Clamp(DeltaZRaw, -LandingMaxRaisePerTick, LandingMaxRaisePerTick);
-
-	if (DeltaZ > KINDA_SMALL_NUMBER)
+	if (DeltaZRaw <= KINDA_SMALL_NUMBER)
 	{
-		ApplyPlayerOffset(FVector(0.0f, 0.0f, DeltaZ), true);
+		StopClimb();
+		return;
+	}
+	const float DeltaZ = FMath::Clamp(DeltaZRaw, 0.0f, LandingMaxRaisePerTick);
+
+	const float ZBefore = CurrentZ;
+	const bool bMoved = DeltaZ > KINDA_SMALL_NUMBER
+		? ApplyPlayerOffset(FVector(0.0f, 0.0f, DeltaZ), true)
+		: false;
+	const float ZAfter = OwnerPlayer->GetActorLocation().Z;
+	const float MovedZ = FMath::Abs(ZAfter - ZBefore);
+
+	if (!bMoved || MovedZ <= LandingMinProgressPerTick)
+	{
+		LandingNoProgressElapsed += DeltaSeconds;
+	}
+	else
+	{
+		LandingNoProgressElapsed = 0.0f;
 	}
 
-	if (FMath::Abs(LandingTargetZ - OwnerPlayer->GetActorLocation().Z) <= 0.5f)
+	if (LandingNoProgressElapsed >= LandingNoProgressTimeout)
+	{
+		StopClimb();
+		return;
+	}
+
+	if (FMath::Abs(LandingTargetZ - ZAfter) <= 0.5f)
 	{
 		StopClimb();
 	}
@@ -241,6 +265,7 @@ void UPlayerClimbComponent::StopClimb()
 	LandingElapsed = 0.0f;
 	LandingStartZ = 0.0f;
 	LandingTargetZ = 0.0f;
+	LandingNoProgressElapsed = 0.0f;
 	ActiveHand.Reset();
 	HandRecords.Reset();
 
@@ -290,11 +315,11 @@ void UPlayerClimbComponent::EnforcePCReachConstraints()
 
 	const ABasePCPlayer* PCPlayer = Cast<ABasePCPlayer>(OwnerPlayer.Get());
 	const UCameraComponent* CameraComp = PCPlayer ? PCPlayer->FirstPersonCamera : nullptr;
-	const FVector CameraLoc = CameraComp ? CameraComp->GetComponentLocation() : OwnerPlayer->GetActorLocation();
 
 	const int32 Iterations = FMath::Max(1, PCConstraintIterations);
 	for (int32 Iter = 0; Iter < Iterations; ++Iter)
 	{
+		const FVector CameraLoc = CameraComp ? CameraComp->GetComponentLocation() : OwnerPlayer->GetActorLocation();
 		FVector TotalCorrection = FVector::ZeroVector;
 
 		if (ActiveHand.IsValid())
@@ -358,6 +383,7 @@ void UPlayerClimbComponent::EnforcePCReachConstraints()
 
 	if (bDebugDraw)
 	{
+		const FVector CameraLoc = CameraComp ? CameraComp->GetComponentLocation() : OwnerPlayer->GetActorLocation();
 		for (const TPair<TWeakObjectPtr<UPlayerGrabHand>, FPlayerClimbHandRecord>& Pair : HandRecords)
 		{
 			if (!Pair.Key.IsValid())
@@ -377,9 +403,11 @@ bool UPlayerClimbComponent::ApplyPlayerOffset(const FVector& Delta, bool bSweep)
 		return false;
 	}
 
+	const FVector BeforeLocation = OwnerPlayer->GetActorLocation();
 	FHitResult Hit;
 	OwnerPlayer->AddActorWorldOffset(Delta, bSweep, &Hit, ETeleportType::None);
-	return true;
+	const FVector AfterLocation = OwnerPlayer->GetActorLocation();
+	return !AfterLocation.Equals(BeforeLocation, KINDA_SMALL_NUMBER);
 }
 
 bool UPlayerClimbComponent::TraceGroundZ(float& OutGroundZ) const

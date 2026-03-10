@@ -7,7 +7,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
-#include "Particles/ParticleSystemComponent.h"
 #include "Game/CollisionConfig.h"
 
 AArrow::AArrow()
@@ -38,11 +37,11 @@ AArrow::AArrow()
 	TrailEffect->SetupAttachment(MeshComponent);
 	TrailEffect->SetAutoActivate(false);
 
-	// 创建火焰粒子效果
-	FireEffect = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("FireEffect"));
-	FireEffect->SetupAttachment(MeshComponent);
-	FireEffect->SetAutoActivate(false);
-	FireEffect->SetVisibility(false);
+	// 创建火焰 Niagara 效果
+	FireNiagaraEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireNiagaraEffect"));
+	FireNiagaraEffect->SetupAttachment(MeshComponent);
+	FireNiagaraEffect->SetAutoActivate(false);
+	FireNiagaraEffect->SetVisibility(false);
 
 	// 设置默认标签（用于弓识别箭）
 	Tags.Add(FName("Arrow"));
@@ -283,10 +282,10 @@ void AArrow::CatchFire()
 	bOnFire = true;
 
 	// 显示火焰效果
-	if (FireEffect)
+	if (FireNiagaraEffect)
 	{
-		FireEffect->SetVisibility(true);
-		FireEffect->Activate(true);
+		FireNiagaraEffect->SetVisibility(true);
+		FireNiagaraEffect->Activate(true);
 	}
 
 	// 设置熄灭计时器
@@ -298,10 +297,10 @@ void AArrow::Extinguish()
 	bOnFire = false;
 
 	// 隐藏火焰效果
-	if (FireEffect)
+	if (FireNiagaraEffect)
 	{
-		FireEffect->SetVisibility(false);
-		FireEffect->Deactivate();
+		FireNiagaraEffect->SetVisibility(false);
+		FireNiagaraEffect->Deactivate();
 	}
 
 	// 清除计时器

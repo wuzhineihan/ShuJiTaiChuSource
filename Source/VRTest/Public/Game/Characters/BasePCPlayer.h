@@ -98,6 +98,18 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	bool bTraceHit = false;
 
+	/** 当前视线是否可以手动点火（用于 UI 提示） */
+	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
+	bool bCanIgniteBySight = false;
+
+	/** 当前点火可交互的命中点（用于 UI 提示） */
+	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
+	FVector IgniteBySightImpactPoint = FVector::ZeroVector;
+
+	/** 视线命中组件用于点火判定的 Tag（Component Tag） */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact|Ignite")
+	FName IgniteBySightComponentTag = FName(TEXT("Interact_FireIgnite"));
+
 	// ==================== 弓箭模式配置 ====================
 	
 	/** 瞄准时左手的位置（相对于摄像机） */
@@ -195,6 +207,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StopStarDraw();
+
+	/** PC 手动点火（由蓝图输入事件调用） */
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void IgniteBySight();
 
 	// ==================== 弓箭操作 ====================
 	

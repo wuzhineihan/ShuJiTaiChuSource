@@ -87,6 +87,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="1.0"))
 	float LandingMaxRaisePerTick = 20.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="0.01"))
+	float LandingNoProgressTimeout = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="0.0"))
+	float LandingMinProgressPerTick = 0.1f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Debug")
 	bool bDebugDraw = true;
 
@@ -100,5 +106,5 @@ protected:
 	float LandingElapsed = 0.0f;
 	float LandingStartZ = 0.0f;
 	float LandingTargetZ = 0.0f;
+	float LandingNoProgressElapsed = 0.0f;
 };
-

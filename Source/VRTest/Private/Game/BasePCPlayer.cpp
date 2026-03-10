@@ -21,7 +21,7 @@ ABasePCPlayer::ABasePCPlayer()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// 创建第一人称摄像机
+	// 鍒涘缓绗竴浜虹О鎽勫儚鏈?
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(RootComponent);
 	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
@@ -36,13 +36,13 @@ ABasePCPlayer::ABasePCPlayer()
 	CameraCollision->SetGenerateOverlapEvents(true);
 	CameraCollision->SetCanEverAffectNavigation(false);
 
-	// 创建左手
+	// 鍒涘缓宸︽墜
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
 	PCLeftHand->SetupAttachment(FirstPersonCamera);
 	PCLeftHand->bIsRightHand = false;
-	LeftHand = PCLeftHand;  // 赋值给 BasePlayer 的基类指针
+	LeftHand = PCLeftHand;  // 璧嬪€肩粰 BasePlayer 鐨勫熀绫绘寚閽?
 
-	// 创建左手碰撞体
+	// 鍒涘缓宸︽墜纰版挒浣?
 	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
@@ -50,13 +50,13 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	PCLeftHand->HandCollision = LeftHandCollision;
 
-	// 创建右手
+	// 鍒涘缓鍙虫墜
 	PCRightHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("RightHand"));
 	PCRightHand->SetupAttachment(FirstPersonCamera);
 	PCRightHand->bIsRightHand = true;
-	RightHand = PCRightHand;  // 赋值给 BasePlayer 的基类指针
+	RightHand = PCRightHand;  // 璧嬪€肩粰 BasePlayer 鐨勫熀绫绘寚閽?
 
-	// 创建右手碰撞体
+	// 鍒涘缓鍙虫墜纰版挒浣?
 	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
@@ -64,7 +64,7 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	PCRightHand->HandCollision = RightHandCollision;
 
-	// 设置双手引用
+	// 璁剧疆鍙屾墜寮曠敤
 	PCLeftHand->OtherHand = PCRightHand;
 	PCRightHand->OtherHand = PCLeftHand;
 
@@ -82,7 +82,7 @@ void ABasePCPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 绑定手的抓取/释放委托，用于同步目标检测状态
+	// 缁戝畾鎵嬬殑鎶撳彇/閲婃斁濮旀墭锛岀敤浜庡悓姝ョ洰鏍囨娴嬬姸鎬?
 	if (PCLeftHand)
 	{
 		PCLeftHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
@@ -103,34 +103,33 @@ void ABasePCPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	
-	// 输入绑定在蓝图中配置（Enhanced Input）
+	// 杈撳叆缁戝畾鍦ㄨ摑鍥句腑閰嶇疆锛圗nhanced Input锛?
 }
 
 void ABasePCPlayer::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (!bIsBowArmed)
-		UpdateTargetDetection();
+	UpdateTargetDetection();
 	
 	if (bIsCrouchCameraInterping)
 		UpdateCrouchCameraInterp(DeltaTime);
 }
 
-// ==================== 重写基类 ====================
+// ==================== 閲嶅啓鍩虹被 ====================
 
 void ABasePCPlayer::SetBowArmed(bool bArmed)
 {
-	// 退出弓箭模式时的 PC 特有清理
+	// 閫€鍑哄紦绠ā寮忔椂鐨?PC 鐗规湁娓呯悊
 	if (bIsBowArmed && !bArmed)
 	{
-		// 如果正在拉弓，直接发射（不能取消拉弓）
+		// 濡傛灉姝ｅ湪鎷夊紦锛岀洿鎺ュ彂灏勶紙涓嶈兘鍙栨秷鎷夊紦锛?
 		if (bIsDrawingBow)
 		{
 			ReleaseBowString();
 		}
 		
-		// 停止瞄准
+		// 鍋滄鐬勫噯
 		if (bIsAiming)
 		{
 			StopAiming();
@@ -140,16 +139,16 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 	Super::SetBowArmed(bArmed);
 }
 
-// ==================== 输入处理 ====================
+// ==================== 杈撳叆澶勭悊 ====================
 
 void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 {
 	if (!bIsBowArmed)
 	{
-		// 徒手模式
+		// 寰掓墜妯″紡
 		if (bPressed)
 		{
-			// 绘制互斥：PC 绘制时禁用双手抓取
+			// 缁樺埗浜掓枼锛歅C 缁樺埗鏃剁鐢ㄥ弻鎵嬫姄鍙?
 			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
 			{
 				return;
@@ -160,7 +159,7 @@ void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 	}
 	else
 	{
-		// 弓箭模式
+		// 寮撶妯″紡
 		if (bPressed)
 		{
 			StartAiming();
@@ -176,10 +175,10 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 {
 	if (!bIsBowArmed)
 	{
-		// 徒手模式
+		// 寰掓墜妯″紡
 		if (bPressed)
 		{
-			// 绘制互斥：PC 绘制时禁用双手抓取
+			// 缁樺埗浜掓枼锛歅C 缁樺埗鏃剁鐢ㄥ弻鎵嬫姄鍙?
 			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
 			{
 				return;
@@ -242,6 +241,24 @@ void ABasePCPlayer::StopStarDraw()
 	PlayerSkillComponent ->FinishStarDraw();
 }
 
+void ABasePCPlayer::IgniteBySight()
+{
+	if (!bCanIgniteBySight)
+	{
+		return;
+	}
+
+	if (!bIsDrawingBow || !CurrentBow)
+	{
+		return;
+	}
+
+	if (AArrow* NockedArrow = CurrentBow->NockedArrow)
+	{
+		NockedArrow->CatchFire();
+	}
+}
+
 void ABasePCPlayer::SetCrouched(bool bCrouch)
 {
 	UCharacterMovementComponent* CharMove = GetCharacterMovement();
@@ -292,27 +309,27 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 		return;
 	}
 
-	// 手里没东西就返回
+	// 鎵嬮噷娌′笢瑗垮氨杩斿洖
 	if (!ThrowHand->bIsHolding || !ThrowHand->HeldActor)
 	{
 		return;
 	}
 
-	// 特殊处理：StasisPoint 投掷
+	// 鐗规畩澶勭悊锛歋tasisPoint 鎶曟幏
 	if (AStasisPoint* StasisPoint = Cast<AStasisPoint>(ThrowHand->HeldActor))
 	{
 		HandleStasisPointThrow(ThrowHand, StasisPoint);
 		return;
 	}
 
-	// 只有 GrabbeeObject 才允许投掷
+	// 鍙湁 GrabbeeObject 鎵嶅厑璁告姇鎺?
 	AGrabbeeObject* ThrowObject = Cast<AGrabbeeObject>(ThrowHand->HeldActor);
 	if (!ThrowObject)
 	{
 		return;
 	}
 
-	// 通过射线计算投掷目标点（从摄像机朝前）
+	// 閫氳繃灏勭嚎璁＄畻鎶曟幏鐩爣鐐癸紙浠庢憚鍍忔満鏈濆墠锛?
 	FHitResult Hit;
 	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, TCC_PROJECTILE);
 
@@ -320,10 +337,10 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
 	const FVector TargetPoint = bHit ? Hit.ImpactPoint : End;
 
-	// 先释放（解除 PhysicsHandle / 附着），再发射
+	// 鍏堥噴鏀撅紙瑙ｉ櫎 PhysicsHandle / 闄勭潃锛夛紝鍐嶅彂灏?
 	ThrowHand->ReleaseObject();
 
-	// LaunchTowards 内部会清速度并加冲量
+	// LaunchTowards 鍐呴儴浼氭竻閫熷害骞跺姞鍐查噺
 	bool bSuccess = ThrowObject->LaunchTowards(TargetPoint, ThrowArcParam);
 	if (!bSuccess)
 	{
@@ -338,23 +355,23 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		return;
 	}
 
-	// 1) 计算发射上下文（PC：基于相机前向）
+	// 1) 璁＄畻鍙戝皠涓婁笅鏂囷紙PC锛氬熀浜庣浉鏈哄墠鍚戯級
 	const FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
 	const FVector CameraForward = FirstPersonCamera->GetForwardVector();
 
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(this);
 	IgnoreActors.Add(StasisPoint);
-	// 额外的忽略对象（比如双手手持物）由 StasisPoint 内部结合 HoldingHand 处理��
-	// 这里仍保留调用端可传入的 IgnoreActors 扩展能力。
+	// 棰濆鐨勫拷鐣ュ璞★紙姣斿鍙屾墜鎵嬫寔鐗╋級鐢?StasisPoint 鍐呴儴缁撳悎 HoldingHand 澶勭悊锟斤拷
+	// 杩欓噷浠嶄繚鐣欒皟鐢ㄧ鍙紶鍏ョ殑 IgnoreActors 鎵╁睍鑳藉姏銆?
 
-	// 2) 计算初速度
+	// 2) 璁＄畻鍒濋€熷害
 	const FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
 
-	// 3) 释放（解除抓取）
+	// 3) 閲婃斁锛堣В闄ゆ姄鍙栵級
 	ThrowHand->ReleaseObject();
 
-	// 4) 发射：由定身球内部自行找目标，找不到则直飞并超时自毁
+	// 4) 鍙戝皠锛氱敱瀹氳韩鐞冨唴閮ㄨ嚜琛屾壘鐩爣锛屾壘涓嶅埌鍒欑洿椋炲苟瓒呮椂鑷瘉
 	StasisPoint->Fire(
 		this,
 		CameraLocation,
@@ -365,11 +382,11 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		IgnoreActors
 	);
 
-	// 5) 解锁手部
+	// 5) 瑙ｉ攣鎵嬮儴
 	ThrowHand->SetGrabLock(false);
 }
 
-// ==================== 弓箭操作 ====================
+// ==================== 寮撶鎿嶄綔 ====================
 
 void ABasePCPlayer::StartAiming()
 {
@@ -380,13 +397,13 @@ void ABasePCPlayer::StartAiming()
 
 	bIsAiming = true;
 	
-	// 将左手平滑过渡到瞄准位置
+	// 灏嗗乏鎵嬪钩婊戣繃娓″埌鐬勫噯浣嶇疆
 	PCLeftHand->InterpToTransform(AimingLeftHandTransform);
 }
 
 void ABasePCPlayer::StopAiming()
 {
-	// 如果正在拉弓，直接发射（不能取消拉弓）
+	// 濡傛灉姝ｅ湪鎷夊紦锛岀洿鎺ュ彂灏勶紙涓嶈兘鍙栨秷鎷夊紦锛?
 	if (bIsDrawingBow)
 	{
 		ReleaseBowString();
@@ -394,11 +411,11 @@ void ABasePCPlayer::StopAiming()
 
 	bIsAiming = false;
 	
-	// 左手回到默认位置
+	// 宸︽墜鍥炲埌榛樿浣嶇疆
 	PCLeftHand->InterpToDefaultTransform();
 
-	// 清理未发射的箭
-	// 情况1：箭还在右手中（未开始拉弓）
+	// 娓呯悊鏈彂灏勭殑绠?
+	// 鎯呭喌1锛氱杩樺湪鍙虫墜涓紙鏈紑濮嬫媺寮擄級
 	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
 	if (HeldArrow)
 	{
@@ -423,14 +440,14 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 检查库存是否有箭
+	// 妫€鏌ュ簱瀛樻槸鍚︽湁绠?
 	if (!InventoryComponent || !InventoryComponent->HasArrow())
 	{
 		PlayNoArrowSound();
 		return;
 	}
 
-	// 从库存取出箭
+	// 浠庡簱瀛樺彇鍑虹
 	FTransform SpawnTransform;
 	SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
 	SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
@@ -442,29 +459,29 @@ void ABasePCPlayer::StartDrawBow()
 		return;
 	}
 
-	// 让右手抓住箭
+	// 璁╁彸鎵嬫姄浣忕
 	PCRightHand->GrabObject(ArrowActor);
 
 	bIsDrawingBow = true;
 
-	// 计算弓弦位置
+	// 璁＄畻寮撳鸡浣嶇疆
 	FVector StringRestPos = CurrentBow->StringRestPosition ? 
 		CurrentBow->StringRestPosition->GetComponentLocation() : 
 		CurrentBow->StringMesh->GetComponentLocation();
 	
-	// 将右手移动到弓弦位置（保持现有逻辑：先把手放到弦附近，确保搭箭/抓弦逻辑能复用）
+	// 灏嗗彸鎵嬬Щ鍔ㄥ埌寮撳鸡浣嶇疆锛堜繚鎸佺幇鏈夐€昏緫锛氬厛鎶婃墜鏀惧埌寮﹂檮杩戯紝纭繚鎼/鎶撳鸡閫昏緫鑳藉鐢級
 	FTransform StringTransform;
 	StringTransform.SetLocation(StringRestPos);
 	StringTransform.SetRotation(CurrentBow->GetActorRotation().Quaternion());
 	PCRightHand->SetWorldTransform(StringTransform);
 
-	// PC 模式：如果右手此时已经在弓弦碰撞区域内，BeginOverlap 不会再次触发。
-	// 主动调用 Bow 的接口复用 OnStringCollisionBeginOverlap 的搭箭/抓弦逻辑。
+	// PC 妯″紡锛氬鏋滃彸鎵嬫鏃跺凡缁忓湪寮撳鸡纰版挒鍖哄煙鍐咃紝BeginOverlap 涓嶄細鍐嶆瑙﹀彂銆?
+	// 涓诲姩璋冪敤 Bow 鐨勬帴鍙ｅ鐢?OnStringCollisionBeginOverlap 鐨勬惌绠?鎶撳鸡閫昏緫銆?
 	CurrentBow->TryHandleStringHandEnter(PCRightHand);
 
-	// PC 简化方案：固定拉弓
-	// 用“摄像机前向的反方向”把右手拉到一个固定距离（相对摄像机坐标系），
-	// 这样 Bow::UpdateStringPosition 会自然产生 CurrentPullLength，从而发射速度由 Bow 统一计算。
+	// PC 绠€鍖栨柟妗堬細鍥哄畾鎷夊紦
+	// 鐢ㄢ€滄憚鍍忔満鍓嶅悜鐨勫弽鏂瑰悜鈥濇妸鍙虫墜鎷夊埌涓€涓浐瀹氳窛绂伙紙鐩稿鎽勫儚鏈哄潗鏍囩郴锛夛紝
+	// 杩欐牱 Bow::UpdateStringPosition 浼氳嚜鐒朵骇鐢?CurrentPullLength锛屼粠鑰屽彂灏勯€熷害鐢?Bow 缁熶竴璁＄畻銆?
 	if (FirstPersonCamera && PCRightHand)
 	{
 		const FVector PullDirWorld = -FirstPersonCamera->GetForwardVector().GetSafeNormal();
@@ -481,8 +498,8 @@ void ABasePCPlayer::StartDrawBow()
 
 void ABasePCPlayer::StopDrawBow()
 {
-	// DEPRECATED: 一旦开始拉弓就不能取消，松手或切换模式都会直接发射
-	// 此函数保留用于兼容，但内部直接调用 ReleaseBowString
+	// DEPRECATED: 涓€鏃﹀紑濮嬫媺寮撳氨涓嶈兘鍙栨秷锛屾澗鎵嬫垨鍒囨崲妯″紡閮戒細鐩存帴鍙戝皠
+	// 姝ゅ嚱鏁颁繚鐣欑敤浜庡吋瀹癸紝浣嗗唴閮ㄧ洿鎺ヨ皟鐢?ReleaseBowString
 	if (bIsDrawingBow)
 	{
 		ReleaseBowString();
@@ -498,54 +515,78 @@ void ABasePCPlayer::ReleaseBowString()
 
 	bIsDrawingBow = false;
 
-	// 释放弓弦（触发 OnReleased → 发射）
+	// 閲婃斁寮撳鸡锛堣Е鍙?OnReleased 鈫?鍙戝皠锛?
 	if (PCRightHand && PCRightHand->bIsHolding && PCRightHand->HeldActor == CurrentBow)
 	{
 		PCRightHand->ReleaseObject();
 	}
 
-	// 右手回到默认位置
+	// 鍙虫墜鍥炲埌榛樿浣嶇疆
 	PCRightHand->InterpToDefaultTransform();
 }
 
-// ==================== 内部函数 ====================
+// ==================== 鍐呴儴鍑芥暟 ====================
 
 void ABasePCPlayer::UpdateTargetDetection()
 {
-	// 执行射线检测
 	FHitResult Hit;
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
 	FVector NewImpactPoint = FVector::ZeroVector;
 
 	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
-	
+
+	// Ignite target detection for UI and manual ignite input.
+	bool bSightHitsIgniteTarget = false;
+	bCanIgniteBySight = false;
+	IgniteBySightImpactPoint = FVector::ZeroVector;
+	if (bTraceHit)
+	{
+		if (UPrimitiveComponent* HitComp = Hit.GetComponent())
+		{
+			if (!IgniteBySightComponentTag.IsNone() && HitComp->ComponentHasTag(IgniteBySightComponentTag))
+			{
+				bSightHitsIgniteTarget = true;
+				IgniteBySightImpactPoint = Hit.ImpactPoint;
+			}
+		}
+	}
+	const bool bHasNockedArrow = bIsDrawingBow && CurrentBow && CurrentBow->NockedArrow != nullptr;
+	bCanIgniteBySight = bSightHitsIgniteTarget && bHasNockedArrow;
+
+	// In bow mode, skip grab target selection but keep ignite detection.
+	if (bIsBowArmed)
+	{
+		if (TargetedObject && IsValid(TargetedObject))
+		{
+			if (Cast<IGrabbable>(TargetedObject))
+			{
+				IGrabbable::Execute_OnGrabDeselected(TargetedObject);
+			}
+		}
+		TargetedObject = nullptr;
+		TargetedBoneName = NAME_None;
+		TargetedImpactPoint = FVector::ZeroVector;
+		return;
+	}
+
 	if (bTraceHit)
 	{
 		AActor* HitActor = Hit.GetActor();
-		
-		// 检查是否实现 IGrabbable 接口
 		IGrabbable* Grabbable = Cast<IGrabbable>(HitActor);
 
-		// 验证是否可以被抓取（检查左手或右手，取第一只空闲的手）
 		if (Grabbable)
 		{
 			UPCGrabHand* CheckHand = !PCLeftHand->bIsHolding ? PCLeftHand : PCRightHand;
-			if (!IGrabbable::Execute_CanBeGrabbedBy(HitActor, CheckHand))
-			{
-				NewTarget = nullptr;
-			}
-			else
+			if (IGrabbable::Execute_CanBeGrabbedBy(HitActor, CheckHand))
 			{
 				NewTarget = HitActor;
-				// 保存骨骼名（如果有）
 				NewBoneName = Hit.BoneName;
 				NewImpactPoint = Hit.ImpactPoint;
 			}
 		}
 	}
 
-	// 检查目标是否发生变化
 	if (NewTarget != TargetedObject)
 	{
 		AActor* OldTarget = TargetedObject;
@@ -553,8 +594,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 		TargetedBoneName = NewBoneName;
 		TargetedImpactPoint = NewImpactPoint;
 
-		// 调用物体的 OnGrabSelected / OnGrabDeselected（用于高亮等效果）
-		// 添加有效性检查，防止物体已被销毁
 		if (OldTarget && IsValid(OldTarget))
 		{
 			if (Cast<IGrabbable>(OldTarget))
@@ -572,7 +611,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 	}
 	else
 	{
-		// 目标相同但骨骼名可能变化
 		TargetedBoneName = NewBoneName;
 		TargetedImpactPoint = NewImpactPoint;
 	}
@@ -609,7 +647,7 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECol
 
 void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 {
-	// 当任一只手抓取物体时，立即清空瞄准目标
+	// 褰撲换涓€鍙墜鎶撳彇鐗╀綋鏃讹紝绔嬪嵆娓呯┖鐬勫噯鐩爣
 	if (TargetedObject && IsValid(TargetedObject))
 	{
 		AActor* OldTarget = TargetedObject;
@@ -617,7 +655,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 		TargetedBoneName = NAME_None;
 		TargetedImpactPoint = FVector::ZeroVector;
 
-		// 取消选中状态（通过接口）
+		// 鍙栨秷閫変腑鐘舵€侊紙閫氳繃鎺ュ彛锛?
 		if (Cast<IGrabbable>(OldTarget))
 		{
 			IGrabbable::Execute_OnGrabDeselected(OldTarget);
@@ -628,7 +666,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 
 void ABasePCPlayer::PlayNoArrowSound()
 {
-	// TODO: 播放无箭音效
+	// TODO: 鎾斁鏃犵闊虫晥
 }
 
 void ABasePCPlayer::UpdateCrouchCameraInterp(float DeltaTime)

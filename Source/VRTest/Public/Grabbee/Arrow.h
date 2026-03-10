@@ -52,9 +52,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UNiagaraComponent* TrailEffect;
 
-	/** 火焰粒子效果 */
+	/** 火焰 Niagara 效果 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	UParticleSystemComponent* FireEffect;
+	UNiagaraComponent* FireNiagaraEffect;
 
 	// ==================== 配置 ====================
 	
