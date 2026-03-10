@@ -163,7 +163,7 @@ void AArrow::EnterNockedState(ABow* Bow)
 	if (MeshComponent)
 	{
 		MeshComponent->SetSimulatePhysics(false);
-		MeshComponent->SetCollisionProfileName(CP_NO_COLLISION);
+		MeshComponent->SetCollisionProfileName(CP_ARROW_NOCKED);
 	}
 
 
