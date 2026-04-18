@@ -38,6 +38,48 @@ void UPlayerSkillComponent::BeginPlay()
 	}
 }
 
+bool UPlayerSkillComponent::HasEnoughEnergy(int32 Cost) const
+{
+	const int32 Required = FMath::Max(0, Cost);
+	return CurrentEnergyPoints >= Required;
+}
+
+bool UPlayerSkillComponent::TryConsumeEnergy(int32 Cost)
+{
+	const int32 Required = FMath::Max(0, Cost);
+	if (Required <= 0)
+	{
+		return true;
+	}
+
+	if (!HasEnoughEnergy(Required))
+	{
+		return false;
+	}
+
+	CurrentEnergyPoints -= Required;
+	return true;
+}
+
+bool UPlayerSkillComponent::AddEnergy(int32 Amount)
+{
+	const int32 Delta = FMath::Max(0, Amount);
+	if (Delta <= 0)
+	{
+		return false;
+	}
+
+	const int32 ClampedMax = FMath::Max(0, MaxEnergyPoints);
+	const int32 NewValue = FMath::Clamp(CurrentEnergyPoints + Delta, 0, ClampedMax);
+	if (NewValue == CurrentEnergyPoints)
+	{
+		return false;
+	}
+
+	CurrentEnergyPoints = NewValue;
+	return true;
+}
+
 bool UPlayerSkillComponent::StartStarDraw(USceneComponent* InputSource, bool bIsRight)
 {
 	if (bIsDrawing)
@@ -163,7 +205,25 @@ bool UPlayerSkillComponent::TryCastSkill(ESkillType SkillType, const FSkillConte
 		return false;
 	}
 
-	return Strategy->Execute(Player, Context);
+	if (!HasEnoughEnergy(SkillCastEnergyCost))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerSkillComponent: Not enough energy to cast skill."));
+		return false;
+	}
+
+	const bool bCasted = Strategy->Execute(Player, Context);
+	if (!bCasted)
+	{
+		return false;
+	}
+
+	if (!TryConsumeEnergy(SkillCastEnergyCost))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PlayerSkillComponent: Energy consume failed unexpectedly after cast."));
+		return false;
+	}
+
+	return true;
 }
 
 bool UPlayerSkillComponent::CanStartDraw_PC_BowGate(const ABasePlayer* Player) const

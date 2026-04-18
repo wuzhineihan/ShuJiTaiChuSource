@@ -666,7 +666,7 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 
 void ABasePCPlayer::PlayNoArrowSound()
 {
-	// TODO: 鎾斁鏃犵闊虫晥
+	// TODO: 
 }
 
 void ABasePCPlayer::UpdateCrouchCameraInterp(float DeltaTime)

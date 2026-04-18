@@ -59,3 +59,4 @@
 // Scene
 #define CP_HIT_NOISE_MAKER FName(TEXT("Profile_HitNoiseMaker"))
 #define CP_FIRE_OBJECT_SPHERE FName(TEXT("Profile_FireObjectSphere"))
+#define CP_ENERGY_ORB FName(TEXT("Profile_EnergyOrb"))

@@ -25,6 +25,23 @@ class VRTEST_API UPlayerSkillComponent : public UActorComponent
 public:
 	UPlayerSkillComponent();
 
+	// ==================== Energy ====================
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|Energy")
+	int32 GetCurrentEnergyPoints() const { return CurrentEnergyPoints; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|Energy")
+	int32 GetMaxEnergyPoints() const { return MaxEnergyPoints; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|Energy")
+	bool HasEnoughEnergy(int32 Cost = 1) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Skill|Energy")
+	bool TryConsumeEnergy(int32 Cost = 1);
+
+	UFUNCTION(BlueprintCallable, Category = "Skill|Energy")
+	bool AddEnergy(int32 Amount = 1);
+
 	// ==================== StarDraw 入口 ====================
 
 	/**
@@ -108,5 +125,16 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Skill|State")
 	TObjectPtr<AStarDrawManager> StarDrawManager;
+
+	// ==================== Energy State ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Energy", meta=(ClampMin="0"))
+	int32 MaxEnergyPoints = 3;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Skill|Energy", meta=(ClampMin="0"))
+	int32 CurrentEnergyPoints = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Energy", meta=(ClampMin="0"))
+	int32 SkillCastEnergyCost = 1;
 	
 };
