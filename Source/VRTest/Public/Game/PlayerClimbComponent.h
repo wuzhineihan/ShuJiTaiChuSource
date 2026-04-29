@@ -84,6 +84,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="0.0"))
 	float LandingClearance = 2.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="0.0"))
+	float LandingRecoverMaxGroundGap = 60.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Climb|Landing", meta=(ClampMin="1.0"))
 	float LandingMaxRaisePerTick = 20.0f;
 

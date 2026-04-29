@@ -15,6 +15,7 @@ AFireObject::AFireObject()
 	PrimaryActorTick.bCanEverTick = false;
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Mesh->SetCastShadow(false);
 	SetRootComponent(Mesh);
 
 	FireLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("FireLight"));

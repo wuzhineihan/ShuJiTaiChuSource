@@ -187,10 +187,20 @@ void UPlayerClimbComponent::BeginLandingRecover()
 	}
 
 	const float HalfHeight = Capsule->GetScaledCapsuleHalfHeight();
-	// Use camera height as the landing reference to match player perception.
 	const float CurrentBottomZ = Capsule->GetComponentLocation().Z - HalfHeight;
-	const float DesiredBottomZ = GroundZ + LandingClearance;
-	if (DesiredBottomZ <= CurrentBottomZ + KINDA_SMALL_NUMBER)
+	// Only recover when capsule bottom is below ground.
+	if (CurrentBottomZ >= GroundZ - KINDA_SMALL_NUMBER)
+	{
+		StopClimb();
+		return;
+	}
+	const float GroundGap = (GroundZ - CurrentBottomZ) + LandingClearance;
+	if (GroundGap <= KINDA_SMALL_NUMBER)
+	{
+		StopClimb();
+		return;
+	}
+	if (GroundGap > LandingRecoverMaxGroundGap)
 	{
 		StopClimb();
 		return;
@@ -200,7 +210,7 @@ void UPlayerClimbComponent::BeginLandingRecover()
 	LandingElapsed = 0.0f;
 	LandingNoProgressElapsed = 0.0f;
 	LandingStartZ = OwnerPlayer->GetActorLocation().Z;
-	LandingTargetZ = LandingStartZ + (DesiredBottomZ - CurrentBottomZ);
+	LandingTargetZ = LandingStartZ + GroundGap;
 	SetComponentTickEnabled(true);
 }
 
