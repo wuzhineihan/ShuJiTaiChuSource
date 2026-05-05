@@ -7,17 +7,19 @@
 #include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Game/Characters/BasePlayer.h"
+#include "Game/Characters/BasePCPlayer.h"
 #include "Audio/AudioSubsystem.h"
+#include "Game/CollisionConfig.h"
 
 UPlayerGrabHand::UPlayerGrabHand()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 
-	// 默认检测对象类型
+	// 默认检测对象类�?
 	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 	GrabObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_PhysicsBody));
 	
-	// HandCollision 由 BaseVRPlayer 创建并赋值
+	// HandCollision �?BaseVRPlayer 创建并赋�?
 }
 
 void UPlayerGrabHand::BeginPlay()
@@ -39,7 +41,7 @@ void UPlayerGrabHand::BeginPlay()
 		UE_LOG(LogTemp, Error, TEXT("PlayerGrabHand: Owner is not ABasePlayer"));
 		return;
 	}
-	// CachedPhysicsHandle 和 CachedInventory 将由 BasePlayer 在其 BeginPlay 中设置
+	// CachedPhysicsHandle �?CachedInventory 将由 BasePlayer 在其 BeginPlay 中设�?
 }
 
 void UPlayerGrabHand::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -47,7 +49,7 @@ void UPlayerGrabHand::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// 确保释放 PhysicsHandle
 	ReleasePhysicsHandle();
 
-	// 清空缓存的组件引用
+	// 清空缓存的组件引�?
 	CachedPhysicsHandle = nullptr;
 	CachedInventory = nullptr;
 
@@ -61,7 +63,7 @@ void UPlayerGrabHand::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 	// 更新 PhysicsHandle 目标位置（如果正在抓取）
 	if (bIsHolding && HeldActor && CachedPhysicsHandle && CachedPhysicsHandle->GrabbedComponent)
 	{
-		// 根据缓存的抓取类型设置目标
+		// 根据缓存的抓取类型设置目�?
 		switch (HeldGrabType)
 		{
 		case EGrabType::Free:
@@ -95,7 +97,7 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 		return;
 	}
 
-	// Step 1: 有效性检验
+	// Step 1: 有效性检�?
 	if (bIsHolding)
 	{
 		return;
@@ -110,7 +112,7 @@ void UPlayerGrabHand::TryGrab(bool bFromBackpack)
 		return;
 	}
 
-	// Step 4: 抓取，统一在GrabObject里进行验证
+	// Step 4: 抓取，统一在GrabObject里进行验�?
 	GrabObject(TargetActor, BoneName);
 }
 
@@ -122,7 +124,7 @@ void UPlayerGrabHand::TryRelease(bool bToBackpack)
 		return;
 	}
 
-	// ValidateRelease 内部处理所有有效性检查
+	// ValidateRelease 内部处理所有有效性检�?
 	if (!(bIsHolding && HeldActor != nullptr))
 	{
 		return;
@@ -130,14 +132,14 @@ void UPlayerGrabHand::TryRelease(bool bToBackpack)
 
 	if (bToBackpack)
 	{
-		// 只有箭可以放入背包
+		// 只有箭可以放入背�?
 		if (AGrabbeeWeapon* Weapon = Cast<AGrabbeeWeapon>(HeldActor))
 		{
 			if (Weapon->WeaponType == EWeaponType::Arrow)
 			{
 				if (CachedInventory && CachedInventory->TryStoreArrow())
 				{
-					// 保存指针用于销毁
+					// 保存指针用于销�?
 					AActor* ArrowToDestroy = HeldActor;
 					
 					// 统一通过 ReleaseObject 释放（处理物理控制、状态清理、回调）
@@ -159,7 +161,7 @@ AActor* UPlayerGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
 {
 	OutBoneName = NAME_None;
 	
-	// 优先从背包取物
+	// 优先从背包取�?
 	if (bFromBackpack)
 	{
 		if (CachedInventory)
@@ -172,7 +174,7 @@ AActor* UPlayerGrabHand::FindTarget(bool bFromBackpack, FName& OutBoneName)
 		}
 	}
 
-	// 基类不实现物理检测，由子类重写
+	// 基类不实现物理检测，由子类重�?
 	return nullptr;
 }
 
@@ -185,6 +187,21 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 	{
 		return;
 	}
+
+	// Keep held-state transitions consistent when switching objects on the same hand.
+	if (bIsHolding)
+	{
+		if (HeldActor == TargetActor)
+		{
+			return;
+		}
+
+		ReleaseObject();
+		if (bIsHolding)
+		{
+			return;
+		}
+	}
 	
 	// 获取接口
 	IGrabbable* Grabbable = Cast<IGrabbable>(TargetActor);
@@ -194,7 +211,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 		return;
 	}
 
-	// 在 GrabObject 开头统一检查 CanBeGrabbedBy
+	// �?GrabObject 开头统一检�?CanBeGrabbedBy
 	if (!IGrabbable::Execute_CanBeGrabbedBy(TargetActor, this))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GrabObject: Target cannot be grabbed by this hand"));
@@ -233,7 +250,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 	{
 	case EGrabType::Free:
 		{
-			// 计算物体相对于手的局部偏移
+			// 计算物体相对于手的局部偏�?
 			FTransform HandTransform = GetComponentTransform();
 			FTransform ObjectTransform = TargetActor->GetActorTransform();
 
@@ -257,7 +274,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 
 			if (Weapon->WeaponType == EWeaponType::Bow)
 			{
-				// 通知玩家角色首次拾取弓
+				// 通知玩家角色首次拾取�?
 				if (PlayerCharacter && PlayerCharacter->CheckBowFirstPickedUp())
 				{
 					TargetActor->Destroy();
@@ -269,7 +286,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 			FTransform* Offset = WeaponGrabOffsets.Find(Weapon->WeaponType);
 			GrabOffset = Offset ? *Offset : FTransform::Identity;
 
-			// 瞬移武器到手部位置
+			// 瞬移武器到手部位�?
 			Primitive->SetSimulatePhysics(false);
 			
 			FTransform HandTransform = GetComponentTransform();
@@ -280,7 +297,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 			Primitive->SetSimulatePhysics(true);
 			
 
-			// GrabLocation 是物体上的抓取点（质心），不是目标位置
+			// GrabLocation 是物体上的抓取点（质心），不是目标位�?
 			GrabLocation = Primitive->GetComponentLocation();
 			GrabRotation = Primitive->GetComponentRotation();
 
@@ -290,7 +307,7 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 
 	case EGrabType::HumanBody:
 		{
-			// 如果有骨骼名则使用骨骼位置
+			// 如果有骨骼名则使用骨骼位�?
 			if (USkeletalMeshComponent* SkelMesh = Cast<USkeletalMeshComponent>(Primitive))
 			{
 				if (!BoneName.IsNone() && SkelMesh->GetBoneIndex(BoneName) != INDEX_NONE)
@@ -314,14 +331,14 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 		break;
 
 	case EGrabType::Custom:
-		// Custom 类型不使用 PhysicsHandle，跳过物理抓取逻辑
+		// Custom 类型不使�?PhysicsHandle，跳过物理抓取逻辑
 		break;
 
 	default:
 		return;
 	}
 
-	// ==================== 共同逻辑：配置 PhysicsHandle 并执行抓取 ====================
+	// ==================== 共同逻辑：配�?PhysicsHandle 并执行抓�?====================
 	if (GrabType != EGrabType::Custom)
 	{
 		// 配置 PhysicsHandle 参数
@@ -351,11 +368,23 @@ void UPlayerGrabHand::GrabObject(AActor* TargetActor, FName BoneName)
 		);
 	}
 
-	// 更新状态
+	// 更新状�?
 	HeldActor = TargetActor;
 	bIsHolding = true;
 
-	// 通知物体被抓取（通过接口）
+	// PC only: keep physics valid; only ignore Pawn collision while held.
+	HeldCollisionComponent.Reset();
+	CachedHeldCollisionProfile = NAME_None;
+		if (Cast<ABasePCPlayer>(PlayerCharacter))
+	{
+		HeldCollisionComponent = Primitive;
+		if (Primitive)
+		{
+			CachedHeldCollisionProfile = Primitive->GetCollisionProfileName();
+			Primitive->SetCollisionProfileName(CP_PC_HELD_OBJECT);
+		}
+	}
+
 	IGrabbable::Execute_OnGrabbed(TargetActor, this);
 
 	// 广播委托
@@ -387,13 +416,24 @@ void UPlayerGrabHand::ReleaseObject()
 		break;
 	}
 
-	// 通知物体被释放（通过接口）
+	// 通知物体被释放（通过接口�?
 	if (ReleasedActor && ReleasedActor->GetClass()->ImplementsInterface(UGrabbable::StaticClass()))
 	{
 		IGrabbable::Execute_OnReleased(ReleasedActor, this);
 	}
 
-	// 更新状态
+	// Restore collision settings for PC-held object.
+	if (UPrimitiveComponent* HeldComp = HeldCollisionComponent.Get())
+	{
+		if (!CachedHeldCollisionProfile.IsNone())
+		{
+			HeldComp->SetCollisionProfileName(CachedHeldCollisionProfile);
+		}
+	}
+	HeldCollisionComponent.Reset();
+	CachedHeldCollisionProfile = NAME_None;
+	
+	// 更新状�?
 	HeldActor = nullptr;
 	HeldGrabType = EGrabType::None;
 	bIsHolding = false;

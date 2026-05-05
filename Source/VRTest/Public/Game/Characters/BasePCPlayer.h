@@ -10,14 +10,16 @@
 class UPCGrabHand;
 class UCameraComponent;
 class IGrabbable;
+class AArrow;
+class UPCClimbLadderComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGrabTargetChanged, AActor*, NewTarget, AActor*, OldTarget);
 
 /**
  * PC 模式玩家基类
  *
- * 包含第一人称摄像机和双手抓取逻辑。
- * 弓箭模式由基类 bIsBowArmed 控制。
+ * 包含第一人称摄像机和双手抓取逻辑�?
+ * 弓箭模式由基�?bIsBowArmed 控制�?
  */
 UCLASS()
 class VRTEST_API ABasePCPlayer : public ABasePlayer
@@ -36,15 +38,15 @@ public:
 
 	// ==================== 组件 ====================
 	
-	/** 第一人称摄像机 */
+	/** 第一人称摄像�?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* FirstPersonCamera;
 
-	/** 左手抓取组件（PC 具体类型，与 BasePlayer::LeftHand 指向同一对象） */
+	/** 左手抓取组件（PC 具体类型，与 BasePlayer::LeftHand 指向同一对象�?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* PCLeftHand;
 
-	/** 右手抓取组件（PC 具体类型，与 BasePlayer::RightHand 指向同一对象） */
+	/** 右手抓取组件（PC 具体类型，与 BasePlayer::RightHand 指向同一对象�?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* PCRightHand;
 
@@ -56,13 +58,16 @@ public:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USphereComponent* CameraCollision;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPCClimbLadderComponent* PCClimbLadderComponent = nullptr;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|CameraCollision", meta=(ClampMin="0.0"))
 	float CameraCollisionRadius = 12.0f;
 
-	// ==================== 目标检测配置 ====================
+	// ==================== 目标检测配�?====================
 
-	/** 抓取射线最大距离 */
+	/** 抓取射线最大距�?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	float MaxGrabDistance = 300.0f;
 
@@ -74,15 +79,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")
 	bool bDrawGrabLineTraceDebug = false;
 
-	/** 调试绘制持续时间（秒）；0 表示仅一帧 */
+	/** 调试绘制持续时间（秒）；0 表示仅一�?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.0"))
 	float GrabLineTraceDebugDrawTime = 1.0f;
 
-	/** 调试线粗细 */
+	/** 调试线粗�?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.1"))
 	float GrabLineTraceDebugThickness = 0.5f;
 
-	// ==================== 目标检测状态 ====================
+	// ==================== 目标检测状�?====================
 
 	/** 当前瞄准的可抓取物体 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
@@ -94,19 +99,19 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FVector TargetedImpactPoint = FVector::ZeroVector;
 
-	/** 射线检测是否命中目标 */
+	/** 射线检测是否命中目�?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	bool bTraceHit = false;
 
-	/** 当前视线是否可以手动点火（用于 UI 提示） */
+	/** 当前视线是否可以手动点火（用�?UI 提示�?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
 	bool bCanIgniteBySight = false;
 
-	/** 当前点火可交互的命中点（用于 UI 提示） */
+	/** 当前点火可交互的命中点（用于 UI 提示�?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
 	FVector IgniteBySightImpactPoint = FVector::ZeroVector;
 
-	/** 视线命中组件用于点火判定的 Tag（Component Tag） */
+	/** 视线命中组件用于点火判定�?Tag（Component Tag�?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact|Ignite")
 	FName IgniteBySightComponentTag = FName(TEXT("Interact_FireIgnite"));
 
@@ -117,13 +122,13 @@ public:
 	FTransform AimingLeftHandTransform;
 
 	/**
-	 * PC 模式固定拉弓距离（沿摄像机前向的反方向拉）
-	 * 注意：这是“手的位置偏移”，不是 Bow::MaxPullDistance。
+	 * PC 模式固定拉弓距离（沿摄像机前向的反方向拉�?
+	 * 注意：这是“手的位置偏移”，不是 Bow::MaxPullDistance�?
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
 	float PCDrawDistance = 50.0f;
 
-	// ==================== 弓箭状态 ====================
+	// ==================== 弓箭状�?====================
 	
 	/** 是否正在瞄准 */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
@@ -133,7 +138,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	bool bIsDrawingBow = false;
 
-	// ==================== 投掷（PC） ====================
+	// ==================== 投掷（PC�?====================
 
 	/** 最大投掷射线距离（摄像机前方） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw")
@@ -143,13 +148,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw", meta=(ClampMin="0.0", ClampMax="1.0"))
 	float ThrowArcParam = 0.35f;
 
-	// ==================== 定身术（PC） ====================
+	// ==================== 定身术（PC�?====================
 
 	/** 定身球发射速度倍数（相对于摄像机前向） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisFireSpeedScalar = 1000.0f;
 
-	/** 定身球目标检测半径 */
+	/** 定身球目标检测半�?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisDetectionRadius = 1000.0f;
 
@@ -174,27 +179,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetCrouched(bool bCrouch);
 	/**
-	 * 投掷入口（唯一入口）。
-	 * @param bRightHand true=右手投掷，false=左手投掷。
+	 * 投掷入口（唯一入口）�?
+	 * @param bRightHand true=右手投掷，false=左手投掷�?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Throw")
 	void TryThrow(bool bRightHand);
 
 	// ==================== 重写基类 ====================
 	
-	/** 重写：进入/退出弓箭模式 */
+	/** 重写：进�?退出弓箭模�?*/
 	virtual void SetBowArmed(bool bArmed) override;
 
 	// ==================== 输入处理 ======================================
 	
 	/**
-	 * 处理左扳机输入
+	 * 处理左扳机输�?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleLeftTrigger(bool bPressed);
 
 	/**
-	 * 处理右扳机输入
+	 * 处理右扳机输�?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleRightTrigger(bool bPressed);
@@ -208,7 +213,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StopStarDraw();
 
-	/** PC 手动点火（由蓝图输入事件调用） */
+	/** PC 手动点火（由蓝图输入事件调用�?*/
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void IgniteBySight();
 
@@ -243,14 +248,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void ReleaseBowString();
+	void CancelDrawBow();
 
 protected:
 	// ==================== 内部函数 ====================
 
-	/** 更新瞄准目标检测（每帧执行） */
+	/** 更新瞄准目标检测（每帧执行�?*/
 	void UpdateTargetDetection();
 
-	/** 执行射线检测 */
+	/** 执行射线检�?*/
 	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const;
 
 	/** 处理 StasisPoint 投掷 */
@@ -259,6 +265,14 @@ protected:
 	/** 当手抓取物体时的回调 */
 	UFUNCTION()
 	void OnHandGrabbedObject(AActor* GrabbedObject);
+
+	AArrow* GetHeldRightHandArrow() const;
+	bool EnsurePreparedArrowInRightHand();
+	bool NockPreparedArrowFromRightHand();
+	bool UnnockArrowToRightHand();
+	void ReleasePCStringHoldWithoutFiring();
+	void CleanupPreparedArrowWhenExitBowMode();
+	void StoreAndDestroyArrow(AArrow* Arrow);
 
 
 	/** 播放无箭音效 */

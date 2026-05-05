@@ -43,6 +43,7 @@
 #define CP_ENEMY_MESH_RAGDOLL FName(TEXT("Profile_EnemyMesh_Ragdoll"))
 
 #define CP_GRABBABLE_PHYSICS FName(TEXT("Profile_Grabbable_Physics"))
+#define CP_PC_HELD_OBJECT FName(TEXT("Profile_PC_HeldObject"))
 #define CP_BOW_STRING_COLLISION FName(TEXT("Profile_BowStringCollision"))
 #define CP_ARROW_NOCKED FName(TEXT("Profile_Arrow_Nocked"))
 #define CP_ARROW_STUCK FName(TEXT("Profile_Arrow_Stuck"))
