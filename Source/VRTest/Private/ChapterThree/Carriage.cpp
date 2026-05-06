@@ -34,7 +34,12 @@ void ACarriage::BeginPlay()
 	CartActor = Cart->GetChildActor();
 	if (HorseActor && HorseActor->GetClass()->ImplementsInterface(UCartHorseInterface::StaticClass()))
 	{
-		ICartHorseInterface::Execute_UpdateTargetLocation(HorseActor,PatrolSpline->GetPatrolPointLocation());
+		bool bHasNextPoint = false;
+		const FVector NextPatrolPoint = PatrolSpline->GetNextPatrolPointLocation(bHasNextPoint);
+		if (bHasNextPoint)
+		{
+			ICartHorseInterface::Execute_UpdateTargetLocation(HorseActor, NextPatrolPoint);
+		}
 	}
 }
 
@@ -89,23 +94,27 @@ void ACarriage::SetMovable(bool Movable)
 
 void ACarriage::CheckPatrolState()
 {
-	
-	float Distance = (PatrolSpline->GetPatrolPointLocation() - HorseActor->GetActorLocation()).Size();
+	if (!IsValid(HorseActor))
+	{
+		return;
+	}
+
+	const float Distance = (PatrolSpline->GetCurrentPatrolPointLocation() - HorseActor->GetActorLocation()).Size();
 	
 	if (FMath::Abs(Distance) <= PatrolPointRange)
 	{
-		if (PatrolSpline->CheckPatrolPointEnd())
+		bool bHasNextPoint = false;
+		const FVector NextPatrolPoint = PatrolSpline->GetNextPatrolPointLocation(bHasNextPoint);
+		if (!bHasNextPoint)
 		{
 			ArriveFinalLocation();
 			GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"Patrol Stopped!");
 			return;
 		}
-		PatrolSpline->UpdatePatrolPoint();
-		//GEngine->AddOnScreenDebugMessage(-1,100.f,FColor::Red,"Update");
-		if (HorseActor && HorseActor->GetClass()->ImplementsInterface(UCartHorseInterface::StaticClass()))
+
+		if (HorseActor->GetClass()->ImplementsInterface(UCartHorseInterface::StaticClass()))
 		{
-			ICartHorseInterface::Execute_UpdateTargetLocation(HorseActor,PatrolSpline->GetPatrolPointLocation());
-			//GEngine->AddOnScreenDebugMessage(-1,100.f,FColor::Red,"UpdateSuccess");
+			ICartHorseInterface::Execute_UpdateTargetLocation(HorseActor, NextPatrolPoint);
 		}
 	}
 	
@@ -122,4 +131,3 @@ void ACarriage::ArriveFinalLocation()
 	SetHorseMovable(false);
 	bArriveFinalLocation = true;
 }
-

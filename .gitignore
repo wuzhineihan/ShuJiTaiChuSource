@@ -40,3 +40,10 @@ Config/
 
 # BP2AIExport
 BP2AIExport/
+
+# Local reference docs (do not commit)
+实习/
+
+# Local docs / IDE files (do not commit)
+.vsconfig
+Docs/
