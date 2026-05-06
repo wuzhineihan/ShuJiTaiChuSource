@@ -14,15 +14,32 @@ class VRTEST_API UEnemyPatrolSplineComponent : public USplineComponent
 {
 	GENERATED_BODY()
 public:
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintPure, Category = "Patrol")
+	bool HasPatrolPoints() const;
+
 	UFUNCTION(BlueprintCallable)
-	void UpdatePatrolPoint();
-	UFUNCTION(BlueprintCallable)
-	FVector GetPatrolPointLocation();
-	UFUNCTION(BlueprintCallable)
-	bool CheckPatrolPointEnd();
+	FVector GetNextPatrolPointLocation(bool& bOutHasNextPoint);
+
+	UFUNCTION(BlueprintPure)
+	FVector GetCurrentPatrolPointLocation() const;
 	
-	UPROPERTY(BlueprintReadwrite,EditAnywhere)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Patrol")
 	bool Patrol=false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Patrol")
+	bool bLoopPatrol = true;
+
+	UFUNCTION(BlueprintCallable, Category = "Patrol")
+	bool AdvancePatrolPoint();
+
+	UFUNCTION(BlueprintCallable, Category = "Patrol")
+	void ResetPatrolIndex(int32 InPatrolPointIndex = 0);
+
 private:
-	int PatrolPointIndex=0;
+	int PatrolPointIndex = 0;
+
+	UPROPERTY(Transient)
+	bool bPatrolForward = true;
 };

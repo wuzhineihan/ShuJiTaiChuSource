@@ -11,7 +11,8 @@ public class VRTest : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", 
 			"Engine", "InputCore" ,"AIModule","GameplayTags","NavigationSystem", 
 			"HeadMountedDisplay", "XRBase", "UMG", "Niagara", "DeveloperSettings", 
-			"GeometryCollectionEngine", "AssetRegistry" });
+			"GeometryCollectionEngine", "AssetRegistry", "GameplayMessageRuntime", "SkeletalMerging",
+			"Slate", "SlateCore" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayDebugger" });
 		

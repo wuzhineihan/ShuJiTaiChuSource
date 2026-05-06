@@ -30,6 +30,10 @@ void UAISenseConfig_Player::DescribeSelfToGameplayDebugger(const UAIPerceptionCo
 		PerceptionComponent->GetLocationAndDirection(BodyLocation, BodyFacing);
 
 		DebuggerCategory->AddShape(FGameplayDebuggerShape::MakeCylinder(BodyLocation, PlayerRadius, 25.0f, DebugColor));
+		DebuggerCategory->AddTextLine(FString::Printf(TEXT("{green}PlayerRadius:{white} %.0f"), PlayerRadius));
+		DebuggerCategory->AddTextLine(FString::Printf(TEXT("{green}PlayerDegree:{white} %.2f"), PlayerDegree));
+		DebuggerCategory->AddTextLine(FString::Printf(TEXT("{green}GrassSightRadius:{white} %.0f"), GrassSightRadius));
+		DebuggerCategory->AddTextLine(FString::Printf(TEXT("{green}SenseDebug:{white} %s"), bEnableDebugDraw ? TEXT("On") : TEXT("Off")));
 	}
 
 }

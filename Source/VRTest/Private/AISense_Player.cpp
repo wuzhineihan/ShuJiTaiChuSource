@@ -1,34 +1,28 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "AISense_Player.h"
-#include "AISenseConfig_Player.h" // needed for digested properties
-#include "Perception/AIPerceptionComponent.h" // so we can use the perception system
-#include "Kismet/GameplayStatics.h" // so we can have access to GetPlayerPawn()
 
-
-
-UAISense_Player::FDigestedPlayerProperties::FDigestedPlayerProperties()
-{
-	PlayerRadius = 10.f;
-	PlayerSightDegree = PI/3;
-	bInvisible = false;
-	Target_Actor=nullptr;
-	Last_Target_Location={0,0,0};
-
-}
+#include "AISenseConfig_Player.h"
+#include "Camera/CameraComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Game/Characters/BasePlayer.h"
+#include "Kismet/GameplayStatics.h"
+#include "Perception/AISightTargetInterface.h"
+#include "Perception/AIPerceptionComponent.h"
 
 UAISense_Player::FDigestedPlayerProperties::FDigestedPlayerProperties(const UAISenseConfig_Player& SenseConfig)
 {
 	PlayerRadius = SenseConfig.PlayerRadius;
 	PlayerSightDegree = SenseConfig.PlayerDegree;
-	bInvisible = false;
-	Target_Actor=nullptr;
-	Last_Target_Location={0,0,0};
-
+	GrassSightRadius = SenseConfig.GrassSightRadius;
+	bEnableDebugDraw = SenseConfig.bEnableDebugDraw;
+	DebugDrawDuration = SenseConfig.DebugDrawDuration;
+	DebugLineThickness = SenseConfig.DebugLineThickness;
+	DebugVisibleColor = SenseConfig.DebugVisibleColor;
+	DebugBlockedColor = SenseConfig.DebugBlockedColor;
+	DebugRangeColor = SenseConfig.DebugRangeColor;
 }
 
-// inherited initalizer
 UAISense_Player::UAISense_Player(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -37,172 +31,215 @@ UAISense_Player::UAISense_Player(const FObjectInitializer& ObjectInitializer)
 	OnListenerRemovedDelegate.BindUObject(this, &UAISense_Player::OnListenerRemovedImpl);
 }
 
-
 float UAISense_Player::Update()
 {
-
-	// GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"init:");
 	const UWorld* World = GEngine->GetWorldFromContextObject(GetPerceptionSystem()->GetOuter(), EGetWorldErrorMode::LogAndReturnNull);
-	
 	if (World == nullptr)
 	{
-		return SuspendNextUpdate; // defined in the perception component.
+		return SuspendNextUpdate;
+	}
+
+	ABasePlayer* PlayerCharacter = ResolvePlayerCharacter(World);
+	if (!IsValid(PlayerCharacter))
+	{
+		return SuspendNextUpdate;
 	}
 
 	AIPerception::FListenerMap& ListenersMap = *GetListeners();
-
-	// Because we are not using a query system for our perception, we need to get our listerners from our map in another manner
-	for (auto& Target : ListenersMap)
+	for (auto& ListenerPair : ListenersMap)
 	{
-		FPerceptionListener& Listener = Target.Value;
-		const AActor* LisenerBodyActor = Listener.GetBodyActor();
-		// Run Detection event
-		// FCollisionShape DetectionSphere = FCollisionShape::MakeSphere(DigestedProperties[Listener.GetListenerID()].PlayerRadius); 
-		// TArray<FHitResult> HitResultsLocal;
-		// World->SweepMultiByChannel(HitResultsLocal, LisenerBodyActor->GetActorLocation(), LisenerBodyActor->GetActorLocation() + FVector::UpVector * DetectionSphere.GetSphereRadius(), FQuat(), ECollisionChannel::ECC_Pawn, DetectionSphere);
-		bool HasCheck=true;
-		ACLM_Character* player_character = Cast<ACLM_Character>(UGameplayStatics::GetPlayerPawn(World,0));
-		if (player_character == nullptr)
+		FPerceptionListener& Listener = ListenerPair.Value;
+		const FPerceptionListenerID ListenerID = Listener.GetListenerID();
+		FDigestedPlayerProperties* DigestedProperty = DigestedProperties.Find(ListenerID);
+		if (DigestedProperty == nullptr)
 		{
-			return 0.0f;
+			continue;
 		}
-		float distance =(player_character->GetActorLocation() - LisenerBodyActor->GetActorLocation()).Length();
-		
-		if (distance <= DigestedProperties[Listener.GetListenerID()].PlayerRadius)
-		{
-		
-				
-			FVector playerLocation = player_character->GetActorLocation();
-			int32 NumberOfLoSChecksPerformed{0};
-			float OutSightStrength{1.0f};
-			bool hit=player_character->CanBeSeenFrom(Listener.CachedLocation,playerLocation,NumberOfLoSChecksPerformed,OutSightStrength,LisenerBodyActor);
-					
-			if (hit)
-			{
-				float multinum=1.0f;
-				bool bSeem_temp=CheckTargetInRange(player_character,multinum,Listener);
 
-				if(bSeem_temp)
-				{
-					Target.Value.RegisterStimulus(player_character, FAIStimulus(*this, multinum, playerLocation, Listener.CachedLocation));
-					DigestedProperties[Listener.GetListenerID()].bInvisible = true;
-					DigestedProperties[Listener.GetListenerID()].Target_Actor = player_character;
-					DigestedProperties[Listener.GetListenerID()].Last_Target_Location=player_character->GetActorLocation();
-					HasCheck=false;
-				}
-			}
+		const AActor* ListenerBodyActor = Listener.GetBodyActor();
+		if (!IsValid(ListenerBodyActor))
+		{
+			continue;
 		}
-		/*for (size_t i = 0; i < HitResultsLocal.Num(); i++)
-		{	
-			FHitResult HitLocal = HitResultsLocal[i];
-			if (HitLocal.GetActor() == UGameplayStatics::GetPlayerPawn(World, 0))
-			{
-				ACLM_Character* player_character = Cast<ACLM_Character>(HitLocal.GetActor());
-					 
-				if (player_character == nullptr)
-				{
-					return 0.0f;
-				}
-				
-				FVector playerLocation = player_character->GetActorLocation();
-				int32 NumberOfLoSChecksPerformed{0};
-				float OutSightStrength{1.0f};
-				bool hit=player_character->CanBeSeenFrom(Listener.CachedLocation,playerLocation,NumberOfLoSChecksPerformed,OutSightStrength,LisenerBodyActor);
-					
-				if (hit)
-				{
-					float multinum=1.0f;
-					bool bSeem_temp=CheckTargetInRange(player_character,multinum,Listener);
 
-					if(bSeem_temp)
-					{
-						Target.Value.RegisterStimulus(HitLocal.GetActor(), FAIStimulus(*this, multinum, playerLocation, Listener.CachedLocation));
-						DigestedProperties[Listener.GetListenerID()].bInvisible = true;
-						DigestedProperties[Listener.GetListenerID()].Target_Actor = player_character;
-						DigestedProperties[Listener.GetListenerID()].Last_Target_Location=player_character->GetActorLocation();
-						HasCheck=false;
-					}
-				}
-			}
-		}*/
-		if(HasCheck)
+		float StimulusStrength = 0.0f;
+		const bool bInRange = CheckTargetInRange(PlayerCharacter, StimulusStrength, Listener);
+
+		FVector SeenLocation = PlayerCharacter->GetActorLocation();
+		float OutSightStrength = 0.0f;
+		const bool bHasLineOfSight = bInRange && PerformLineOfSightCheck(PlayerCharacter, Listener, SeenLocation, OutSightStrength);
+
+		DrawDebugInfo(Listener, PlayerCharacter, bInRange, bHasLineOfSight, SeenLocation);
+
+		if (bHasLineOfSight)
 		{
-			if(DigestedProperties[Listener.GetListenerID()].bInvisible)
-			{
-				DigestedProperties[Listener.GetListenerID()].bInvisible = false;
-				Target.Value.RegisterStimulus(DigestedProperties[Listener.GetListenerID()].Target_Actor, FAIStimulus(*this, -1, DigestedProperties[Listener.GetListenerID()].Last_Target_Location, Listener.CachedLocation,FAIStimulus::SensingFailed));
-			}
+			Listener.RegisterStimulus(PlayerCharacter, FAIStimulus(*this, StimulusStrength, SeenLocation, Listener.CachedLocation));
+			DigestedProperty->bHasVisibleTarget = true;
+			DigestedProperty->LastTargetActor = PlayerCharacter;
+			DigestedProperty->LastTargetLocation = SeenLocation;
+		}
+		else if (DigestedProperty->bHasVisibleTarget && DigestedProperty->LastTargetActor.IsValid())
+		{
+			DigestedProperty->bHasVisibleTarget = false;
+			Listener.RegisterStimulus(
+				DigestedProperty->LastTargetActor.Get(),
+				FAIStimulus(*this, -1.0f, DigestedProperty->LastTargetLocation, Listener.CachedLocation, FAIStimulus::SensingFailed));
 		}
 	}
+
 	return 0.0f;
 }
 
 void UAISense_Player::OnNewListenerImpl(const FPerceptionListener& NewListener)
 {
-	// Establish lister and sense
-	UAIPerceptionComponent* NewListenerPtr = NewListener.Listener.Get();
-	check(NewListenerPtr);
-	const UAISenseConfig_Player* SenseConfig = Cast<const UAISenseConfig_Player>(NewListenerPtr->GetSenseConfig(GetSenseID()));
+	UAIPerceptionComponent* NewListenerComponent = NewListener.Listener.Get();
+	check(NewListenerComponent);
+
+	const UAISenseConfig_Player* SenseConfig = Cast<const UAISenseConfig_Player>(NewListenerComponent->GetSenseConfig(GetSenseID()));
 	check(SenseConfig);
-	// Consume properties
-	FDigestedPlayerProperties PropertyDigest(*SenseConfig);
-	DigestedProperties.Add(NewListener.GetListenerID(), PropertyDigest);
-	//绑定属性
-	RequestImmediateUpdate(); // optional. If we were using queries you'd strike this for the GenerateQueriesFobrListener() call instead
+
+	DigestedProperties.Add(NewListener.GetListenerID(), FDigestedPlayerProperties(*SenseConfig));
+	RequestImmediateUpdate();
 }
 
 void UAISense_Player::OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener)
 {
+	UAIPerceptionComponent* ListenerComponent = UpdatedListener.Listener.Get();
+	if (!ListenerComponent)
+	{
+		return;
+	}
+
+	const UAISenseConfig_Player* SenseConfig = Cast<const UAISenseConfig_Player>(ListenerComponent->GetSenseConfig(GetSenseID()));
+	if (!SenseConfig)
+	{
+		return;
+	}
+
+	DigestedProperties.FindOrAdd(UpdatedListener.GetListenerID()) = FDigestedPlayerProperties(*SenseConfig);
+	RequestImmediateUpdate();
 }
 
 void UAISense_Player::OnListenerRemovedImpl(const FPerceptionListener& RemovedListener)
 {
+	DigestedProperties.Remove(RemovedListener.GetListenerID());
 }
 
-
-bool UAISense_Player::CheckTargetInRange(ACLM_Character* InTarget, float& multinum, FPerceptionListener& Listener)
+ABasePlayer* UAISense_Player::ResolvePlayerCharacter(const UWorld* World) const
 {
-	float warning_sight;
-	
-	FVector playerLocation=InTarget->GetActorLocation();
-	const AActor* LisenerBodyActor = Listener.GetBodyActor();
-	FVector Diraction =playerLocation-LisenerBodyActor->GetActorLocation();
-	float warning_sight_degree =DigestedProperties[Listener.GetListenerID()].PlayerSightDegree;
-	if(InTarget->bIsInGrass)
-	{
-		warning_sight=150.0f;
-	}
-	else
-	{
-		warning_sight = DigestedProperties[Listener.GetListenerID()].PlayerRadius;
+	return World ? Cast<ABasePlayer>(UGameplayStatics::GetPlayerPawn(World, 0)) : nullptr;
+}
 
+bool UAISense_Player::CheckTargetInRange(const ABasePlayer* InTarget, float& OutStrength, const FPerceptionListener& Listener) const
+{
+	const FDigestedPlayerProperties* DigestedProperty = DigestedProperties.Find(Listener.GetListenerID());
+	const AActor* ListenerBodyActor = Listener.GetBodyActor();
+	if (!DigestedProperty || !IsValid(InTarget) || !IsValid(ListenerBodyActor))
+	{
+		return false;
 	}
-	float Check_Angle = FMath::Acos(FVector::DotProduct(Diraction.GetSafeNormal(), LisenerBodyActor->GetActorForwardVector()));
-	
-	//前方
-	if(Check_Angle <= warning_sight_degree && Diraction.Size() <= warning_sight){
-		multinum = (-9.0f*FMath::Square((playerLocation-Listener.CachedLocation).Size()/warning_sight)+10)*FMath::Cos(Check_Angle);
-		//调用一次敌人的ui函数，并且传入一个参数
-		//不同条件执行不同函数计算参数
+
+	const FVector PlayerLocation = InTarget->GetActorLocation();
+	const FVector Direction = PlayerLocation - ListenerBodyActor->GetActorLocation();
+	const float Distance = Direction.Size();
+
+	const float EffectiveSightRadius = InTarget->GetTrackOrigin() ? DigestedProperty->PlayerRadius : DigestedProperty->GrassSightRadius;
+	if (Distance > EffectiveSightRadius || EffectiveSightRadius <= 0.0f)
+	{
+		return false;
+	}
+
+	const float Dot = FVector::DotProduct(Direction.GetSafeNormal(), ListenerBodyActor->GetActorForwardVector());
+	const float CheckAngle = FMath::Acos(FMath::Clamp(Dot, -1.0f, 1.0f));
+	const float SightDegree = DigestedProperty->PlayerSightDegree;
+
+	if (CheckAngle <= SightDegree)
+	{
+		OutStrength = (-9.0f * FMath::Square(Distance / EffectiveSightRadius) + 10.0f) * FMath::Cos(CheckAngle);
 		return true;
 	}
-	//侧后方
-	if((PI/2 <= Check_Angle) && Check_Angle<=PI*5/6 && Diraction.Size() <= 150.0f){
-		multinum=4.0f;
+
+	if (CheckAngle >= PI / 2.0f && CheckAngle <= PI * 5.0f / 6.0f && Distance <= DigestedProperty->GrassSightRadius)
+	{
+		OutStrength = 4.0f;
 		return true;
 	}
-	
-	//正后方
-	if(PI*5/6 < Check_Angle && Diraction.Size() <= 150.0f){
-		multinum=2.0f;
+
+	if (CheckAngle > PI * 5.0f / 6.0f && Distance <= DigestedProperty->GrassSightRadius)
+	{
+		OutStrength = 2.0f;
 		return true;
 	}
-	
-	//侧前方
-	if( warning_sight_degree < Check_Angle && Check_Angle < PI/2 && Diraction.Size() <= warning_sight / 2){
-		multinum = (-9.0f*FMath::Square((playerLocation-Listener.CachedLocation).Size()/warning_sight)+10)*FMath::Cos(Check_Angle);
+
+	if (CheckAngle > SightDegree && CheckAngle < PI / 2.0f && Distance <= EffectiveSightRadius * 0.5f)
+	{
+		OutStrength = (-9.0f * FMath::Square(Distance / EffectiveSightRadius) + 10.0f) * FMath::Cos(CheckAngle);
 		return true;
 	}
-	
-return false;
+
+	return false;
+}
+
+bool UAISense_Player::PerformLineOfSightCheck(const ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength) const
+{
+	if (!IsValid(TargetPlayer))
+	{
+		return false;
+	}
+
+	if (const IAISightTargetInterface* SightTarget = Cast<const IAISightTargetInterface>(TargetPlayer))
+	{
+		int32 NumberOfLoSChecksPerformed = 0;
+		return SightTarget->CanBeSeenFrom(
+			Listener.CachedLocation,
+			OutSeenLocation,
+			NumberOfLoSChecksPerformed,
+			OutSightStrength,
+			Listener.GetBodyActor());
+	}
+
+	const UCameraComponent* CameraComponent = TargetPlayer->FindComponentByClass<UCameraComponent>();
+	OutSeenLocation = CameraComponent ? CameraComponent->GetComponentLocation() : TargetPlayer->GetActorLocation();
+
+	FHitResult HitResult;
+	const bool bHit = TargetPlayer->GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		Listener.CachedLocation,
+		OutSeenLocation,
+		ECC_Visibility,
+		FCollisionQueryParams(TEXT("SacraPlayerSenseLoS"), false, Listener.GetBodyActor()));
+
+	const bool bVisible = !bHit || (HitResult.GetActor() && HitResult.GetActor()->IsOwnedBy(TargetPlayer));
+	OutSightStrength = bVisible ? 1.0f : 0.0f;
+	return bVisible;
+}
+
+void UAISense_Player::DrawDebugInfo(const FPerceptionListener& Listener, const ABasePlayer* TargetPlayer, bool bInRange, bool bHasLineOfSight, const FVector& SeenLocation) const
+{
+	const FDigestedPlayerProperties* DigestedProperty = DigestedProperties.Find(Listener.GetListenerID());
+	const AActor* ListenerBodyActor = Listener.GetBodyActor();
+	if (!DigestedProperty || !DigestedProperty->bEnableDebugDraw || !IsValid(TargetPlayer) || !IsValid(ListenerBodyActor))
+	{
+		return;
+	}
+
+	UWorld* World = ListenerBodyActor->GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float Duration = DigestedProperty->DebugDrawDuration;
+	const float Thickness = DigestedProperty->DebugLineThickness;
+	const FVector ListenerLocation = ListenerBodyActor->GetActorLocation();
+	const FColor TraceColor = bHasLineOfSight ? DigestedProperty->DebugVisibleColor : DigestedProperty->DebugBlockedColor;
+
+	DrawDebugLine(World, ListenerLocation, SeenLocation, TraceColor, false, Duration, 0, Thickness);
+	DrawDebugSphere(World, SeenLocation, 12.0f, 8, TraceColor, false, Duration);
+	DrawDebugCylinder(World, ListenerLocation, ListenerLocation + FVector(0.0f, 0.0f, 25.0f), DigestedProperty->PlayerRadius, 24, DigestedProperty->DebugRangeColor, false, Duration, 0, Thickness);
+
+	if (!bInRange)
+	{
+		DrawDebugSphere(World, TargetPlayer->GetActorLocation(), 24.0f, 8, DigestedProperty->DebugBlockedColor, false, Duration);
+	}
 }

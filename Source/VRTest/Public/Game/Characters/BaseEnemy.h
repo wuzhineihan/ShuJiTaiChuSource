@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Game/Characters/BaseCharacter.h"
 #include "Grabber/IGrabbable.h"
-#include "Skill/Stasis/IStasisable.h"
 #include "BaseEnemy.generated.h"
 
 /**
@@ -14,14 +13,20 @@
  * 实现 IGrabbable 接口，允许死亡后被拖拽。
  */
 UCLASS()
-class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable, public IStasisable
+class VRTEST_API ABaseEnemy : public ABaseCharacter, public IGrabbable
 {
 	GENERATED_BODY()
 
 public:
 	ABaseEnemy();
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	// Override OnDeath
+	virtual void OnDeath_Implementation() override;
+	virtual void TakeArrowEffect(const FEffect& Effect) override;
+
+#pragma region IGrabbableInterface
 	// ==================== 状态 ====================
-	
 	/** 当前控制此物体的所有手（双手抓取用） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	TSet<UPlayerGrabHand*> ControllingHands;
@@ -29,27 +34,25 @@ public:
 	// ==================== IGrabbable 接口实现 ======================================
 	
 	virtual EGrabType GetGrabType_Implementation() const override;
+
 	virtual UPrimitiveComponent* GetGrabPrimitive_Implementation() const override;
+
 	virtual bool CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const override;
+
 	virtual bool CanBeGrabbedByGravityGlove_Implementation() const override;
+
 	virtual bool SupportsDualHandGrab_Implementation() const override;
+
 	virtual void OnGrabbed_Implementation(UPlayerGrabHand* Hand) override;
+
 	virtual void OnReleased_Implementation(UPlayerGrabHand* Hand) override;
+
 	virtual void OnGrabSelected_Implementation() override;
+
 	virtual void OnGrabDeselected_Implementation() override;
 	
-	// ==================== IStasisable 接口实现 ======================================
-	virtual void EnterStasis_Implementation(double TimeToStasis) override;
-	virtual void ExitStasis_Implementation() override;
-	virtual bool IsInStasis_Implementation() override;
-	virtual bool CanEnterStasis_Implementation() override;
+#pragma endregion IGrabbableInterface
 
-	// Override OnDeath
-	virtual void OnDeath_Implementation() override;
-	
-protected:
-	UFUNCTION(BlueprintCallable)
-	void EnterRagdollMode();
-	
-	bool bIsInStasis = false;	
 };
+
+	

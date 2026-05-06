@@ -3,38 +3,51 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CLM_Character.h"
 #include "Perception/AISense.h"
+
 #include "AISense_Player.generated.h"
 
-class UAISense_Player; // needed for inherited methods
-class UAISenseConfig_Player; // use to avoid circular dependencies
-/**
- * 
- */
+class ABasePlayer;
+class UAISenseConfig_Player;
+
 UCLASS(ClassGroup = AI, config = Game)
 class VRTEST_API UAISense_Player : public UAISense
 {
 	GENERATED_UCLASS_BODY()
-	
+
 	struct FDigestedPlayerProperties
 	{
-		float PlayerRadius;
-		float PlayerSightDegree;
-		bool bInvisible;
-		FVector Last_Target_Location;
-        AActor* Target_Actor;
-		FDigestedPlayerProperties();
-		FDigestedPlayerProperties(const UAISenseConfig_Player& SenseConfig);
+		float PlayerRadius = 1000.0f;
+		float PlayerSightDegree = PI / 3.0f;
+		float GrassSightRadius = 150.0f;
+		bool bEnableDebugDraw = false;
+		float DebugDrawDuration = 0.0f;
+		float DebugLineThickness = 1.0f;
+		FColor DebugVisibleColor = FColor::Green;
+		FColor DebugBlockedColor = FColor::Red;
+		FColor DebugRangeColor = FColor::Green;
+
+		bool bHasVisibleTarget = false;
+		FVector LastTargetLocation = FVector::ZeroVector;
+		TWeakObjectPtr<AActor> LastTargetActor = nullptr;
+
+		FDigestedPlayerProperties() = default;
+		explicit FDigestedPlayerProperties(const UAISenseConfig_Player& SenseConfig);
 	};
 
-	// using an array instead of a map
-    TMap<FPerceptionListenerID,FDigestedPlayerProperties> DigestedProperties;
-	bool do_once=true;	
 protected:
 	virtual float Update() override;
+
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
 	void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
-	bool CheckTargetInRange(ACLM_Character* InTarget,float& multinum,FPerceptionListener& Listener);
+
+private:
+	ABasePlayer* ResolvePlayerCharacter(const UWorld* World) const;
+	bool CheckTargetInRange(const ABasePlayer* InTarget, float& OutStrength, const FPerceptionListener& Listener) const;
+	bool PerformLineOfSightCheck(const ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength) const;
+	void DrawDebugInfo(const FPerceptionListener& Listener, const ABasePlayer* TargetPlayer, bool bInRange, bool bHasLineOfSight, const FVector& SeenLocation) const;
+
+private:
+	TMap<FPerceptionListenerID, FDigestedPlayerProperties> DigestedProperties;
 };

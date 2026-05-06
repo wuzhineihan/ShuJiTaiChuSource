@@ -25,6 +25,27 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0,UIMax = 1.57, ClampMax = 1.57))
 	float PlayerDegree{ PI/3 };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0))
+	float GrassSightRadius{ 150.0f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config)
+	bool bEnableDebugDraw = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config, meta = (UIMin = 0.0, ClampMin = 0.0))
+	float DebugDrawDuration = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config, meta = (UIMin = 0.1, ClampMin = 0.1))
+	float DebugLineThickness = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config)
+	FColor DebugVisibleColor = FColor::Green;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config)
+	FColor DebugBlockedColor = FColor::Red;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Debug", config)
+	FColor DebugRangeColor = FColor::Green;
 	
 	//UPROPERTY(EditDefaultsOnly,Category="Sense",config,meta=(UIMin = 0.0, ClampMin = 0.00))
 	//TArray<FVector3d> Points_location;
