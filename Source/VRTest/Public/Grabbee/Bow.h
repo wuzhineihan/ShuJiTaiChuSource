@@ -29,6 +29,7 @@ UCLASS()
 class VRTEST_API ABow : public AGrabbeeWeapon
 {
 	GENERATED_BODY()
+	friend class ABasePCPlayer;
 	
 public:	
 	ABow();

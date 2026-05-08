@@ -13,6 +13,7 @@ class AGrabbeeWeapon;
 class UInventoryComponent;
 class UPhysicsHandleComponent;
 class USphereComponent;
+class UPrimitiveComponent;
 class ABasePlayer;
 class UAudioSubsystem;
 
@@ -129,6 +130,14 @@ public:
 	/** 抓取锁：为 true 时禁止 TryGrab/TryRelease（技能系统用，允许直接调用 GrabObject/ReleaseObject） */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab|State")
 	bool bGrabLocked = false;
+
+	/** PC 抓取时临时改为 NoCollision 的组件（释放时恢复） */
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UPrimitiveComponent> HeldCollisionComponent;
+
+	/** 抓取前缓存的碰撞 Profile（仅 PC） */
+	UPROPERTY(Transient)
+	FName CachedHeldCollisionProfile = NAME_None;
 
 	// ==================== 缓存组件 ====================
 

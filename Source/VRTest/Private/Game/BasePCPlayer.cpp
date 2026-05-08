@@ -16,6 +16,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Game/PCClimbLadderComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -35,6 +36,8 @@ ABasePCPlayer::ABasePCPlayer()
 	CameraCollision->SetCollisionProfileName(CP_PLAYER_CAMERA_COLLISION);
 	CameraCollision->SetGenerateOverlapEvents(true);
 	CameraCollision->SetCanEverAffectNavigation(false);
+
+	PCClimbLadderComponent = CreateDefaultSubobject<UPCClimbLadderComponent>(TEXT("PCClimbLadderComponent"));
 
 	// 鍒涘缓宸︽墜
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
@@ -120,26 +123,28 @@ void ABasePCPlayer::Tick(float DeltaTime)
 
 void ABasePCPlayer::SetBowArmed(bool bArmed)
 {
-	// 閫€鍑哄紦绠ā寮忔椂�?PC 鐗规湁娓呯悊
 	if (bIsBowArmed && !bArmed)
 	{
-		// 濡傛灉姝ｅ湪鎷夊紦锛岀洿鎺ュ彂灏勶紙涓嶈兘鍙栨秷鎷夊紦�?
 		if (bIsDrawingBow)
 		{
-			ReleaseBowString();
+			CancelDrawBow();
 		}
-		
-		// 鍋滄鐬勫噯
+
 		if (bIsAiming)
 		{
 			StopAiming();
 		}
-	}
-	
-	Super::SetBowArmed(bArmed);
-}
 
-// ==================== 杈撳叆澶勭悊 ====================
+		CleanupPreparedArrowWhenExitBowMode();
+	}
+
+	Super::SetBowArmed(bArmed);
+
+	if (bArmed)
+	{
+		EnsurePreparedArrowInRightHand();
+	}
+}
 
 void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 {
@@ -204,23 +209,13 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 }
 void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
 {
-	switch (EMovementMode MovementMode = GetCharacterMovement()->MovementMode)
+	if (PCClimbLadderComponent)
 	{
-	case MOVE_Walking:
-			AddMovementInput(GetActorRightVector(), MoveInput.X);
-			AddMovementInput(GetActorForwardVector(), MoveInput.Y);
-		break;
-	case MOVE_Flying:
-		{
-			const FRotator Rotation = GetControlRotation();
-			const FRotator YawRotation(0, Rotation.Yaw, 0);
-			const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-			AddMovementInput(Rotation.Vector(), MoveInput.Y);
-			AddMovementInput(RightDirection, MoveInput.X);
-		}
-		break;
-	default:
-		break;
+		const FRotator Rotation = GetControlRotation();
+		const FRotator YawRotation(0.0f, Rotation.Yaw, 0.0f);
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		PCClimbLadderComponent->HandleMoveInput(ForwardDirection, RightDirection, MoveInput);
 	}
 }
 
@@ -242,19 +237,24 @@ void ABasePCPlayer::StopStarDraw()
 
 void ABasePCPlayer::IgniteBySight()
 {
-	if (!bCanIgniteBySight)
+	if (!bCanIgniteBySight || !bIsBowArmed)
 	{
 		return;
 	}
 
-	if (!bIsDrawingBow || !CurrentBow)
+	AArrow* ArrowToIgnite = nullptr;
+	if (CurrentBow && CurrentBow->NockedArrow)
 	{
-		return;
+		ArrowToIgnite = CurrentBow->NockedArrow;
+	}
+	else
+	{
+		ArrowToIgnite = GetHeldRightHandArrow();
 	}
 
-	if (AArrow* NockedArrow = CurrentBow->NockedArrow)
+	if (ArrowToIgnite)
 	{
-		NockedArrow->CatchFire();
+		ArrowToIgnite->CatchFire();
 	}
 }
 
@@ -395,92 +395,62 @@ void ABasePCPlayer::StartAiming()
 	}
 
 	bIsAiming = true;
-	
-	// 灏嗗乏鎵嬪钩婊戣繃娓″埌鐬勫噯浣嶇疆
 	PCLeftHand->InterpToTransform(AimingLeftHandTransform);
+
+	if (EnsurePreparedArrowInRightHand())
+	{
+		NockPreparedArrowFromRightHand();
+	}
 }
 
 void ABasePCPlayer::StopAiming()
 {
-	// 濡傛灉姝ｅ湪鎷夊紦锛岀洿鎺ュ彂灏勶紙涓嶈兘鍙栨秷鎷夊紦�?
 	if (bIsDrawingBow)
 	{
-		ReleaseBowString();
+		CancelDrawBow();
 	}
 
 	bIsAiming = false;
-	
-	// 宸︽墜鍥炲埌榛樿浣嶇疆
 	PCLeftHand->InterpToDefaultTransform();
 
-	// 娓呯悊鏈彂灏勭殑绠?
-	// 鎯呭�?锛氱杩樺湪鍙虫墜涓紙鏈紑濮嬫媺寮擄�?
-	AArrow* HeldArrow = Cast<AArrow>(PCRightHand->HeldActor);
-	if (HeldArrow)
-	{
-		PCRightHand->ReleaseObject();
-		if (InventoryComponent)
-		{
-			InventoryComponent->TryStoreArrow();
-		}
-		HeldArrow->Destroy();
-	}
+	UnnockArrowToRightHand();
 }
 
 void ABasePCPlayer::StartDrawBow()
 {
-	if (!bIsAiming)
+	if (!bIsAiming || !CurrentBow || bIsDrawingBow)
 	{
 		return;
 	}
 
-	if (!CurrentBow)
+	if (!CurrentBow->NockedArrow)
 	{
-		return;
+		if (!EnsurePreparedArrowInRightHand() || !NockPreparedArrowFromRightHand())
+		{
+			PlayNoArrowSound();
+			return;
+		}
 	}
-
-	// 妫€鏌ュ簱瀛樻槸鍚︽湁�?
-	if (!InventoryComponent || !InventoryComponent->HasArrow())
-	{
-		PlayNoArrowSound();
-		return;
-	}
-
-	// 浠庡簱瀛樺彇鍑虹
-	FTransform SpawnTransform;
-	SpawnTransform.SetLocation(PCRightHand->GetComponentLocation());
-	SpawnTransform.SetRotation(PCRightHand->GetComponentRotation().Quaternion());
-	
-	AGrabbeeObject* ArrowActor = InventoryComponent->TryRetrieveArrow(SpawnTransform);
-	if (!ArrowActor)
-	{
-		PlayNoArrowSound();
-		return;
-	}
-
-	// 璁╁彸鎵嬫姄浣忕�?
-	PCRightHand->GrabObject(ArrowActor);
 
 	bIsDrawingBow = true;
 
-	// 璁＄畻寮撳鸡浣嶇�?
-	FVector StringRestPos = CurrentBow->StringRestPosition ? 
-		CurrentBow->StringRestPosition->GetComponentLocation() : 
+	FVector StringRestPos = CurrentBow->StringRestPosition ?
+		CurrentBow->StringRestPosition->GetComponentLocation() :
 		CurrentBow->StringMesh->GetComponentLocation();
-	
-	// 灏嗗彸鎵嬬Щ鍔ㄥ埌寮撳鸡浣嶇疆锛堜繚鎸佺幇鏈夐€昏緫锛氬厛鎶婃墜鏀惧埌寮﹂檮杩戯紝纭繚鎼/鎶撳鸡閫昏緫鑳藉鐢級
+
 	FTransform StringTransform;
 	StringTransform.SetLocation(StringRestPos);
 	StringTransform.SetRotation(CurrentBow->GetActorRotation().Quaternion());
 	PCRightHand->SetWorldTransform(StringTransform);
 
-	// PC 妯″紡锛氬鏋滃彸鎵嬫鏃跺凡缁忓湪寮撳鸡纰版挒鍖哄煙鍐咃紝BeginOverlap 涓嶄細鍐嶆瑙﹀彂銆?
-	// 涓诲姩璋冪敤 Bow 鐨勬帴鍙ｅ�?OnStringCollisionBeginOverlap 鐨勬惌绠?鎶撳鸡閫昏緫�?
-	CurrentBow->TryHandleStringHandEnter(PCRightHand);
+	CurrentBow->bStringHeld = true;
+	CurrentBow->StringHoldingHand = PCRightHand;
+	CurrentBow->InitialStringGrabOffset = StringRestPos - PCRightHand->GetComponentLocation();
+	if (CurrentBow->ArrowTracePreview)
+	{
+		CurrentBow->ArrowTracePreview->SetVisibility(CurrentBow->NockedArrow != nullptr);
+	}
 
-	// PC 绠€鍖栨柟妗堬細鍥哄畾鎷夊紦
-	// 鐢ㄢ€滄憚鍍忔満鍓嶅悜鐨勫弽鏂瑰悜鈥濇妸鍙虫墜鎷夊埌涓€涓浐瀹氳窛绂伙紙鐩稿鎽勫儚鏈哄潗鏍囩郴锛夛�?
-	// 杩欐�?Bow::UpdateStringPosition 浼氳嚜鐒朵骇�?CurrentPullLength锛屼粠鑰屽彂灏勯€熷害鐢?Bow 缁熶竴璁＄畻�?
 	if (FirstPersonCamera && PCRightHand)
 	{
 		const FVector PullDirWorld = -FirstPersonCamera->GetForwardVector().GetSafeNormal();
@@ -495,13 +465,47 @@ void ABasePCPlayer::StartDrawBow()
 	}
 }
 
+void ABasePCPlayer::CancelDrawBow()
+{
+	if (!bIsDrawingBow)
+	{
+		return;
+	}
+
+	bIsDrawingBow = false;
+
+	ReleasePCStringHoldWithoutFiring();
+
+	if (CurrentBow)
+	{
+		const FVector RestPos = CurrentBow->StringRestPosition ? CurrentBow->StringRestPosition->GetComponentLocation() : CurrentBow->StringMesh->GetComponentLocation();
+		CurrentBow->CurrentGrabSpot = RestPos;
+		CurrentBow->CurrentPullLength = 0.0f;
+		CurrentBow->StringVelocity = FVector::ZeroVector;
+		CurrentBow->bPlayedTightSound = false;
+
+		if (CurrentBow->StringMID)
+		{
+			CurrentBow->StringMID->SetVectorParameterValue(FName(TEXT("GrabSpot")), FLinearColor(RestPos));
+		}
+		if (CurrentBow->ArrowTracePreview)
+		{
+			CurrentBow->ArrowTracePreview->SetVisibility(false);
+		}
+	}
+
+	if (PCRightHand)
+	{
+		PCRightHand->InterpToDefaultTransform();
+	}
+}
 void ABasePCPlayer::StopDrawBow()
 {
 	// DEPRECATED: 涓€鏃﹀紑濮嬫媺寮撳氨涓嶈兘鍙栨秷锛屾澗鎵嬫垨鍒囨崲妯″紡閮戒細鐩存帴鍙戝�?
 	// 姝ゅ嚱鏁颁繚鐣欑敤浜庡吋瀹癸紝浣嗗唴閮ㄧ洿鎺ヨ皟�?ReleaseBowString
 	if (bIsDrawingBow)
 	{
-		ReleaseBowString();
+		CancelDrawBow();
 	}
 }
 
@@ -514,14 +518,15 @@ void ABasePCPlayer::ReleaseBowString()
 
 	bIsDrawingBow = false;
 
-	// 閲婃斁寮撳鸡锛堣Е�?OnReleased �?鍙戝皠锛?
-	if (PCRightHand && PCRightHand->bIsHolding && PCRightHand->HeldActor == CurrentBow)
+	if (CurrentBow)
 	{
-		PCRightHand->ReleaseObject();
+		CurrentBow->ReleaseString();
 	}
 
-	// 鍙虫墜鍥炲埌榛樿浣嶇疆
-	PCRightHand->InterpToDefaultTransform();
+	if (PCRightHand)
+	{
+		PCRightHand->InterpToDefaultTransform();
+	}
 }
 
 // ==================== 鍐呴儴鍑芥暟 ====================
@@ -535,7 +540,6 @@ void ABasePCPlayer::UpdateTargetDetection()
 
 	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 
-	// Ignite target detection for UI and manual ignite input.
 	bool bSightHitsIgniteTarget = false;
 	bCanIgniteBySight = false;
 	IgniteBySightImpactPoint = FVector::ZeroVector;
@@ -550,10 +554,10 @@ void ABasePCPlayer::UpdateTargetDetection()
 			}
 		}
 	}
-	const bool bHasNockedArrow = bIsDrawingBow && CurrentBow && CurrentBow->NockedArrow != nullptr;
-	bCanIgniteBySight = bSightHitsIgniteTarget && bHasNockedArrow;
 
-	// In bow mode, skip grab target selection but keep ignite detection.
+	const bool bHasPreparedArrow = (CurrentBow && CurrentBow->NockedArrow != nullptr) || (GetHeldRightHandArrow() != nullptr);
+	bCanIgniteBySight = bIsBowArmed && bSightHitsIgniteTarget && bHasPreparedArrow;
+
 	if (bIsBowArmed)
 	{
 		if (TargetedObject && IsValid(TargetedObject))
@@ -663,6 +667,191 @@ void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 }
 
 
+AArrow* ABasePCPlayer::GetHeldRightHandArrow() const
+{
+	if (!PCRightHand || !PCRightHand->bIsHolding)
+	{
+		return nullptr;
+	}
+	return Cast<AArrow>(PCRightHand->HeldActor);
+}
+
+bool ABasePCPlayer::EnsurePreparedArrowInRightHand()
+{
+	if (!bIsBowArmed || !PCRightHand)
+	{
+		return false;
+	}
+
+	if (CurrentBow && CurrentBow->NockedArrow)
+	{
+		return true;
+	}
+
+	if (GetHeldRightHandArrow())
+	{
+		return true;
+	}
+
+	if (!InventoryComponent || !InventoryComponent->HasArrow())
+	{
+		return false;
+	}
+
+	const FTransform SpawnTransform = PCRightHand->GetComponentTransform();
+	AGrabbeeObject* Spawned = InventoryComponent->TryRetrieveArrow(SpawnTransform);
+	AArrow* Arrow = Cast<AArrow>(Spawned);
+	if (!Arrow)
+	{
+		if (Spawned)
+		{
+			Spawned->Destroy();
+		}
+		return false;
+	}
+
+	PCRightHand->GrabObject(Arrow);
+	return GetHeldRightHandArrow() == Arrow;
+}
+
+bool ABasePCPlayer::NockPreparedArrowFromRightHand()
+{
+	if (!CurrentBow || !PCRightHand)
+	{
+		return false;
+	}
+
+	if (CurrentBow->NockedArrow)
+	{
+		return true;
+	}
+
+	AArrow* HeldArrow = GetHeldRightHandArrow();
+	if (!HeldArrow)
+	{
+		return false;
+	}
+
+	PCRightHand->ReleaseObject();
+	if (!CurrentBow->NockArrow(HeldArrow))
+	{
+		PCRightHand->GrabObject(HeldArrow);
+		return false;
+	}
+
+	return CurrentBow->NockedArrow == HeldArrow;
+}
+
+bool ABasePCPlayer::UnnockArrowToRightHand()
+{
+	if (!CurrentBow || !PCRightHand)
+	{
+		return false;
+	}
+
+	ReleasePCStringHoldWithoutFiring();
+
+	if (!CurrentBow->NockedArrow)
+	{
+		const FVector RestPos = CurrentBow->StringRestPosition ? CurrentBow->StringRestPosition->GetComponentLocation() : CurrentBow->StringMesh->GetComponentLocation();
+		CurrentBow->CurrentGrabSpot = RestPos;
+		CurrentBow->CurrentPullLength = 0.0f;
+		CurrentBow->StringVelocity = FVector::ZeroVector;
+		CurrentBow->bPlayedTightSound = false;
+		if (CurrentBow->StringMID)
+		{
+			CurrentBow->StringMID->SetVectorParameterValue(FName(TEXT("GrabSpot")), FLinearColor(RestPos));
+		}
+		if (CurrentBow->ArrowTracePreview)
+		{
+			CurrentBow->ArrowTracePreview->SetVisibility(false);
+		}
+		return true;
+	}
+
+	AArrow* NockedArrow = CurrentBow->NockedArrow;
+	CurrentBow->UnnockArrow();
+
+	const FVector RestPos = CurrentBow->StringRestPosition ? CurrentBow->StringRestPosition->GetComponentLocation() : CurrentBow->StringMesh->GetComponentLocation();
+	CurrentBow->CurrentGrabSpot = RestPos;
+	CurrentBow->CurrentPullLength = 0.0f;
+	CurrentBow->StringVelocity = FVector::ZeroVector;
+	CurrentBow->bPlayedTightSound = false;
+	if (CurrentBow->StringMID)
+	{
+		CurrentBow->StringMID->SetVectorParameterValue(FName(TEXT("GrabSpot")), FLinearColor(RestPos));
+	}
+	if (CurrentBow->ArrowTracePreview)
+	{
+		CurrentBow->ArrowTracePreview->SetVisibility(false);
+	}
+
+	PCRightHand->GrabObject(NockedArrow);
+	return GetHeldRightHandArrow() == NockedArrow;
+}
+void ABasePCPlayer::ReleasePCStringHoldWithoutFiring()
+{
+	if (!CurrentBow || !PCRightHand)
+	{
+		return;
+	}
+
+	if (CurrentBow->bStringHeld && CurrentBow->StringHoldingHand == PCRightHand)
+	{
+		CurrentBow->bStringHeld = false;
+		CurrentBow->StringHoldingHand = nullptr;
+	}
+
+	if (CurrentBow->InStringCollisionHand == PCRightHand)
+	{
+		CurrentBow->InStringCollisionHand = nullptr;
+	}
+
+	if (PCRightHand->HeldActor == CurrentBow)
+	{
+		PCRightHand->HeldActor = nullptr;
+		PCRightHand->HeldGrabType = EGrabType::None;
+		PCRightHand->bIsHolding = false;
+		PCRightHand->GrabbedBoneName = NAME_None;
+	}
+}
+void ABasePCPlayer::CleanupPreparedArrowWhenExitBowMode()
+{
+	if (CurrentBow && CurrentBow->NockedArrow)
+	{
+		if (!UnnockArrowToRightHand())
+		{
+			AArrow* NockedArrow = CurrentBow->NockedArrow;
+			CurrentBow->UnnockArrow();
+			StoreAndDestroyArrow(NockedArrow);
+		}
+	}
+
+	if (AArrow* HeldArrow = GetHeldRightHandArrow())
+	{
+		StoreAndDestroyArrow(HeldArrow);
+	}
+}
+
+void ABasePCPlayer::StoreAndDestroyArrow(AArrow* Arrow)
+{
+	if (!Arrow)
+	{
+		return;
+	}
+
+	if (PCRightHand && PCRightHand->HeldActor == Arrow)
+	{
+		PCRightHand->ReleaseObject();
+	}
+
+	if (InventoryComponent)
+	{
+		InventoryComponent->TryStoreArrow();
+	}
+
+	Arrow->Destroy();
+}
 void ABasePCPlayer::PlayNoArrowSound()
 {
 	// TODO: 

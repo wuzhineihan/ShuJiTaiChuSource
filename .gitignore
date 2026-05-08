@@ -25,6 +25,7 @@ Build/
 
 # --- Plugins (Split) ---
 # Ignore Plugin Content and Binaries (P4 or Generated)
+Plugins/
 Plugins/*/Content/
 Plugins/*/Binaries/
 Plugins/*/Intermediate/
