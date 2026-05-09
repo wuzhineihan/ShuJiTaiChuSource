@@ -1,0 +1,10 @@
+* text=auto
+
+*.h text eol=lf working-tree-encoding=UTF-8
+*.hpp text eol=lf working-tree-encoding=UTF-8
+*.cpp text eol=lf working-tree-encoding=UTF-8
+*.inl text eol=lf working-tree-encoding=UTF-8
+*.cs text eol=lf working-tree-encoding=UTF-8
+*.ini text eol=lf working-tree-encoding=UTF-8
+*.uproject text eol=lf working-tree-encoding=UTF-8
+*.uplugin text eol=lf working-tree-encoding=UTF-8
