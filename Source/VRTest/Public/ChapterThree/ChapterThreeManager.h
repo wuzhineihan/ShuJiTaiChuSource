@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Carriage.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
 #include "ChapterThreeManager.generated.h"
 
 class AHorseEnemySpawnManager;
+class UCarriageChaseSubsystem;
 UCLASS()
 class VRTEST_API AChapterThreeManager : public AActor
 {
@@ -20,6 +22,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:	
 	// Called every frame
@@ -41,7 +44,7 @@ public:
 	UFUNCTION()
 	USceneComponent* AssignChasePoint();
 
-	UFUNCTION(BlueprintCallable,BlueprintImplementableEvent)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void OnChaseOver();
 	
 	
@@ -69,6 +72,44 @@ public:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="ChapterThree",meta=(AllowPrivateAccess=true))
 	int initHorseEnemyNums = 2;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="ChapterThree", meta=(AllowPrivateAccess=true, ClampMin="0.01"))
+	float SpawnInterval = 5.0f;
+
 	UPROPERTY()
 	bool bStart = false;
+
+private:
+	void SyncBattleState();
+	void HandleBattleStopped(bool bReachedDestination);
+
+	UFUNCTION()
+	void HandleChapterStartBoxBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult);
+
+	void EnsureChapterStartTrigger();
+	void HandleChaseOver();
+
+private:
+	UPROPERTY(VisibleAnywhere, Category="ChapterThree", meta=(AllowPrivateAccess=true))
+	TObjectPtr<USceneComponent> DefaultSceneRoot;
+
+	UPROPERTY(VisibleAnywhere, Category="ChapterThree", meta=(AllowPrivateAccess=true))
+	TObjectPtr<UBoxComponent> ChapterThreeStartBox;
+
+	UPROPERTY(EditAnywhere, Category="ChapterThree|Trigger", meta=(ClampMin="0.0"))
+	FVector ChapterStartBoxExtent = FVector(200.0f, 200.0f, 120.0f);
+
+	UPROPERTY(EditAnywhere, Category="ChapterThree|Trigger")
+	FName ChapterStartTriggerTag = TEXT("player");
+
+	UPROPERTY(Transient)
+	bool bChaseOverNotified = false;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCarriageChaseSubsystem> CachedChaseSubsystem;
 };

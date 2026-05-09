@@ -66,6 +66,19 @@ bool USacraEnemyLoadoutComponent::CanReceiveArrowDamage(const FEffect& Effect) c
 	return EffectContainsFire(Effect);
 }
 
+void USacraEnemyLoadoutComponent::ApplyConfigData(const FSacraEnemyLoadoutConfig& ConfigData)
+{
+	if (!ConfigData.bOverrideLoadoutConfig)
+	{
+		return;
+	}
+
+	bAutoInitializeLoadoutOnBeginPlay = ConfigData.bAutoInitializeLoadoutOnBeginPlay;
+	LoadoutDataAsset = ConfigData.LoadoutDataAsset;
+	bRandomizeAppearance = ConfigData.bRandomizeAppearance;
+	AppearanceIndex = ConfigData.AppearanceIndex;
+}
+
 bool USacraEnemyLoadoutComponent::ResolveOwnerMesh()
 {
 	CachedOwnerCharacter = Cast<ACharacter>(GetOwner());

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 
 #include "SacraEnemyContextComponent.generated.h"
 
@@ -110,6 +111,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Context|Warning")
 	void ClearCachedWarningAnchorLocation();
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Context|Config")
+	void ApplyConfigData(const FSacraEnemyContextConfig& ConfigData);
 
 protected:
 	// ==================== Shared Config ====================

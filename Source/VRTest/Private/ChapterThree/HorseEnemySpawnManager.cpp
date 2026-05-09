@@ -2,8 +2,9 @@
 
 
 #include "ChapterThree/HorseEnemySpawnManager.h"
+#include "ChapterThree/CarriageChaseSubsystem.h"
 #include "Kismet/GameplayStatics.h"
-#include"ChapterThree/ChapterThreeManager.h"
+#include "ChapterThree/EnemyHorseBase.h"
 
 // Sets default values
 AHorseEnemySpawnManager::AHorseEnemySpawnManager()
@@ -17,9 +18,21 @@ AHorseEnemySpawnManager::AHorseEnemySpawnManager()
 void AHorseEnemySpawnManager::BeginPlay()
 {
 	Super::BeginPlay();
-	AActor* manager = UGameplayStatics::GetActorOfClass(GetWorld(), AChapterThreeManager::StaticClass());
-	GlobalManager = Cast<AChapterThreeManager>(manager);
-	GlobalManager->CheckHorseEnemySpawnPoints(this);
+
+	if (UCarriageChaseSubsystem* ChaseSubsystem = UCarriageChaseSubsystem::Get(this))
+	{
+		ChaseSubsystem->RegisterSpawnPoint(this);
+	}
+}
+
+void AHorseEnemySpawnManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UCarriageChaseSubsystem* ChaseSubsystem = UCarriageChaseSubsystem::Get(this))
+	{
+		ChaseSubsystem->UnregisterSpawnPoint(this);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called every frame
@@ -29,4 +42,31 @@ void AHorseEnemySpawnManager::Tick(float DeltaTime)
 
 }
 
+AActor* AHorseEnemySpawnManager::GenerateEnemy_Implementation(USceneComponent* ChasePoint)
+{
+	if (!EnemyHorseClass)
+	{
+		return nullptr;
+	}
 
+	FVector SpawnLocation = GetActorLocation() + FVector(0.0f, 0.0f, 100.0f);
+	const FRotator SpawnRotation = GetActorRotation();
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	SpawnParameters.Owner = this;
+	SpawnParameters.Instigator = nullptr;
+
+	AEnemyHorseBase* SpawnedEnemy = GetWorld()->SpawnActor<AEnemyHorseBase>(
+		EnemyHorseClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParameters);
+	if (!IsValid(SpawnedEnemy))
+	{
+		return nullptr;
+	}
+
+	SpawnedEnemy->SetChasePoint(ChasePoint);
+	return SpawnedEnemy;
+}

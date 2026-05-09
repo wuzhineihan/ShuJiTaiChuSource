@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 #include "GameplayTagContainer.h"
 #include "Perception/AIPerceptionTypes.h"
 #include "TimerManager.h"
@@ -94,6 +95,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Hatred")
 	bool ApplyExternalWarningAlert(const FEnemyWarningAlertMessage& AlertMessage);
+
+	UFUNCTION(BlueprintCallable, Category = "Hatred|Config")
+	void ApplyConfigData(const FSacraEnemyHatredConfig& ConfigData);
 
 	UFUNCTION()
 	void OnPerceptionInfoUpdated(const FActorPerceptionUpdateInfo& UpdateInfo);

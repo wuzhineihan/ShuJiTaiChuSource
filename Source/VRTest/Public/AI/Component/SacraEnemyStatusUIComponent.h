@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
 
 #include "SacraEnemyStatusUIComponent.generated.h"
@@ -26,6 +27,9 @@ public:
 
 	void InitStatusUIComponent();
 	void RefreshStatusUI();
+
+	UFUNCTION(BlueprintCallable, Category = "Enemy UI|Config")
+	void ApplyConfigData(const FSacraEnemyStatusUIConfig& ConfigData);
 
 	UFUNCTION(BlueprintCallable, Category = "Enemy UI|Runtime")
 	void SetStatusUIPaused(bool bInPaused);

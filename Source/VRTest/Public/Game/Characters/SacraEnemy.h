@@ -8,6 +8,7 @@
 #include "SacraEnemy.generated.h"
 
 class USacraEnemyContextComponent;
+class USacraEnemyConfigDataAsset;
 class USacraEnemyLoadoutComponent;
 class USacraEnemyStatusUIComponent;
 class USacraEnemyWeaponComponent;
@@ -21,6 +22,12 @@ public:
 	ASacraEnemy();
 	virtual void PostInitializeComponents() override;
 
+	UFUNCTION(BlueprintPure, Category = "AI|Config")
+	USacraEnemyConfigDataAsset* GetEnemyConfigDataAsset() const { return EnemyConfigDataAsset; }
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Config")
+	void ApplyEnemyConfigDataAsset();
+
 	UFUNCTION(BlueprintPure, Category = "AI|Weapon")
 	USacraEnemyWeaponComponent* GetEnemyWeaponComponent() const { return EnemyWeaponComponent; }
 
@@ -28,6 +35,9 @@ public:
 	USacraEnemyLoadoutComponent* GetEnemyLoadoutComponent() const { return EnemyLoadoutComponent; }
 
 protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Config", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USacraEnemyConfigDataAsset> EnemyConfigDataAsset = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Weapon", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<USacraEnemyWeaponComponent> EnemyWeaponComponentClass;
 

@@ -95,6 +95,35 @@ void USacraEnemyStatusUIComponent::RefreshStatusUI()
 	UpdateWidgetVisibility();
 }
 
+void USacraEnemyStatusUIComponent::ApplyConfigData(const FSacraEnemyStatusUIConfig& ConfigData)
+{
+	if (!ConfigData.bOverrideStatusUIConfig)
+	{
+		return;
+	}
+
+	StatusWidgetClass = ConfigData.StatusWidgetClass;
+	WidgetRelativeLocation = ConfigData.WidgetRelativeLocation;
+	DrawSize = ConfigData.DrawSize;
+	bHideWhenIdle = ConfigData.bHideWhenIdle;
+	MaxVisibleDistance = ConfigData.MaxVisibleDistance;
+
+	if (IsValid(StatusWidgetComponent))
+	{
+		StatusWidgetComponent->SetDrawSize(DrawSize);
+		StatusWidgetComponent->SetRelativeLocation(WidgetRelativeLocation);
+
+		if (StatusWidgetClass)
+		{
+			StatusWidgetComponent->SetWidgetClass(StatusWidgetClass);
+			StatusWidgetComponent->InitWidget();
+			CachedStatusWidget = Cast<USacraEnemyStatusWidget>(StatusWidgetComponent->GetWidget());
+		}
+	}
+
+	RefreshStatusUI();
+}
+
 void USacraEnemyStatusUIComponent::SetStatusUIPaused(bool bInPaused)
 {
 	if (bIsStatusUIPaused == bInPaused)

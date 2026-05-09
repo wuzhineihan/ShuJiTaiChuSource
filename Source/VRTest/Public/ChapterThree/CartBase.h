@@ -61,6 +61,18 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void RestitutionChasePoint(USceneComponent* ChasePoint);
+
+	UFUNCTION(BlueprintPure, Category="ChasePoints")
+	bool HasAvailableChasePoints() const;
+
+	UFUNCTION(BlueprintPure, Category="ChasePoints")
+	int32 GetAvailableChasePointCount() const;
+
+	UFUNCTION(BlueprintCallable, Category="ChasePoints")
+	USceneComponent* AcquireChasePoint();
+
+	UFUNCTION(BlueprintCallable, Category="ChasePoints")
+	void ReleaseChasePoint(USceneComponent* ChasePoint);
 	
 	static FName StaticMeshComponentName;
 

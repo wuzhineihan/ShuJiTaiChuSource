@@ -2,11 +2,13 @@
 
 
 #include "ChapterThree/ChapterThreeManager.h"
+#include "ChapterThree/CarriageChaseSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
 #include "ChapterThree/CartBase.h"
 #include "ChapterThree/EnemyHorseBase.h"
 #include "ChapterThree/HorseEnemySpawnManager.h"
+#include "Components/BoxComponent.h"
 
 // Sets default values
 AChapterThreeManager::AChapterThreeManager()
@@ -14,84 +16,70 @@ AChapterThreeManager::AChapterThreeManager()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
+	RootComponent = DefaultSceneRoot;
+
+	ChapterThreeStartBox = CreateDefaultSubobject<UBoxComponent>(TEXT("ChapterThreeStartBOX_0"));
+	ChapterThreeStartBox->SetupAttachment(DefaultSceneRoot);
+	ChapterThreeStartBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ChapterThreeStartBox->SetCollisionObjectType(ECC_WorldDynamic);
+	ChapterThreeStartBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ChapterThreeStartBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	ChapterThreeStartBox->SetGenerateOverlapEvents(true);
+	ChapterThreeStartBox->SetBoxExtent(ChapterStartBoxExtent);
+
 }
 
 // Called when the game starts or when spawned
 void AChapterThreeManager::BeginPlay()
 {
 	Super::BeginPlay();
-	for (TActorIterator<AHorseEnemySpawnManager> It(GetWorld()); It; ++It)
+	EnsureChapterStartTrigger();
+	CachedChaseSubsystem = UCarriageChaseSubsystem::Get(this);
+	if (CachedChaseSubsystem)
 	{
-		AHorseEnemySpawnManager* SpawnPoint = *It;
-		if (SpawnPoint)
-		{
-			HorseEnemySpawnPoints.Add(SpawnPoint);
-		}
-	}	
-
-	AActor* Carriage = UGameplayStatics::GetActorOfClass(GetWorld(),ACarriage::StaticClass());
-	if (Carriage)
-	{
-		CurrentCarriage = Cast<ACarriage>(Carriage);
+		CachedChaseSubsystem->OnBattleStopped.AddUObject(this, &AChapterThreeManager::HandleBattleStopped);
+		CurrentCarriage = CachedChaseSubsystem->GetCurrentCarriage();
 	}
+
+	SyncBattleState();
+}
+
+void AChapterThreeManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (CachedChaseSubsystem)
+	{
+		CachedChaseSubsystem->OnBattleStopped.RemoveAll(this);
+	}
+
+	if (ChapterThreeStartBox)
+	{
+		ChapterThreeStartBox->OnComponentBeginOverlap.RemoveDynamic(this, &AChapterThreeManager::HandleChapterStartBoxBeginOverlap);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called every frame
 void AChapterThreeManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	SyncBattleState();
 }
 
 void AChapterThreeManager::GenerateHorseEnemy()
 {
-	if (CurrentHorseEnemyNums >= MaxHorseEnemyNums)
+	if (CachedChaseSubsystem)
 	{
-		return;
+		CachedChaseSubsystem->SpawnChaseEnemy();
 	}
-
-	AHorseEnemySpawnManager* NearestHorseEnemySpawnPoint = nullptr;
-	float MinDistance = FLT_MAX;
-	
-	for (auto i : HorseEnemySpawnPoints)
-	{
-		if (i)
-		{
-			float CurrentDistance = FVector::Dist(CurrentCarriage->GetCurrentCarriageLocation(),i->GetActorLocation());
-			if (CurrentDistance < MinDistance)
-			{
-				MinDistance = CurrentDistance;
-				NearestHorseEnemySpawnPoint  = i;
-			}
-		}
-	}
-	GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"GenerateEnemy");
-	if (NearestHorseEnemySpawnPoint)
-	{
-		AActor* NewEnemy = NearestHorseEnemySpawnPoint->GenerateEnemy(AssignChasePoint());
-		if (NewEnemy)
-		{
-			AEnemyHorseBase* EnemyHorse = Cast<AEnemyHorseBase>(NewEnemy);
-			if (EnemyHorse)
-			{
-				EnemyHorse->OnEnemyDead.AddDynamic(this,&AChapterThreeManager::OnEnemyDeadHandler);
-			}
-			CurrentEnemy.Add(NewEnemy);
-		}
-		
-		
-		
-		CurrentHorseEnemyNums++;
-	}
-	
 }
 
 void AChapterThreeManager::CheckHorseEnemySpawnPoints(AHorseEnemySpawnManager* CurrentSpwanPoint)
 {
-	bool bCheck = HorseEnemySpawnPoints.Contains(CurrentSpwanPoint);
-	if (!bCheck)
+	if (CachedChaseSubsystem)
 	{
-		HorseEnemySpawnPoints.Add(CurrentSpwanPoint);
+		CachedChaseSubsystem->RegisterSpawnPoint(CurrentSpwanPoint);
 	}
 }
 
@@ -101,36 +89,131 @@ void AChapterThreeManager::StartChapterThree()
 	{
 		return;
 	}
-	bStart = true;
-	for (int i = 0;i<initHorseEnemyNums;i++)
+
+	if (!CachedChaseSubsystem)
 	{
-		GenerateHorseEnemy();
+		UE_LOG(LogTemp, Warning, TEXT("ChapterThreeManager Start failed: missing chase subsystem."));
+		return;
 	}
-	GetWorldTimerManager().SetTimer(GenerateEnemyTimerHandle,this,&AChapterThreeManager::GenerateHorseEnemy,5.0f,true);
-	CurrentCarriage->SetMovable(true);
+
+	if (!IsValid(CurrentCarriage))
+	{
+		CurrentCarriage = CachedChaseSubsystem->GetCurrentCarriage();
+	}
+
+	if (!IsValid(CurrentCarriage))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ChapterThreeManager Start failed: missing carriage."));
+		return;
+	}
+
+	bStart = true;
+	bChaseOverNotified = false;
+	if (CachedChaseSubsystem)
+	{
+		FCarriageChaseBattleConfig BattleConfig;
+		BattleConfig.MaxActiveEnemies = MaxHorseEnemyNums;
+		BattleConfig.InitialSpawnCount = initHorseEnemyNums;
+		BattleConfig.SpawnInterval = SpawnInterval;
+		BattleConfig.bStartCarriageMovementOnBattleStart = true;
+		BattleConfig.bMarkActiveEnemiesOverOnBattleEnd = true;
+		CachedChaseSubsystem->ConfigureBattle(BattleConfig);
+		CachedChaseSubsystem->StartBattle();
+	}
+
+	if (ChapterThreeStartBox)
+	{
+		ChapterThreeStartBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 }
 
 USceneComponent* AChapterThreeManager::AssignChasePoint()
 {
-	ACartBase* CurrentCart = Cast<ACartBase>(CurrentCarriage->CartActor);
-	if (CurrentCart)
+	if (CachedChaseSubsystem)
 	{
-		return CurrentCart->AssignChasePoint();
+		return CachedChaseSubsystem->AssignChasePoint();
 	}
-	GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"AssignChasePointFailed");
+
 	return nullptr;
 }
 
 void AChapterThreeManager::OnEnemyDeadHandler(AActor* EnemyHorse)
 {
-	if (CurrentEnemy.Contains(EnemyHorse))
+	if (CachedChaseSubsystem)
 	{
-		CurrentEnemy.Remove(EnemyHorse);
-		CurrentHorseEnemyNums -= 1;
-		if (CurrentHorseEnemyNums<0)
+		SyncBattleState();
+	}
+}
+
+void AChapterThreeManager::OnChaseOver_Implementation()
+{
+}
+
+void AChapterThreeManager::HandleChapterStartBoxBeginOverlap(
+	UPrimitiveComponent* OverlappedComponent,
+	AActor* OtherActor,
+	UPrimitiveComponent* OtherComp,
+	int32 OtherBodyIndex,
+	bool bFromSweep,
+	const FHitResult& SweepResult)
+{
+	if (!IsValid(OtherActor) || bStart)
+	{
+		return;
+	}
+
+	if (ChapterStartTriggerTag.IsNone() || OtherActor->ActorHasTag(ChapterStartTriggerTag))
+	{
+		StartChapterThree();
+	}
+}
+
+void AChapterThreeManager::EnsureChapterStartTrigger()
+{
+	if (!ChapterThreeStartBox)
+	{
+		return;
+	}
+
+	ChapterThreeStartBox->SetBoxExtent(ChapterStartBoxExtent);
+	ChapterThreeStartBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ChapterThreeStartBox->OnComponentBeginOverlap.RemoveDynamic(this, &AChapterThreeManager::HandleChapterStartBoxBeginOverlap);
+	ChapterThreeStartBox->OnComponentBeginOverlap.AddDynamic(this, &AChapterThreeManager::HandleChapterStartBoxBeginOverlap);
+}
+
+void AChapterThreeManager::HandleChaseOver()
+{
+	bChaseOverNotified = true;
+	OnChaseOver();
+}
+
+void AChapterThreeManager::SyncBattleState()
+{
+	if (!CachedChaseSubsystem)
+	{
+		return;
+	}
+
+	CurrentCarriage = CachedChaseSubsystem->GetCurrentCarriage();
+	CurrentHorseEnemyNums = CachedChaseSubsystem->GetActiveEnemyCount();
+	CurrentEnemy.Reset();
+	TArray<AEnemyHorseBase*> ActiveHorseEnemies;
+	CachedChaseSubsystem->GetActiveEnemies(ActiveHorseEnemies);
+	for (AEnemyHorseBase* ActiveHorseEnemy : ActiveHorseEnemies)
+	{
+		if (IsValid(ActiveHorseEnemy))
 		{
-			CurrentHorseEnemyNums = 0;
+			CurrentEnemy.Add(ActiveHorseEnemy);
 		}
-		GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,FString::Printf(TEXT("Enemy Dead, Current Enemy Nums:%d"),CurrentHorseEnemyNums));
-	}	
+	}
+}
+
+void AChapterThreeManager::HandleBattleStopped(bool bReachedDestination)
+{
+	SyncBattleState();
+
+	if (bReachedDestination && !bChaseOverNotified)
+	{
+		HandleChaseOver();
+	}
 }

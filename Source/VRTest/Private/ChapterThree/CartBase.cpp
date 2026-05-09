@@ -38,17 +38,25 @@ void ACartBase::BeginPlay()
 void ACartBase::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
-	if (ChasePoints.Num() > 0)
+	for (USceneComponent* ChasePoint : ChasePoints)
 	{
-		for (auto i : ChasePoints)
+		if (IsValid(ChasePoint))
 		{
-			if (i)
-			{
-				i->DestroyComponent();
-			}
+			ChasePoint->DestroyComponent();
 		}
-		ChasePoints.Empty();
 	}
+
+	for (USphereComponent* DebugPoint : DebugPoints)
+	{
+		if (IsValid(DebugPoint))
+		{
+			DebugPoint->DestroyComponent();
+		}
+	}
+
+	ChasePoints.Empty();
+	DebugPoints.Empty();
+	AssignedPoints.Empty();
 	
 	float PositionY = ChasePointSpacing * (ChasePointNums - 1) / 2;
 	float PositionX = 0.f;
@@ -98,26 +106,48 @@ int ACartBase::GetChasePointNums()
 
 USceneComponent* ACartBase::AssignChasePoint()
 {
-	if (ChasePoints.Num() > 0)
-	{
-		int32 RandomIndex = FMath::RandHelper(ChasePoints.Num());
-		USceneComponent* ChosenChasePoint = ChasePoints[RandomIndex];
-		ChasePoints.RemoveAt(RandomIndex);
-		AssignedPoints.Add(ChosenChasePoint);
-		return ChosenChasePoint;
-		
-	}
-	GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"NoMoreChasePoints");
-	return nullptr;
+	return AcquireChasePoint();
 }
 
 void ACartBase::RestitutionChasePoint(USceneComponent* ChasePoint)
 {
-	if (ChasePoint && AssignedPoints.Contains(ChasePoint))
+	ReleaseChasePoint(ChasePoint);
+}
+
+bool ACartBase::HasAvailableChasePoints() const
+{
+	return ChasePoints.Num() > 0;
+}
+
+int32 ACartBase::GetAvailableChasePointCount() const
+{
+	return ChasePoints.Num();
+}
+
+USceneComponent* ACartBase::AcquireChasePoint()
+{
+	if (!HasAvailableChasePoints())
 	{
-		AssignedPoints.Remove(ChasePoint);
-		ChasePoints.Add(ChasePoint);
+		GEngine->AddOnScreenDebugMessage(-1,10,FColor::Red,"NoMoreChasePoints");
+		return nullptr;
 	}
+
+	const int32 RandomIndex = FMath::RandHelper(ChasePoints.Num());
+	USceneComponent* ChosenChasePoint = ChasePoints[RandomIndex];
+	ChasePoints.RemoveAt(RandomIndex);
+	AssignedPoints.Add(ChosenChasePoint);
+	return ChosenChasePoint;
+}
+
+void ACartBase::ReleaseChasePoint(USceneComponent* ChasePoint)
+{
+	if (!ChasePoint || !AssignedPoints.Contains(ChasePoint))
+	{
+		return;
+	}
+
+	AssignedPoints.Remove(ChasePoint);
+	ChasePoints.Add(ChasePoint);
 }
 
 // Called every frame
@@ -126,6 +156,3 @@ void ACartBase::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 }
-
-
-

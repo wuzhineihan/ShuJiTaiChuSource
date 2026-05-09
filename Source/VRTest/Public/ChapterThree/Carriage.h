@@ -8,6 +8,9 @@
 #include "GameFramework/Actor.h"
 #include "Carriage.generated.h"
 
+class ACarriage;
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCarriageArrivedNative, ACarriage*);
+
 UCLASS()
 class VRTEST_API ACarriage : public AActor
 {
@@ -20,6 +23,7 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	
 public:	
@@ -59,14 +63,14 @@ public:
 	UFUNCTION(BlueprintCallable,Category="Carriage")
 	void SetMovable(bool Movable);
 
-	UFUNCTION(BlueprintCallable,BlueprintImplementableEvent,Category="Carriage")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Carriage")
 	void SetHorseMovable(bool Moveable);
 	
 	UFUNCTION(BlueprintCallable,Category="Carriage")
 	void CheckPatrolState();
 
 	UFUNCTION(BlueprintCallable,Category="Carriage")
-	FVector GetCurrentCarriageLocation();
+	FVector GetCurrentCarriageLocation() const;
 
 	UFUNCTION(BlueprintCallable,Category="Carriage")
 	void ArriveFinalLocation();
@@ -81,4 +85,6 @@ public:
 	AActor* CartActor;
 	UPROPERTY(BlueprintReadOnly,Category="Carriage")
 	bool bArriveFinalLocation = false;
+
+	FOnCarriageArrivedNative OnCarriageArrived;
 };

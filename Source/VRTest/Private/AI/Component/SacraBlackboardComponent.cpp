@@ -11,7 +11,7 @@
 
 namespace
 {
-const TCHAR* LexToString(const EHatredState InState)
+const TCHAR* LexToStringHatredStateBlackboard(const EHatredState InState)
 {
 	switch (InState)
 	{
@@ -247,7 +247,7 @@ void USacraBlackboardComponent::HandleHatredStateChanged(EHatredState NewState)
 
 	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Blackboard HatredState Synced Owner=%s State=%s HasWarningLocation=%s WarningLocation=%s HasFightTarget=%s FightTarget=%s"),
 		*GetNameSafe(GetOwner()),
-		LexToString(NewState),
+		LexToStringHatredStateBlackboard(NewState),
 		bHasWarningLocation ? TEXT("true") : TEXT("false"),
 		*WarningLocationText,
 		bHasFightTarget ? TEXT("true") : TEXT("false"),

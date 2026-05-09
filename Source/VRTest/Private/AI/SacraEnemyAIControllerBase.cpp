@@ -4,6 +4,7 @@
 #include "AI/SacraEnemyAIControllerBase.h"
 
 #include "AI/Component/SacraBlackboardComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
 #include "AI/Component/SacraEnemyStatusUIComponent.h"
 #include "AI/Component/SacraEnemyWeaponComponent.h"
@@ -117,6 +118,11 @@ void ASacraEnemyAIControllerBase::OnPossess(APawn* InPawn)
 	Super::OnPossess(InPawn);
 	EnsureRuntimeComponents();
 
+	if (const ASacraEnemy* SacraEnemy = Cast<ASacraEnemy>(InPawn))
+	{
+		ApplyConfigDataAsset(SacraEnemy->GetEnemyConfigDataAsset());
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Controller OnPossess Owner=%s Pawn=%s"),
 		*GetNameSafe(this),
 		*GetNameSafe(InPawn));
@@ -124,6 +130,32 @@ void ASacraEnemyAIControllerBase::OnPossess(APawn* InPawn)
 	ApplyPausedStateToPawnComponents();
 	RefreshRotationMode();
 	TryStartBehaviorTree();
+}
+
+void ASacraEnemyAIControllerBase::ApplyConfigDataAsset(const USacraEnemyConfigDataAsset* ConfigDataAsset)
+{
+	if (!IsValid(ConfigDataAsset))
+	{
+		return;
+	}
+
+	if (ConfigDataAsset->ControllerConfig.bOverrideControllerConfig)
+	{
+		if (ConfigDataAsset->ControllerConfig.DefaultBehaviorTreeAsset)
+		{
+			DefaultBehaviorTreeAsset = ConfigDataAsset->ControllerConfig.DefaultBehaviorTreeAsset;
+		}
+
+		NonFightRotationRateYaw = ConfigDataAsset->ControllerConfig.NonFightRotationRateYaw;
+		FightRotationRateYaw = ConfigDataAsset->ControllerConfig.FightRotationRateYaw;
+	}
+
+	if (IsValid(EnemyHatredComponent))
+	{
+		EnemyHatredComponent->ApplyConfigData(ConfigDataAsset->HatredConfig);
+	}
+
+	RefreshRotationMode();
 }
 
 void ASacraEnemyAIControllerBase::SetEnemyAIPaused(bool bInPaused)

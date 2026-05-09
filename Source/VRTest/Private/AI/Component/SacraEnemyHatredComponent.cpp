@@ -17,7 +17,7 @@
 
 namespace
 {
-const TCHAR* LexToString(const EHatredState InState)
+const TCHAR* LexToStringHatredStateHatredComp(const EHatredState InState)
 {
 	switch (InState)
 	{
@@ -89,7 +89,7 @@ void USacraEnemyHatredComponent::InitHatredComponent()
 
 	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Hatred Ready Owner=%s State=%s Value=%.2f WarningLocation=%s FightTarget=%s"),
 		*GetNameSafe(GetOwner()),
-		LexToString(CurrentHatredState),
+		LexToStringHatredStateHatredComp(CurrentHatredState),
 		CurrentHatredValue,
 		bHasWarningTargetLocation ? *CurrentWarningTargetLocation.ToCompactString() : TEXT("None"),
 		*GetNameSafe(CurrentFightTargetActor.Get()));
@@ -305,7 +305,7 @@ void USacraEnemyHatredComponent::UpdateHatredValue()
 
 	// UE_LOG(LogTemp, Log, TEXT("SacraEnemy Hatred Tick Owner=%s State=%s Delta=%.2f ValueBefore=%.2f Sight=%s Hearing=%s Damage=%s FightTarget=%s WarningLocation=%s"),
 	// 	*GetNameSafe(GetOwner()),
-	// 	LexToString(CurrentHatredState),
+	// 	LexToStringHatredStateHatredComp(CurrentHatredState),
 	// 	HatredDelta,
 	// 	CurrentHatredValue,
 	// 	bIsSightPerceived ? TEXT("true") : TEXT("false"),
@@ -356,12 +356,22 @@ bool USacraEnemyHatredComponent::ApplyExternalWarningAlert(const FEnemyWarningAl
 	UE_LOG(LogTemp, Log, TEXT("SacraEnemy WarningAlert Applied Owner=%s Source=%s OldState=%s NewState=%s AlertLocation=%s FightTarget=%s"),
 		*GetNameSafe(GetOwner()),
 		*GetNameSafe(AlertMessage.InstigatorActor),
-		LexToString(PreviousState),
-		LexToString(CurrentHatredState),
+		LexToStringHatredStateHatredComp(PreviousState),
+		LexToStringHatredStateHatredComp(CurrentHatredState),
 		*AlertMessage.AlertLocation.ToCompactString(),
 		*GetNameSafe(AlertMessage.FightTargetActor));
 
 	return true;
+}
+
+void USacraEnemyHatredComponent::ApplyConfigData(const FSacraEnemyHatredConfig& ConfigData)
+{
+	if (!ConfigData.bOverrideHatredConfig)
+	{
+		return;
+	}
+
+	HatredConfigAsset = ConfigData.HatredConfigAsset;
 }
 
 float USacraEnemyHatredComponent::GetMaxHatredValue() const
@@ -572,8 +582,8 @@ void USacraEnemyHatredComponent::ChangeHatredState(EHatredState NewState)
 
 	UE_LOG(LogTemp, Log, TEXT("SacraEnemy State Changed Owner=%s Old=%s New=%s Value=%.2f WarningLocation=%s FightTarget=%s"),
 		*GetNameSafe(GetOwner()),
-		LexToString(OldState),
-		LexToString(CurrentHatredState),
+		LexToStringHatredStateHatredComp(OldState),
+		LexToStringHatredStateHatredComp(CurrentHatredState),
 		CurrentHatredValue,
 		bHasWarningTargetLocation ? *CurrentWarningTargetLocation.ToCompactString() : TEXT("None"),
 		*GetNameSafe(CurrentFightTargetActor.Get()));
@@ -1010,7 +1020,7 @@ bool USacraEnemyHatredComponent::TryApplyCorpseSightWarning(AActor* TargetActor,
 		*GetNameSafe(GetOwner()),
 		*GetNameSafe(TargetActor),
 		*Stimulus.StimulusLocation.ToCompactString(),
-		LexToString(CurrentHatredState));
+		LexToStringHatredStateHatredComp(CurrentHatredState));
 
 	return true;
 }

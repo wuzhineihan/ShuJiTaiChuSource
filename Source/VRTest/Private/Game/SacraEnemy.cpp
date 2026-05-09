@@ -3,6 +3,8 @@
 #include "Game/Characters/SacraEnemy.h"
 
 #include "AI/Component/SacraEnemyContextComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
+#include "AI/SacraEnemyAIControllerBase.h"
 #include "AI/Component/SacraEnemyLoadoutComponent.h"
 #include "AI/Component/SacraEnemyStatusUIComponent.h"
 #include "AI/Component/SacraEnemyWeaponComponent.h"
@@ -19,7 +21,42 @@ ASacraEnemy::ASacraEnemy()
 void ASacraEnemy::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+	ApplyEnemyConfigDataAsset();
 	EnsureWeaponComponent();
+}
+
+void ASacraEnemy::ApplyEnemyConfigDataAsset()
+{
+	if (!IsValid(EnemyConfigDataAsset))
+	{
+		return;
+	}
+
+	if (EnemyConfigDataAsset->GeneralConfig.bOverrideWeaponComponentClass
+		&& EnemyConfigDataAsset->GeneralConfig.EnemyWeaponComponentClass)
+	{
+		EnemyWeaponComponentClass = EnemyConfigDataAsset->GeneralConfig.EnemyWeaponComponentClass;
+	}
+
+	if (IsValid(EnemyContextComponent))
+	{
+		EnemyContextComponent->ApplyConfigData(EnemyConfigDataAsset->ContextConfig);
+	}
+
+	if (IsValid(EnemyStatusUIComponent))
+	{
+		EnemyStatusUIComponent->ApplyConfigData(EnemyConfigDataAsset->StatusUIConfig);
+	}
+
+	if (IsValid(EnemyLoadoutComponent))
+	{
+		EnemyLoadoutComponent->ApplyConfigData(EnemyConfigDataAsset->LoadoutConfig);
+	}
+
+	if (ASacraEnemyAIControllerBase* EnemyController = Cast<ASacraEnemyAIControllerBase>(GetController()))
+	{
+		EnemyController->ApplyConfigDataAsset(EnemyConfigDataAsset);
+	}
 }
 
 void ASacraEnemy::EnsureWeaponComponent()

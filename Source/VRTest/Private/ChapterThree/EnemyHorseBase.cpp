@@ -32,3 +32,7 @@ void AEnemyHorseBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 }
 
+void AEnemyHorseBase::SetChasePoint(USceneComponent* InChasePoint)
+{
+	ChasePoint = InChasePoint;
+}

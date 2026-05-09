@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 #include "AI/DataAsset/SacraEnemyLoadoutDataAsset.h"
 
 #include "SacraEnemyLoadoutComponent.generated.h"
@@ -36,6 +37,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "AI|Loadout")
 	bool CanReceiveArrowDamage(const FEffect& Effect) const;
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Loadout|Config")
+	void ApplyConfigData(const FSacraEnemyLoadoutConfig& ConfigData);
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Loadout")

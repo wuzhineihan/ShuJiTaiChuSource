@@ -134,6 +134,28 @@ void USacraEnemyContextComponent::ClearCachedWarningAnchorLocation()
 	CachedWarningAnchorLocation = FVector::ZeroVector;
 }
 
+void USacraEnemyContextComponent::ApplyConfigData(const FSacraEnemyContextConfig& ConfigData)
+{
+	if (!ConfigData.bOverrideContextConfig)
+	{
+		return;
+	}
+
+	bAutoResolveSharedReferences = ConfigData.bAutoResolveSharedReferences;
+	bUseSpawnTransformAsStandTransform = ConfigData.bUseSpawnTransformAsStandTransform;
+	StandLocation = ConfigData.StandLocation;
+	StandRotation = ConfigData.StandRotation;
+	bEnablePatrol = ConfigData.bEnablePatrol;
+	IdleMoveSpeed = ConfigData.IdleMoveSpeed;
+	PatrolMoveSpeed = ConfigData.PatrolMoveSpeed;
+	WarningMoveSpeed = ConfigData.WarningMoveSpeed;
+	WarningSearchRadius = ConfigData.WarningSearchRadius;
+	WarningSearchPointCount = ConfigData.WarningSearchPointCount;
+	WarningSearchReachableRadius = ConfigData.WarningSearchReachableRadius;
+	bEnableWarningSupportRequest = ConfigData.bEnableWarningSupportRequest;
+	WarningSupportRequestRadius = ConfigData.WarningSupportRequestRadius;
+}
+
 void USacraEnemyContextComponent::CacheSpawnTransform()
 {
 	if (AActor* OwnerActor = GetOwner())

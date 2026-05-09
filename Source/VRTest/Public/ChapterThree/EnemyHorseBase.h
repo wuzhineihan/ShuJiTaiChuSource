@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "EnemyHorseBase.generated.h"
 
+class USceneComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyDeadSignature, AActor*, EnemyHorse);
 
 UCLASS()
@@ -30,5 +32,24 @@ public:
 
 	UPROPERTY(BlueprintAssignable,BlueprintCallable)
 	FOnEnemyDeadSignature OnEnemyDead;
+
+	UFUNCTION(BlueprintCallable, Category="HorseEnemy")
+	virtual void SetChasePoint(USceneComponent* InChasePoint);
+
+	UFUNCTION(BlueprintPure, Category="HorseEnemy")
+	USceneComponent* GetChasePoint() const { return ChasePoint.Get(); }
+
+	UFUNCTION(BlueprintCallable, Category="HorseEnemy")
+	void SetOver(bool bInOver) { bOver = bInOver; }
+
+	UFUNCTION(BlueprintPure, Category="HorseEnemy")
+	bool IsOver() const { return bOver; }
+
+protected:
+	UPROPERTY(Transient, BlueprintReadOnly, Category="HorseEnemy")
+	TObjectPtr<USceneComponent> ChasePoint = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="HorseEnemy")
+	bool bOver = false;
 
 };

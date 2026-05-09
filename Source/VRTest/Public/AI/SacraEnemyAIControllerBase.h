@@ -9,6 +9,7 @@
 class UAIPerceptionComponent;
 class UBehaviorTree;
 class USacraBlackboardComponent;
+class USacraEnemyConfigDataAsset;
 class USacraEnemyHatredComponent;
 class ACharacter;
 class APawn;
@@ -29,6 +30,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Runtime")
 	void SetEnemyAIPaused(bool bInPaused);
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Config")
+	void ApplyConfigDataAsset(const USacraEnemyConfigDataAsset* ConfigDataAsset);
 
 	UFUNCTION(BlueprintPure, Category = "AI|Runtime")
 	bool IsEnemyAIPaused() const { return bIsEnemyAIPaused; }

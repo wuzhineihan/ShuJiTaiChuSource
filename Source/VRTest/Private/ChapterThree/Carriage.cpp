@@ -3,8 +3,11 @@
 
 #include "ChapterThree/Carriage.h"
 
+#include "ChapterThree/CarriageChaseSubsystem.h"
 #include "EnemyPatrolSplineComponent.h"
 #include "ChapterThree/CartHorseInterface.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 
 FName ACarriage::CartName = "Cart";
@@ -30,8 +33,14 @@ ACarriage::ACarriage()
 void ACarriage::BeginPlay()
 {
 	Super::BeginPlay();
+
 	HorseActor = Horse->GetChildActor();
 	CartActor = Cart->GetChildActor();
+	if (UCarriageChaseSubsystem* ChaseSubsystem = UCarriageChaseSubsystem::Get(this))
+	{
+		ChaseSubsystem->RegisterCarriage(this);
+	}
+
 	if (HorseActor && HorseActor->GetClass()->ImplementsInterface(UCartHorseInterface::StaticClass()))
 	{
 		bool bHasNextPoint = false;
@@ -41,6 +50,16 @@ void ACarriage::BeginPlay()
 			ICartHorseInterface::Execute_UpdateTargetLocation(HorseActor, NextPatrolPoint);
 		}
 	}
+}
+
+void ACarriage::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UCarriageChaseSubsystem* ChaseSubsystem = UCarriageChaseSubsystem::Get(this))
+	{
+		ChaseSubsystem->UnregisterCarriage(this);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void ACarriage::OnConstruction(const FTransform& Transform)
@@ -92,6 +111,40 @@ void ACarriage::SetMovable(bool Movable)
 	SetHorseMovable(Movable);
 }
 
+void ACarriage::SetHorseMovable_Implementation(bool Moveable)
+{
+	if (!IsValid(HorseActor))
+	{
+		HorseActor = Horse ? Horse->GetChildActor() : nullptr;
+	}
+
+	if (!IsValid(HorseActor))
+	{
+		return;
+	}
+
+	if (ACharacter* HorseCharacter = Cast<ACharacter>(HorseActor))
+	{
+		if (UCharacterMovementComponent* MovementComponent = HorseCharacter->GetCharacterMovement())
+		{
+			if (Moveable)
+			{
+				if (MovementComponent->MovementMode == MOVE_None)
+				{
+					MovementComponent->SetMovementMode(MOVE_Walking);
+				}
+			}
+			else
+			{
+				MovementComponent->DisableMovement();
+				MovementComponent->StopMovementImmediately();
+			}
+		}
+	}
+
+	HorseActor->SetActorTickEnabled(Moveable);
+}
+
 void ACarriage::CheckPatrolState()
 {
 	if (!IsValid(HorseActor))
@@ -120,14 +173,19 @@ void ACarriage::CheckPatrolState()
 	
 }
 
-FVector ACarriage::GetCurrentCarriageLocation()
+FVector ACarriage::GetCurrentCarriageLocation() const
 {
-	return CartActor->GetActorLocation();
+	return IsValid(CartActor) ? CartActor->GetActorLocation() : GetActorLocation();
 }
 
 void ACarriage::ArriveFinalLocation()
 {
+	if (bArriveFinalLocation)
+	{
+		return;
+	}
+
 	SetMovable(false);
-	SetHorseMovable(false);
 	bArriveFinalLocation = true;
+	OnCarriageArrived.Broadcast(this);
 }
