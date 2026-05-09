@@ -2,11 +2,10 @@
 
 #include "Game/PCClimbLadderComponent.h"
 
-#include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Game/Characters/BasePCPlayer.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Scene/LadderVolume.h"
+#include "Scene/LadderVolumeComponent.h"
 
 UPCClimbLadderComponent::UPCClimbLadderComponent()
 {
@@ -58,7 +57,7 @@ void UPCClimbLadderComponent::HandleMoveInput(const FVector& ForwardDir, const F
 		return;
 	}
 
-	if (!CurrentLadder || !CurrentLadderBox || !IsTouchingCurrentLadder())
+	if (!CurrentLadder || !IsTouchingCurrentLadder())
 	{
 		ExitLadderMode();
 		OwnerPlayer->AddMovementInput(SafeRight, MoveInput.X);
@@ -123,14 +122,13 @@ void UPCClimbLadderComponent::OnLadderBeginOverlap(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	ALadderVolume* Ladder = Cast<ALadderVolume>(OtherActor);
-	if (!Ladder)
+	ULadderVolumeComponent* LadderVolume = Cast<ULadderVolumeComponent>(OtherComp);
+	if (!LadderVolume || OtherActor == nullptr)
 	{
 		return;
 	}
 
-	CurrentLadder = Ladder;
-	CurrentLadderBox = Ladder->GetLadderVolume();
+	CurrentLadder = LadderVolume;
 }
 
 void UPCClimbLadderComponent::OnLadderEndOverlap(
@@ -139,24 +137,23 @@ void UPCClimbLadderComponent::OnLadderEndOverlap(
 	UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex)
 {
-	if (OtherActor != CurrentLadder)
+	if (!CurrentLadder || OtherComp != CurrentLadder)
 	{
 		return;
 	}
 
 	CurrentLadder = nullptr;
-	CurrentLadderBox = nullptr;
 	ExitLadderMode();
 }
 
 bool UPCClimbLadderComponent::IsTouchingCurrentLadder() const
 {
-	if (!OwnerPlayer || !CurrentLadderBox)
+	if (!OwnerPlayer || !CurrentLadder)
 	{
 		return false;
 	}
 
-	return CurrentLadderBox->IsOverlappingActor(OwnerPlayer);
+	return CurrentLadder->IsOverlappingActor(OwnerPlayer);
 }
 
 bool UPCClimbLadderComponent::ShouldClimbTowardLadder(const FVector& MoveDirWorld, const FVector& LadderNormal) const
@@ -172,15 +169,14 @@ bool UPCClimbLadderComponent::ShouldClimbTowardLadder(const FVector& MoveDirWorl
 
 void UPCClimbLadderComponent::ExitLadderIfNeeded()
 {
-	if (!CurrentLadderBox || !OwnerPlayer)
+	if (!CurrentLadder || !OwnerPlayer)
 	{
 		return;
 	}
 
-	if (!CurrentLadderBox->IsOverlappingActor(OwnerPlayer))
+	if (!CurrentLadder->IsOverlappingActor(OwnerPlayer))
 	{
 		CurrentLadder = nullptr;
-		CurrentLadderBox = nullptr;
 		ExitLadderMode();
 	}
 }
@@ -219,15 +215,15 @@ void UPCClimbLadderComponent::ExitLadderMode()
 
 bool UPCClimbLadderComponent::IsNearLadderTop() const
 {
-	if (!OwnerPlayer || !CurrentLadderBox)
+	if (!OwnerPlayer || !CurrentLadder)
 	{
 		return false;
 	}
 
-	const FTransform BoxTransform = CurrentLadderBox->GetComponentTransform();
+	const FTransform BoxTransform = CurrentLadder->GetComponentTransform();
 	const FVector PlayerLocation = OwnerPlayer->GetActorLocation();
 	const FVector LocalPlayer = BoxTransform.InverseTransformPosition(PlayerLocation);
-	const FVector Extent = CurrentLadderBox->GetScaledBoxExtent();
-	const float DistanceToTop = Extent.Z - LocalPlayer.Z;
+	const FVector Extent = CurrentLadder->GetScaledBoxExtent();
+	const float DistanceToTop = Extent.Z - LocalPlayer.Z + OwnerPlayer->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	return DistanceToTop <= LadderTopExitThreshold;
 }

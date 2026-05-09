@@ -12,14 +12,16 @@ class UCameraComponent;
 class IGrabbable;
 class AArrow;
 class UPCClimbLadderComponent;
+class UPCWindowVaultComponent;
+class UPrimitiveComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGrabTargetChanged, AActor*, NewTarget, AActor*, OldTarget);
 
 /**
- * PC 模式玩家基类
+ * PC 妯″紡鐜╁鍩虹被
  *
- * 包含第一人称摄像机和双手抓取逻辑�?
- * 弓箭模式由基�?bIsBowArmed 控制�?
+ * 鍖呭惈绗竴浜虹О鎽勫儚鏈哄拰鍙屾墜鎶撳彇閫昏緫銆?
+ * 寮撶妯″紡鐢卞熀绫?bIsBowArmed 鎺у埗銆?
  */
 UCLASS()
 class VRTEST_API ABasePCPlayer : public ABasePlayer
@@ -36,17 +38,17 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
-	// ==================== 组件 ====================
+	// ==================== 缁勪欢 ====================
 	
-	/** 第一人称摄像�?*/
+	/** 绗竴浜虹О鎽勫儚鏈?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* FirstPersonCamera;
 
-	/** 左手抓取组件（PC 具体类型，与 BasePlayer::LeftHand 指向同一对象�?*/
+	/** 宸︽墜鎶撳彇缁勪欢锛圥C 鍏蜂綋绫诲瀷锛屼笌 BasePlayer::LeftHand 鎸囧悜鍚屼竴瀵硅薄锛?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* PCLeftHand;
 
-	/** 右手抓取组件（PC 具体类型，与 BasePlayer::RightHand 指向同一对象�?*/
+	/** 鍙虫墜鎶撳彇缁勪欢锛圥C 鍏蜂綋绫诲瀷锛屼笌 BasePlayer::RightHand 鎸囧悜鍚屼竴瀵硅薄锛?*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCGrabHand* PCRightHand;
 
@@ -61,104 +63,109 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCClimbLadderComponent* PCClimbLadderComponent = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPCWindowVaultComponent* PCWindowVaultComponent = nullptr;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|CameraCollision", meta=(ClampMin="0.0"))
 	float CameraCollisionRadius = 12.0f;
 
-	// ==================== 目标检测配�?====================
+	// ==================== 鐩爣妫€娴嬮厤缃?====================
 
-	/** 抓取射线最大距�?*/
+	/** 鎶撳彇灏勭嚎鏈€澶ц窛绂?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	float MaxGrabDistance = 300.0f;
 
-	/** 抓取检测通道 */
+	/** 鎶撳彇妫€娴嬮€氶亾 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
 	TEnumAsByte<ECollisionChannel> GrabTraceChannel = TCC_GRAB;
 
-	/** 是否绘制抓取射线调试（线 + 命中点） */
+	/** 鏄惁缁樺埗鎶撳彇灏勭嚎璋冭瘯锛堢嚎 + 鍛戒腑鐐癸級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug")
 	bool bDrawGrabLineTraceDebug = false;
 
-	/** 调试绘制持续时间（秒）；0 表示仅一�?*/
+	/** 璋冭瘯缁樺埗鎸佺画鏃堕棿锛堢锛夛紱0 琛ㄧず浠呬竴甯?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.0"))
 	float GrabLineTraceDebugDrawTime = 1.0f;
 
-	/** 调试线粗�?*/
+	/** 璋冭瘯绾跨矖缁?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab|Debug", meta=(ClampMin="0.1"))
 	float GrabLineTraceDebugThickness = 0.5f;
 
-	// ==================== 目标检测状�?====================
+	// ==================== 鐩爣妫€娴嬬姸鎬?====================
 
-	/** 当前瞄准的可抓取物体 */
+	/** 褰撳墠鐬勫噯鐨勫彲鎶撳彇鐗╀綋 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	AActor* TargetedObject = nullptr;
 
-	/** 当前瞄准的骨骼名（如果目标是骨骼网格体） */
+	/** 褰撳墠鐬勫噯鐨勯楠煎悕锛堝鏋滅洰鏍囨槸楠ㄩ缃戞牸浣擄級 */
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FName TargetedBoneName;
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	FVector TargetedImpactPoint = FVector::ZeroVector;
+	UPROPERTY(BlueprintReadOnly, Category = "Grab")
+	UPrimitiveComponent* TargetedHitComponent = nullptr;
 
-	/** 射线检测是否命中目�?*/
+	/** 灏勭嚎妫€娴嬫槸鍚﹀懡涓洰鏍?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Grab")
 	bool bTraceHit = false;
 
-	/** 当前视线是否可以手动点火（用�?UI 提示�?*/
+	/** 褰撳墠瑙嗙嚎鏄惁鍙互鎵嬪姩鐐圭伀锛堢敤浜?UI 鎻愮ず锛?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
 	bool bCanIgniteBySight = false;
 
-	/** 当前点火可交互的命中点（用于 UI 提示�?*/
+	/** 褰撳墠鐐圭伀鍙氦浜掔殑鍛戒腑鐐癸紙鐢ㄤ簬 UI 鎻愮ず锛?*/
 	UPROPERTY(BlueprintReadOnly, Category = "Interact|Ignite")
 	FVector IgniteBySightImpactPoint = FVector::ZeroVector;
 
-	/** 视线命中组件用于点火判定�?Tag（Component Tag�?*/
+	/** 瑙嗙嚎鍛戒腑缁勪欢鐢ㄤ簬鐐圭伀鍒ゅ畾鐨?Tag锛圕omponent Tag锛?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interact|Ignite")
 	FName IgniteBySightComponentTag = FName(TEXT("Interact_FireIgnite"));
 
-	// ==================== 弓箭模式配置 ====================
+	// ==================== 寮撶妯″紡閰嶇疆 ====================
 	
-	/** 瞄准时左手的位置（相对于摄像机） */
+	/** 鐬勫噯鏃跺乏鎵嬬殑浣嶇疆锛堢浉瀵逛簬鎽勫儚鏈猴級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Aiming")
 	FTransform AimingLeftHandTransform;
 
 	/**
-	 * PC 模式固定拉弓距离（沿摄像机前向的反方向拉�?
-	 * 注意：这是“手的位置偏移”，不是 Bow::MaxPullDistance�?
+	 * PC 妯″紡鍥哄畾鎷夊紦璺濈锛堟部鎽勫儚鏈哄墠鍚戠殑鍙嶆柟鍚戞媺锛?
+	 * 娉ㄦ剰锛氳繖鏄€滄墜鐨勪綅缃亸绉烩€濓紝涓嶆槸 Bow::MaxPullDistance銆?
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bow|Draw")
 	float PCDrawDistance = 50.0f;
 
-	// ==================== 弓箭状�?====================
+	// ==================== 寮撶鐘舵€?====================
 	
-	/** 是否正在瞄准 */
+	/** 鏄惁姝ｅ湪鐬勫噯 */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	bool bIsAiming = false;
 
-	/** 是否正在拉弓 */
+	/** 鏄惁姝ｅ湪鎷夊紦 */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow|State")
 	bool bIsDrawingBow = false;
 
-	// ==================== 投掷（PC�?====================
+	// ==================== 鎶曟幏锛圥C锛?====================
 
-	/** 最大投掷射线距离（摄像机前方） */
+	/** 鏈€澶ф姇鎺峰皠绾胯窛绂伙紙鎽勫儚鏈哄墠鏂癸級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw")
 	float MaxThrowDistance = 1000.0f;
 
-	/** 投掷抛物线弧度参数（0-1，越小越平） */
+	/** 鎶曟幏鎶涚墿绾垮姬搴﹀弬鏁帮紙0-1锛岃秺灏忚秺骞筹級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Throw", meta=(ClampMin="0.0", ClampMax="1.0"))
 	float ThrowArcParam = 0.35f;
 
-	// ==================== 定身术（PC�?====================
+	// ==================== 瀹氳韩鏈紙PC锛?====================
 
-	/** 定身球发射速度倍数（相对于摄像机前向） */
+	/** 瀹氳韩鐞冨彂灏勯€熷害鍊嶆暟锛堢浉瀵逛簬鎽勫儚鏈哄墠鍚戯級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisFireSpeedScalar = 1000.0f;
 
-	/** 定身球目标检测半�?*/
+	/** 瀹氳韩鐞冪洰鏍囨娴嬪崐寰?*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisDetectionRadius = 1000.0f;
 
-	/** 定身球目标检测最大角度（度） */
+	/** 瀹氳韩鐞冪洰鏍囨娴嬫渶澶ц搴︼紙搴︼級 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stasis")
 	float StasisDetectionAngle = 30.0f;
 	
@@ -179,27 +186,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetCrouched(bool bCrouch);
 	/**
-	 * 投掷入口（唯一入口）�?
-	 * @param bRightHand true=右手投掷，false=左手投掷�?
+	 * 鎶曟幏鍏ュ彛锛堝敮涓€鍏ュ彛锛夈€?
+	 * @param bRightHand true=鍙虫墜鎶曟幏锛宖alse=宸︽墜鎶曟幏銆?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Throw")
 	void TryThrow(bool bRightHand);
 
-	// ==================== 重写基类 ====================
+	// ==================== 閲嶅啓鍩虹被 ====================
 	
-	/** 重写：进�?退出弓箭模�?*/
+	/** 閲嶅啓锛氳繘鍏?閫€鍑哄紦绠ā寮?*/
 	virtual void SetBowArmed(bool bArmed) override;
 
-	// ==================== 输入处理 ======================================
+	// ==================== 杈撳叆澶勭悊 ======================================
 	
 	/**
-	 * 处理左扳机输�?
+	 * 澶勭悊宸︽壋鏈鸿緭鍏?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleLeftTrigger(bool bPressed);
 
 	/**
-	 * 处理右扳机输�?
+	 * 澶勭悊鍙虫壋鏈鸿緭鍏?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void HandleRightTrigger(bool bPressed);
@@ -213,20 +220,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StopStarDraw();
 
-	/** PC 手动点火（由蓝图输入事件调用�?*/
+	/** PC 鎵嬪姩鐐圭伀锛堢敱钃濆浘杈撳叆浜嬩欢璋冪敤锛?*/
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void IgniteBySight();
 
-	// ==================== 弓箭操作 ====================
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void TryWindowVaultBySight();
+
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetActionLocked(bool bLocked);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
+	bool IsActionLocked() const { return bActionLocked; }
+
+	// ==================== 寮撶鎿嶄綔 ====================
 	
 	/**
-	 * 开始瞄准（左手过渡到瞄准位置，取出箭并由右手抓住）
+	 * 寮€濮嬬瀯鍑嗭紙宸︽墜杩囨浮鍒扮瀯鍑嗕綅缃紝鍙栧嚭绠苟鐢卞彸鎵嬫姄浣忥級
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void StartAiming();
 
 	/**
-	 * 停止瞄准
+	 * 鍋滄鐬勫噯
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void StopAiming();
@@ -238,31 +254,31 @@ public:
 	void StartDrawBow();
 
 	/**
-	 * 停止拉弓（已废弃：一旦开始拉弓不能取消，会直接发射）
+	 * 鍋滄鎷夊紦锛堝凡搴熷純锛氫竴鏃﹀紑濮嬫媺寮撲笉鑳藉彇娑堬紝浼氱洿鎺ュ彂灏勶級
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow", meta = (DeprecatedFunction, DeprecationMessage = "StopDrawBow is deprecated. Once drawing starts, releasing will always fire the arrow."))
 	void StopDrawBow();
 
 	/**
-	 * 释放弓弦
+	 * 閲婃斁寮撳鸡
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Bow")
 	void ReleaseBowString();
 	void CancelDrawBow();
 
 protected:
-	// ==================== 内部函数 ====================
+	// ==================== 鍐呴儴鍑芥暟 ====================
 
-	/** 更新瞄准目标检测（每帧执行�?*/
+	/** 鏇存柊鐬勫噯鐩爣妫€娴嬶紙姣忓抚鎵ц锛?*/
 	void UpdateTargetDetection();
 
-	/** 执行射线检�?*/
+	/** 鎵ц灏勭嚎妫€娴?*/
 	bool PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const;
 
-	/** 处理 StasisPoint 投掷 */
+	/** 澶勭悊 StasisPoint 鎶曟幏 */
 	void HandleStasisPointThrow(UPCGrabHand* ThrowHand, class AStasisPoint* StasisPoint);
 
-	/** 当手抓取物体时的回调 */
+	/** 褰撴墜鎶撳彇鐗╀綋鏃剁殑鍥炶皟 */
 	UFUNCTION()
 	void OnHandGrabbedObject(AActor* GrabbedObject);
 
@@ -275,7 +291,7 @@ protected:
 	void StoreAndDestroyArrow(AArrow* Arrow);
 
 
-	/** 播放无箭音效 */
+	/** 鎾斁鏃犵闊虫晥 */
 	void PlayNoArrowSound();
 	
 	UPROPERTY(Transient)
@@ -286,6 +302,9 @@ protected:
 	
 	UPROPERTY(Transient)
 	float RegularCapsuleHalfHeight = 0.0f;
+
+	UPROPERTY(Transient)
+	bool bActionLocked = false;
 	
 	void UpdateCrouchCameraInterp(float DeltaTime);
 };

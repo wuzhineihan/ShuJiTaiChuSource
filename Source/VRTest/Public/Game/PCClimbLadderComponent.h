@@ -7,8 +7,7 @@
 #include "PCClimbLadderComponent.generated.h"
 
 class ABasePCPlayer;
-class ALadderVolume;
-class UBoxComponent;
+class ULadderVolumeComponent;
 class UCharacterMovementComponent;
 class UPrimitiveComponent;
 
@@ -70,10 +69,7 @@ private:
 	TObjectPtr<UCharacterMovementComponent> OwnerMovement = nullptr;
 
 	UPROPERTY(Transient)
-	TObjectPtr<ALadderVolume> CurrentLadder = nullptr;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UBoxComponent> CurrentLadderBox = nullptr;
+	TObjectPtr<ULadderVolumeComponent> CurrentLadder = nullptr;
 
 	UPROPERTY(Transient)
 	bool bIsOnLadder = false;

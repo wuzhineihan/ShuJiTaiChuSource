@@ -17,12 +17,13 @@
 #include "GameFramework/PawnMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Game/PCClimbLadderComponent.h"
+#include "Game/PCWindowVaultComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// 鍒涘缓绗竴浜虹О鎽勫儚鏈?
+	// 閸掓稑缂撶粭顑跨娴滆櫣袨閹藉嫬鍎氶張?
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
 	FirstPersonCamera->SetupAttachment(RootComponent);
 	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 0.0f, 64.0f));
@@ -39,13 +40,15 @@ ABasePCPlayer::ABasePCPlayer()
 
 	PCClimbLadderComponent = CreateDefaultSubobject<UPCClimbLadderComponent>(TEXT("PCClimbLadderComponent"));
 
-	// 鍒涘缓宸︽墜
+	PCWindowVaultComponent = CreateDefaultSubobject<UPCWindowVaultComponent>(TEXT("PCWindowVaultComponent"));
+
+	// 閸掓稑缂撳锔藉
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
 	PCLeftHand->SetupAttachment(FirstPersonCamera);
 	PCLeftHand->bIsRightHand = false;
-	LeftHand = PCLeftHand;  // 璧嬪€肩�?BasePlayer 鐨勫熀绫绘寚閽?
+	LeftHand = PCLeftHand;  // 鐠у鈧偐绮?BasePlayer 閻ㄥ嫬鐔€缁粯瀵氶柦?
 
-	// 鍒涘缓宸︽墜纰版挒浣?
+	// 閸掓稑缂撳锔藉绾扮増鎸掓担?
 	LeftHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("LeftHandCollision"));
 	LeftHandCollision->SetupAttachment(PCLeftHand);
 	LeftHandCollision->SetSphereRadius(5.0f);
@@ -53,13 +56,13 @@ ABasePCPlayer::ABasePCPlayer()
 	LeftHandCollision->SetGenerateOverlapEvents(true);
 	PCLeftHand->HandCollision = LeftHandCollision;
 
-	// 鍒涘缓鍙虫墜
+	// 閸掓稑缂撻崣铏
 	PCRightHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("RightHand"));
 	PCRightHand->SetupAttachment(FirstPersonCamera);
 	PCRightHand->bIsRightHand = true;
-	RightHand = PCRightHand;  // 璧嬪€肩�?BasePlayer 鐨勫熀绫绘寚閽?
+	RightHand = PCRightHand;  // 鐠у鈧偐绮?BasePlayer 閻ㄥ嫬鐔€缁粯瀵氶柦?
 
-	// 鍒涘缓鍙虫墜纰版挒浣?
+	// 閸掓稑缂撻崣铏绾扮増鎸掓担?
 	RightHandCollision = CreateDefaultSubobject<USphereComponent>(TEXT("RightHandCollision"));
 	RightHandCollision->SetupAttachment(PCRightHand);
 	RightHandCollision->SetSphereRadius(5.0f);
@@ -67,7 +70,7 @@ ABasePCPlayer::ABasePCPlayer()
 	RightHandCollision->SetGenerateOverlapEvents(true);
 	PCRightHand->HandCollision = RightHandCollision;
 
-	// 璁剧疆鍙屾墜寮曠�?
+	// 鐠佸墽鐤嗛崣灞惧瀵洜鏁?
 	PCLeftHand->OtherHand = PCRightHand;
 	PCRightHand->OtherHand = PCLeftHand;
 
@@ -85,7 +88,7 @@ void ABasePCPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 缁戝畾鎵嬬殑鎶撳�?閲婃斁濮旀墭锛岀敤浜庡悓姝ョ洰鏍囨娴嬬姸鎬?
+	// 缂佹垵鐣鹃幍瀣畱閹舵挸褰?闁插﹥鏂佹慨鏃€澧敍宀€鏁ゆ禍搴℃倱濮濄儳娲伴弽鍥梾濞村濮搁幀?
 	if (PCLeftHand)
 	{
 		PCLeftHand->OnObjectGrabbed.AddDynamic(this, &ABasePCPlayer::OnHandGrabbedObject);
@@ -106,7 +109,7 @@ void ABasePCPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	
-	// 杈撳叆缁戝畾鍦ㄨ摑鍥句腑閰嶇疆锛圗nhanced Input�?
+	// 鏉堟挸鍙嗙紒鎴濈暰閸︺劏鎽戦崶鍙ヨ厬闁板秶鐤嗛敍鍦梟hanced Input閿?
 }
 
 void ABasePCPlayer::Tick(float DeltaTime)
@@ -119,7 +122,7 @@ void ABasePCPlayer::Tick(float DeltaTime)
 		UpdateCrouchCameraInterp(DeltaTime);
 }
 
-// ==================== 閲嶅啓鍩虹被 ====================
+// ==================== 闁插秴鍟撻崺铏硅 ====================
 
 void ABasePCPlayer::SetBowArmed(bool bArmed)
 {
@@ -148,12 +151,17 @@ void ABasePCPlayer::SetBowArmed(bool bArmed)
 
 void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bIsBowArmed)
 	{
-		// ͽ��ģʽ
+		// 徒手模式
 		if (bPressed)
 		{
-			// ���ƻ��⣺PC ����ʱ����˫��ץȡ
+			// 绘制互斥：PC 绘制时禁用双手抓取
 			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
 			{
 				return;
@@ -180,12 +188,17 @@ void ABasePCPlayer::HandleLeftTrigger(bool bPressed)
 }
 void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bIsBowArmed)
 	{
-		// ͽ��ģʽ
+		// 徒手模式
 		if (bPressed)
 		{
-			// ���ƻ��⣺PC ����ʱ����˫��ץȡ
+			// 绘制互斥：PC 绘制时禁用双手抓取
 			if (PlayerSkillComponent && PlayerSkillComponent->IsDrawing())
 			{
 				return;
@@ -209,6 +222,11 @@ void ABasePCPlayer::HandleRightTrigger(bool bPressed)
 }
 void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (PCClimbLadderComponent)
 	{
 		const FRotator Rotation = GetControlRotation();
@@ -221,6 +239,11 @@ void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
 
 void ABasePCPlayer::StartStarDraw()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (PCLeftHand->bIsHolding && PCRightHand->bIsHolding)
 		return;
 	
@@ -232,11 +255,21 @@ void ABasePCPlayer::StartStarDraw()
 
 void ABasePCPlayer::StopStarDraw()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	PlayerSkillComponent ->FinishStarDraw();
 }
 
 void ABasePCPlayer::IgniteBySight()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bCanIgniteBySight || !bIsBowArmed)
 	{
 		return;
@@ -258,8 +291,34 @@ void ABasePCPlayer::IgniteBySight()
 	}
 }
 
+
+void ABasePCPlayer::TryWindowVaultBySight()
+{
+	if (bActionLocked)
+	{
+		return;
+	}
+
+	if (!PCWindowVaultComponent)
+	{
+		return;
+	}
+
+	PCWindowVaultComponent->TryStartVaultBySight(TargetedHitComponent);
+}
+
+void ABasePCPlayer::SetActionLocked(bool bLocked)
+{
+	bActionLocked = bLocked;
+}
+
 void ABasePCPlayer::SetCrouched(bool bCrouch)
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	UCharacterMovementComponent* CharMove = GetCharacterMovement();
 	UCapsuleComponent* Capsule = GetCapsuleComponent();
 	if (!CharMove || !Capsule || !FirstPersonCamera)
@@ -299,6 +358,11 @@ void ABasePCPlayer::SetCrouched(bool bCrouch)
 
 void ABasePCPlayer::TryThrow(bool bRightHand)
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (bIsBowArmed)
 		return;
 	
@@ -308,27 +372,27 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 		return;
 	}
 
-	// 鎵嬮噷娌′笢瑗垮氨杩斿洖
+	// 閹靛鍣峰▽鈥茬鐟楀灝姘ㄦ潻鏂挎礀
 	if (!ThrowHand->bIsHolding || !ThrowHand->HeldActor)
 	{
 		return;
 	}
 
-	// 鐗规畩澶勭悊锛歋tasisPoint 鎶曟�?
+	// 閻楄鐣╂径鍕倞閿涙瓔tasisPoint 閹舵洘骞?
 	if (AStasisPoint* StasisPoint = Cast<AStasisPoint>(ThrowHand->HeldActor))
 	{
 		HandleStasisPointThrow(ThrowHand, StasisPoint);
 		return;
 	}
 
-	// 鍙�?GrabbeeObject 鎵嶅厑璁告姇�?
+	// 閸欘亝婀?GrabbeeObject 閹靛秴鍘戠拋鍛婂閹?
 	AGrabbeeObject* ThrowObject = Cast<AGrabbeeObject>(ThrowHand->HeldActor);
 	if (!ThrowObject)
 	{
 		return;
 	}
 
-	// 閫氳繃灏勭嚎璁＄畻鎶曟幏鐩爣鐐癸紙浠庢憚鍍忔満鏈濆墠锛?
+	// 闁俺绻冪亸鍕殠鐠侊紕鐣婚幎鏇熷箯閻╊喗鐖ｉ悙鐧哥礄娴犲孩鎲氶崓蹇旀簚閺堟繂澧犻敍?
 	FHitResult Hit;
 	const bool bHit = PerformLineTrace(Hit, MaxThrowDistance, TCC_PROJECTILE);
 
@@ -336,10 +400,10 @@ void ABasePCPlayer::TryThrow(bool bRightHand)
 	const FVector End = Start + FirstPersonCamera->GetForwardVector() * MaxThrowDistance;
 	const FVector TargetPoint = bHit ? Hit.ImpactPoint : End;
 
-	// 鍏堥噴鏀撅紙瑙ｉ�?PhysicsHandle / 闄勭潃锛夛紝鍐嶅彂灏?
+	// 閸忓牓鍣撮弨鎾呯礄鐟欙綁娅?PhysicsHandle / 闂勫嫮娼冮敍澶涚礉閸愬秴褰傜亸?
 	ThrowHand->ReleaseObject();
 
-	// LaunchTowards 鍐呴儴浼氭竻閫熷害骞跺姞鍐查�?
+	// LaunchTowards 閸愬懘鍎存导姘闁喎瀹抽獮璺哄閸愭煡鍣?
 	bool bSuccess = ThrowObject->LaunchTowards(TargetPoint, ThrowArcParam);
 	if (!bSuccess)
 	{
@@ -354,23 +418,23 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		return;
 	}
 
-	// 1) 璁＄畻鍙戝皠涓婁笅鏂囷紙PC锛氬熀浜庣浉鏈哄墠鍚戯�?
+	// 1) 鐠侊紕鐣婚崣鎴濈殸娑撳﹣绗呴弬鍥风礄PC閿涙艾鐔€娴滃海娴夐張鍝勫閸氭埊绱?
 	const FVector CameraLocation = FirstPersonCamera->GetComponentLocation();
 	const FVector CameraForward = FirstPersonCamera->GetForwardVector();
 
 	TArray<AActor*> IgnoreActors;
 	IgnoreActors.Add(this);
 	IgnoreActors.Add(StasisPoint);
-	// 棰濆鐨勫拷鐣ュ璞★紙姣斿鍙屾墜鎵嬫寔鐗╋級�?StasisPoint 鍐呴儴缁撳悎 HoldingHand 澶勭悊锟斤拷
-	// 杩欓噷浠嶄繚鐣欒皟鐢ㄧ鍙紶鍏ョ殑 IgnoreActors 鎵╁睍鑳藉姏�?
+	// 妫版繂顦婚惃鍕嫹閻ｃ儱顕挒鈽呯礄濮ｆ柨顩ч崣灞惧閹靛瀵旈悧鈺嬬礆閻?StasisPoint 閸愬懘鍎寸紒鎾虫値 HoldingHand 婢跺嫮鎮婇敓鏂ゆ嫹
+	// 鏉╂瑩鍣锋禒宥勭箽閻ｆ瑨鐨熼悽銊ь伂閸欘垯绱堕崗銉ф畱 IgnoreActors 閹碘晛鐫嶉懗钘夊閵?
 
-	// 2) 璁＄畻鍒濋€熷害
+	// 2) 鐠侊紕鐣婚崚婵嬧偓鐔峰
 	const FVector InitVelocity = CameraForward * StasisFireSpeedScalar;
 
-	// 3) 閲婃斁锛堣В闄ゆ姄鍙栵�?
+	// 3) 闁插﹥鏂侀敍鍫Ｐ掗梽銈嗗閸欐牭绱?
 	ThrowHand->ReleaseObject();
 
-	// 4) 鍙戝皠锛氱敱瀹氳韩鐞冨唴閮ㄨ嚜琛屾壘鐩爣锛屾壘涓嶅埌鍒欑洿椋炲苟瓒呮椂鑷�?
+	// 4) 閸欐垵鐨犻敍姘辨暠鐎规俺闊╅悶鍐ㄥ敶闁劏鍤滅悰灞惧閻╊喗鐖ｉ敍灞惧娑撳秴鍩岄崚娆戞纯妞嬬偛鑻熺搾鍛閼奉亝鐦?
 	StasisPoint->Fire(
 		this,
 		CameraLocation,
@@ -381,14 +445,19 @@ void ABasePCPlayer::HandleStasisPointThrow(UPCGrabHand* ThrowHand, AStasisPoint*
 		IgnoreActors
 	);
 
-	// 5) 瑙ｉ攣鎵嬮儴
+	// 5) 鐟欙綁鏀ｉ幍瀣劥
 	ThrowHand->SetGrabLock(false);
 }
 
-// ==================== 寮撶鎿嶄綔 ====================
+// ==================== 瀵挾顔勯幙宥勭稊 ====================
 
 void ABasePCPlayer::StartAiming()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bIsBowArmed || !bHasBow)
 	{
 		return;
@@ -405,6 +474,11 @@ void ABasePCPlayer::StartAiming()
 
 void ABasePCPlayer::StopAiming()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (bIsDrawingBow)
 	{
 		CancelDrawBow();
@@ -418,6 +492,11 @@ void ABasePCPlayer::StopAiming()
 
 void ABasePCPlayer::StartDrawBow()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bIsAiming || !CurrentBow || bIsDrawingBow)
 	{
 		return;
@@ -501,8 +580,13 @@ void ABasePCPlayer::CancelDrawBow()
 }
 void ABasePCPlayer::StopDrawBow()
 {
-	// DEPRECATED: 涓€鏃﹀紑濮嬫媺寮撳氨涓嶈兘鍙栨秷锛屾澗鎵嬫垨鍒囨崲妯″紡閮戒細鐩存帴鍙戝�?
-	// 姝ゅ嚱鏁颁繚鐣欑敤浜庡吋瀹癸紝浣嗗唴閮ㄧ洿鎺ヨ皟�?ReleaseBowString
+	if (bActionLocked)
+	{
+		return;
+	}
+
+	// DEPRECATED: 娑撯偓閺冿箑绱戞慨瀣瀵挸姘ㄦ稉宥堝厴閸欐牗绉烽敍灞炬緱閹靛鍨ㄩ崚鍥ㄥ床濡€崇础闁垝绱伴惄瀛樺复閸欐垵鐨?
+	// 濮濄倕鍤遍弫棰佺箽閻ｆ瑧鏁ゆ禍搴″悑鐎圭櫢绱濇担鍡楀敶闁劎娲块幒銉ㄧ殶閻?ReleaseBowString
 	if (bIsDrawingBow)
 	{
 		CancelDrawBow();
@@ -511,6 +595,11 @@ void ABasePCPlayer::StopDrawBow()
 
 void ABasePCPlayer::ReleaseBowString()
 {
+	if (bActionLocked)
+	{
+		return;
+	}
+
 	if (!bIsDrawingBow)
 	{
 		return;
@@ -529,7 +618,7 @@ void ABasePCPlayer::ReleaseBowString()
 	}
 }
 
-// ==================== 鍐呴儴鍑芥暟 ====================
+// ==================== 閸愬懘鍎撮崙鑺ユ殶 ====================
 
 void ABasePCPlayer::UpdateTargetDetection()
 {
@@ -537,6 +626,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 	AActor* NewTarget = nullptr;
 	FName NewBoneName = NAME_None;
 	FVector NewImpactPoint = FVector::ZeroVector;
+	UPrimitiveComponent* NewHitComponent = nullptr;
 
 	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 
@@ -545,7 +635,8 @@ void ABasePCPlayer::UpdateTargetDetection()
 	IgniteBySightImpactPoint = FVector::ZeroVector;
 	if (bTraceHit)
 	{
-		if (UPrimitiveComponent* HitComp = Hit.GetComponent())
+		NewHitComponent = Hit.GetComponent();
+		if (UPrimitiveComponent* HitComp = NewHitComponent)
 		{
 			if (!IgniteBySightComponentTag.IsNone() && HitComp->ComponentHasTag(IgniteBySightComponentTag))
 			{
@@ -570,6 +661,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 		TargetedObject = nullptr;
 		TargetedBoneName = NAME_None;
 		TargetedImpactPoint = FVector::ZeroVector;
+		TargetedHitComponent = NewHitComponent;
 		return;
 	}
 
@@ -596,6 +688,7 @@ void ABasePCPlayer::UpdateTargetDetection()
 		TargetedObject = NewTarget;
 		TargetedBoneName = NewBoneName;
 		TargetedImpactPoint = NewImpactPoint;
+		TargetedHitComponent = NewHitComponent;
 
 		if (OldTarget && IsValid(OldTarget))
 		{
@@ -616,9 +709,9 @@ void ABasePCPlayer::UpdateTargetDetection()
 	{
 		TargetedBoneName = NewBoneName;
 		TargetedImpactPoint = NewImpactPoint;
+		TargetedHitComponent = NewHitComponent;
 	}
 }
-
 bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECollisionChannel TraceChannel) const
 {
 	if (!FirstPersonCamera)
@@ -650,15 +743,16 @@ bool ABasePCPlayer::PerformLineTrace(FHitResult& OutHit, float MaxDistance, ECol
 
 void ABasePCPlayer::OnHandGrabbedObject(AActor* GrabbedObject)
 {
-	// 褰撲换涓€鍙墜鎶撳彇鐗╀綋鏃讹紝绔嬪嵆娓呯┖鐬勫噯鐩爣
+	// 瑜版挷鎹㈡稉鈧崣顏呭閹舵挸褰囬悧鈺€缍嬮弮璁圭礉缁斿宓嗗〒鍛敄閻嫬鍣惄顔界垼
 	if (TargetedObject && IsValid(TargetedObject))
 	{
 		AActor* OldTarget = TargetedObject;
 		TargetedObject = nullptr;
 		TargetedBoneName = NAME_None;
 		TargetedImpactPoint = FVector::ZeroVector;
+		TargetedHitComponent = nullptr;
 
-		// 鍙栨秷閫変腑鐘舵€侊紙閫氳繃鎺ュ彛锛?
+		// 閸欐牗绉烽柅澶夎厬閻樿埖鈧緤绱欓柅姘崇箖閹恒儱褰涢敍?
 		if (Cast<IGrabbable>(OldTarget))
 		{
 			IGrabbable::Execute_OnGrabDeselected(OldTarget);
