@@ -14,11 +14,18 @@ class VRTEST_API UWindowVaultVolumeComponent : public UBoxComponent
 public:
 	UWindowVaultVolumeComponent();
 
+	/** 获取翻窗正方向（根据 bUseYAxisAsForward 决定用 X 轴还是 Y 轴） */
+	FVector GetVaultForward() const;
+
+	/** 翻窗正方向是否使用 Y 轴（默认 false = X 轴） */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vault")
-	float FrontBackOffset = 70.0f;
+	bool bUseYAxisAsForward = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vault")
-	float ApexExtraZ = 30.0f;
+	float FrontBackOffset = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vault")
+	float ApexExtraZ =30.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vault", meta=(ClampMin="0.01"))
 	float PreAlignDuration = 0.12f;

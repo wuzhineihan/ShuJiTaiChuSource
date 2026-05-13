@@ -7,6 +7,9 @@
 #include "Enemy_Base.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
+#include "Engine/StaticMeshActor.h"
+#include "Components/StaticMeshComponent.h"
+#include "EngineUtils.h"
 
 void UMyFunctionLibrary::DestroyAIController(AAIController* AIControllerRef)
 {
@@ -142,5 +145,42 @@ bool UMyFunctionLibrary::IsPositionReachable(UObject* WorldContextObject,FVector
 		return false;
 
 	return !NavPath->IsPartial();
+}
+
+void UMyFunctionLibrary::ReplaceStaticMeshActorsWithActor(UObject* WorldContextObject, UStaticMesh* TargetMesh, TSubclassOf<AActor> ReplacementClass)
+{
+	if (!TargetMesh || !ReplacementClass)
+	{
+		return;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AStaticMeshActor*> ActorsToReplace;
+	for (TActorIterator<AStaticMeshActor> It(World); It; ++It)
+	{
+		AStaticMeshActor* SMA = *It;
+		UStaticMeshComponent* MeshComp = SMA->GetStaticMeshComponent();
+		if (MeshComp && MeshComp->GetStaticMesh() == TargetMesh)
+		{
+			ActorsToReplace.Add(SMA);
+		}
+	}
+
+	for (AStaticMeshActor* SMA : ActorsToReplace)
+	{
+		const FVector Location = SMA->GetActorLocation();
+		const FRotator Rotation = SMA->GetActorRotation();
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		World->SpawnActor<AActor>(ReplacementClass, Location, Rotation, SpawnParams);
+
+		SMA->Destroy();
+	}
 }
 

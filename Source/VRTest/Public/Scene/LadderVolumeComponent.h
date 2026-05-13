@@ -13,5 +13,6 @@ class VRTEST_API ULadderVolumeComponent : public UBoxComponent
 
 public:
 	FVector GetLadderNormal() const;
+	FVector GetLadderUp() const;
 };
 

@@ -153,6 +153,11 @@ bool ABasePlayer::GetBowArmed() const
 	return bIsBowArmed;
 }
 
+void ABasePlayer::SetStarDrawEnabled(bool bEnabled)
+{
+	bStarDrawEnabled = bEnabled;
+}
+
 void ABasePlayer::PlaySimpleForceFeedback(EControllerHand Hand)
 {
 	// 子类实现

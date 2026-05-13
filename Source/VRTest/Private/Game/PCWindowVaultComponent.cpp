@@ -91,7 +91,7 @@ bool UPCWindowVaultComponent::BuildVaultPath(UWindowVaultVolumeComponent* VaultV
 
 	const FVector CamLoc = OwnerCamera->GetComponentLocation();
 	const FVector Center = VaultVolume->GetComponentLocation();
-	const FVector Forward = VaultVolume->GetForwardVector().GetSafeNormal2D();
+	const FVector Forward = VaultVolume->GetVaultForward().GetSafeNormal2D();
 	if (Forward.IsNearlyZero())
 	{
 		return false;
@@ -118,8 +118,7 @@ bool UPCWindowVaultComponent::BuildVaultPath(UWindowVaultVolumeComponent* VaultV
 	OutEnd = FVector(EndXY.X, EndXY.Y, GroundZ + CamToBottomOffset);
 
 	const FVector Extent = VaultVolume->GetScaledBoxExtent();
-	const float BoxTopZ = Center.Z + Extent.Z;
-	const double ApexZ = FMath::Max3(OutStart.Z, OutEnd.Z, static_cast<double>(BoxTopZ)) + static_cast<double>(VaultVolume->ApexExtraZ);
+	const double ApexZ = Center.Z + static_cast<double>(VaultVolume->ApexExtraZ);
 	OutApex = FVector(Center.X, Center.Y, ApexZ);
 
 	return true;
@@ -133,18 +132,15 @@ bool UPCWindowVaultComponent::TraceGroundAtXY(const FVector2D& XY, float TraceDi
 		return false;
 	}
 
-	const float StartZ = OwnerPlayer->GetActorLocation().Z + 100.0f;
+	const float StartZ = OwnerPlayer->GetActorLocation().Z;
 	const FVector Start(XY.X, XY.Y, StartZ);
 	const FVector End(XY.X, XY.Y, StartZ - TraceDistance);
-
-	FCollisionObjectQueryParams ObjQuery;
-	ObjQuery.AddObjectTypesToQuery(ECC_WorldStatic);
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(WindowVaultGroundTrace), false);
 	QueryParams.AddIgnoredActor(OwnerPlayer);
 
 	FHitResult Hit;
-	const bool bHit = GetWorld()->LineTraceSingleByObjectType(Hit, Start, End, ObjQuery, QueryParams);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, QueryParams);
 	if (!bHit)
 	{
 		return false;
@@ -164,6 +160,12 @@ void UPCWindowVaultComponent::StartVault(UWindowVaultVolumeComponent* VaultVolum
 	VaultStart = Start;
 	VaultApex = Apex;
 	VaultEnd = End;
+
+	UE_LOG(LogTemp, Log, TEXT("[WindowVault] Start Z=%.1f  Apex Z=%.1f  End Z=%.1f  BoxTopZ=%.1f  GroundZ=%.1f  CamToBottom=%.1f"),
+		Start.Z, Apex.Z, End.Z,
+		VaultVolume->GetComponentLocation().Z + VaultVolume->GetScaledBoxExtent().Z,
+		End.Z - CameraToCapsuleBottomOffset,
+		CameraToCapsuleBottomOffset);
 	DurationToStart = VaultVolume->PreAlignDuration;
 	DurationToApex = VaultVolume->ToApexDuration;
 	DurationToEnd = VaultVolume->ToLandDuration;

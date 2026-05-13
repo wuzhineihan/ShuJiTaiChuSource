@@ -11,3 +11,13 @@ FVector ULadderVolumeComponent::GetLadderNormal() const
 
 	return GetForwardVector().GetSafeNormal();
 }
+
+FVector ULadderVolumeComponent::GetLadderUp() const
+{
+	if (const AActor* OwnerActor = GetOwner())
+	{
+		return OwnerActor->GetActorUpVector().GetSafeNormal();
+	}
+
+	return GetUpVector().GetSafeNormal();
+}

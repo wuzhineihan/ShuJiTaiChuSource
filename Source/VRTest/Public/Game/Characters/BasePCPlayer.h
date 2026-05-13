@@ -13,6 +13,7 @@ class IGrabbable;
 class AArrow;
 class UPCClimbLadderComponent;
 class UPCWindowVaultComponent;
+class UPCActionPromptComponent;
 class UPrimitiveComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGrabTargetChanged, AActor*, NewTarget, AActor*, OldTarget);
@@ -66,6 +67,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UPCWindowVaultComponent* PCWindowVaultComponent = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPCActionPromptComponent* PCActionPromptComponent = nullptr;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|CameraCollision", meta=(ClampMin="0.0"))
 	float CameraCollisionRadius = 12.0f;
@@ -216,9 +220,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StartStarDraw();
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Input")
 	void StopStarDraw();
+
 
 	/** PC 鎵嬪姩鐐圭伀锛堢敱钃濆浘杈撳叆浜嬩欢璋冪敤锛?*/
 	UFUNCTION(BlueprintCallable, Category = "Input")

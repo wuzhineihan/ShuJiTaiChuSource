@@ -66,7 +66,8 @@ void UPCClimbLadderComponent::HandleMoveInput(const FVector& ForwardDir, const F
 	}
 
 	const FVector LadderNormal = CurrentLadder->GetLadderNormal().GetSafeNormal2D();
-	if (LadderNormal.IsNearlyZero())
+	const FVector LadderUp = CurrentLadder->GetLadderUp();
+	if (LadderNormal.IsNearlyZero() || LadderUp.IsNearlyZero())
 	{
 		ExitLadderMode();
 		OwnerPlayer->AddMovementInput(SafeRight, MoveInput.X);
@@ -105,12 +106,13 @@ void UPCClimbLadderComponent::HandleMoveInput(const FVector& ForwardDir, const F
 
 	const float TowardAmount = FMath::Clamp(FVector::DotProduct(MoveDirWorld, -LadderNormal), 0.0f, 1.0f);
 	const float ClimbScale = TowardAmount * InputMagnitude * LadderClimbSpeedScale;
-	OwnerPlayer->AddMovementInput(FVector::UpVector, ClimbScale);
+	OwnerPlayer->AddMovementInput(LadderUp, ClimbScale);
 
-	const FVector HorizontalOnLadder = DesiredMoveWorld2D - FVector::DotProduct(DesiredMoveWorld2D, -LadderNormal) * (-LadderNormal);
-	if (!HorizontalOnLadder.IsNearlyZero())
+	const FVector LadderRight = FVector::CrossProduct(LadderUp, LadderNormal).GetSafeNormal();
+	const float StrafeAmount = FVector::DotProduct(DesiredMoveWorld2D, LadderRight);
+	if (FMath::Abs(StrafeAmount) > KINDA_SMALL_NUMBER)
 	{
-		OwnerPlayer->AddMovementInput(HorizontalOnLadder.GetSafeNormal2D(), FMath::Clamp(HorizontalOnLadder.Size(), 0.0f, 1.0f));
+		OwnerPlayer->AddMovementInput(LadderRight, FMath::Clamp(StrafeAmount, -1.0f, 1.0f));
 	}
 }
 

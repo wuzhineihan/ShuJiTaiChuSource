@@ -28,4 +28,7 @@ public:
 	static void FindNearestEnemy(UObject* WorldContextObject, FVector Location);
 	UFUNCTION(CallInEditor,BlueprintCallable)
 	static bool IsPositionReachable(UObject* WorldContextObject,FVector TargetPosition,FVector EnemyLocation);
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Editor Utility")
+	static void ReplaceStaticMeshActorsWithActor(UObject* WorldContextObject, UStaticMesh* TargetMesh, TSubclassOf<AActor> ReplacementClass);
 };

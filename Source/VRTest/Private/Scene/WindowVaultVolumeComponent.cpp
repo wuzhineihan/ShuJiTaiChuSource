@@ -1,15 +1,18 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Scene/WindowVaultVolumeComponent.h"
+#include "Game/CollisionConfig.h"
 
 UWindowVaultVolumeComponent::UWindowVaultVolumeComponent()
 {
-	SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	SetCollisionResponseToAllChannels(ECR_Ignore);
-	SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	SetCollisionResponseToChannel(ECC_Camera, ECR_Block);
+	SetCollisionProfileName(CP_WINDOW_VAULT);
 	SetGenerateOverlapEvents(false);
 
 	ComponentTags.AddUnique(FName(TEXT("Interact_WindowVault")));
+}
+
+FVector UWindowVaultVolumeComponent::GetVaultForward() const
+{
+	return bUseYAxisAsForward ? GetRightVector() : GetForwardVector();
 }
 

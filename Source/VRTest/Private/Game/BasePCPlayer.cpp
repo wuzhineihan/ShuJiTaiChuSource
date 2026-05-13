@@ -18,6 +18,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Game/PCClimbLadderComponent.h"
 #include "Game/PCWindowVaultComponent.h"
+#include "UI/PCActionPromptComponent.h"
 
 ABasePCPlayer::ABasePCPlayer()
 {
@@ -41,6 +42,8 @@ ABasePCPlayer::ABasePCPlayer()
 	PCClimbLadderComponent = CreateDefaultSubobject<UPCClimbLadderComponent>(TEXT("PCClimbLadderComponent"));
 
 	PCWindowVaultComponent = CreateDefaultSubobject<UPCWindowVaultComponent>(TEXT("PCWindowVaultComponent"));
+
+	PCActionPromptComponent = CreateDefaultSubobject<UPCActionPromptComponent>(TEXT("PCActionPromptComponent"));
 
 	// 閸掓稑缂撳锔藉
 	PCLeftHand = CreateDefaultSubobject<UPCGrabHand>(TEXT("LeftHand"));
@@ -239,29 +242,30 @@ void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
 
 void ABasePCPlayer::StartStarDraw()
 {
-	if (bActionLocked)
+	if (bActionLocked || !bStarDrawEnabled)
 	{
 		return;
 	}
 
 	if (PCLeftHand->bIsHolding && PCRightHand->bIsHolding)
 		return;
-	
+
 	bool bIsRightHandFree = !PCRightHand->bIsHolding;
-	
+
 	if (PlayerSkillComponent)
 		PlayerSkillComponent->StartStarDraw(FirstPersonCamera, bIsRightHandFree);
 }
 
 void ABasePCPlayer::StopStarDraw()
 {
-	if (bActionLocked)
+	if (bActionLocked || !bStarDrawEnabled)
 	{
 		return;
 	}
 
 	PlayerSkillComponent ->FinishStarDraw();
 }
+
 
 void ABasePCPlayer::IgniteBySight()
 {
@@ -630,6 +634,9 @@ void ABasePCPlayer::UpdateTargetDetection()
 
 	bTraceHit = PerformLineTrace(Hit, MaxGrabDistance, GrabTraceChannel);
 
+	if (false && bTraceHit)	
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("Grab Trace Hit: %s"), *Hit.GetActor()->GetName()));
+	
 	bool bSightHitsIgniteTarget = false;
 	bCanIgniteBySight = false;
 	IgniteBySightImpactPoint = FVector::ZeroVector;

@@ -7,6 +7,7 @@
 #include "Game/Characters/BasePlayer.h"
 #include "Game/CollisionConfig.h"
 #include "Grabber/PlayerGrabHand.h"
+#include "Grabber/PCGrabHand.h"
 
 AClimbableVolume::AClimbableVolume()
 {
@@ -44,6 +45,11 @@ UPrimitiveComponent* AClimbableVolume::GetGrabPrimitive_Implementation() const
 bool AClimbableVolume::CanBeGrabbedBy_Implementation(const UPlayerGrabHand* Hand) const
 {
 	if (!Hand)
+	{
+		return false;
+	}
+
+	if (Cast<UPCGrabHand>(Hand))
 	{
 		return false;
 	}
