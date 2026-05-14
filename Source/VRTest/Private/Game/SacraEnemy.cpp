@@ -2,6 +2,7 @@
 
 #include "Game/Characters/SacraEnemy.h"
 
+#include "AI/Component/SacraEnemyActivityComponent.h"
 #include "AI/Component/SacraEnemyContextComponent.h"
 #include "AI/DataAsset/SacraEnemyConfigDataAsset.h"
 #include "AI/SacraEnemyAIControllerBase.h"
@@ -13,6 +14,7 @@
 ASacraEnemy::ASacraEnemy()
 {
 	EnemyContextComponent = CreateDefaultSubobject<USacraEnemyContextComponent>(TEXT("EnemyContextComponent"));
+	EnemyActivityComponent = CreateDefaultSubobject<USacraEnemyActivityComponent>(TEXT("EnemyActivityComponent"));
 	EnemyStatusUIComponent = CreateDefaultSubobject<USacraEnemyStatusUIComponent>(TEXT("EnemyStatusUIComponent"));
 	EnemyLoadoutComponent = CreateDefaultSubobject<USacraEnemyLoadoutComponent>(TEXT("EnemyLoadoutComponent"));
 	EnemyWeaponComponentClass = USacraMeleeWeaponComponent::StaticClass();
@@ -23,6 +25,36 @@ void ASacraEnemy::PostInitializeComponents()
 	Super::PostInitializeComponents();
 	ApplyEnemyConfigDataAsset();
 	EnsureWeaponComponent();
+}
+
+bool ASacraEnemy::RebuildEnemyLoadoutInEditor()
+{
+#if WITH_EDITOR
+	if (!IsValid(EnemyLoadoutComponent))
+	{
+		return false;
+	}
+
+	ApplyEnemyConfigDataAsset();
+	return EnemyLoadoutComponent->RebuildEditorLoadout();
+#else
+	return false;
+#endif
+}
+
+bool ASacraEnemy::RerollEnemyLoadoutInEditor()
+{
+#if WITH_EDITOR
+	if (!IsValid(EnemyLoadoutComponent))
+	{
+		return false;
+	}
+
+	ApplyEnemyConfigDataAsset();
+	return EnemyLoadoutComponent->RerollEditorLoadout();
+#else
+	return false;
+#endif
 }
 
 void ASacraEnemy::ApplyEnemyConfigDataAsset()

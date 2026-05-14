@@ -44,6 +44,12 @@ public:
 	void SetWeaponAiming(bool bInAiming, AActor* InTargetActor = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Weapon|Bow")
+	bool NotifyCompleteEquip();
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Weapon|Bow")
+	bool NotifyLoadArrow();
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Weapon|Bow")
 	bool NotifyAttackRelease();
 
 protected:
@@ -55,6 +61,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Bow")
 	FName BowEquipSocketName = TEXT("Archer_Bow_Equip");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Bow")
+	FName BowStowedSocketName = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Bow")
 	FName ArrowNockSocketName = TEXT("Archer_Arrow");
@@ -107,12 +116,17 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Bow")
 	bool bKeepArrowLoadedWhenNotAiming = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Bow", meta = (ClampMin = "0.0"))
+	float BowStringPullDistance = 18.0f;
+
 private:
 	bool SpawnBowIfNeeded();
 	bool ReloadArrowIfNeeded();
-	void AttachBowToOwner();
+	void AttachBowToEquippedSocket();
+	void AttachBowToStowedSocket();
 	void CleanupSpawnedActors();
 	void SetWeaponAimingState(bool bInAiming);
+	FVector ComputeBowStringGrabLocation(float PullAlpha) const;
 	void SyncLoadedArrowToBow() const;
 	void RefreshVisualState() const;
 	virtual void HandleWeaponPausedStateChanged() override;

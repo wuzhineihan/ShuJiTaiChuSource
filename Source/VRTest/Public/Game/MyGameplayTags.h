@@ -28,6 +28,9 @@ namespace MyProjectTags
 	// AI Behavior
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Behavior_Idle_Guard);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Behavior_Idle_Patrol);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Behavior_Subtree_Idle);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Behavior_Subtree_Warning);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Behavior_Subtree_Fight);
 
 	// AI Message
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_AI_Message_Hatred);

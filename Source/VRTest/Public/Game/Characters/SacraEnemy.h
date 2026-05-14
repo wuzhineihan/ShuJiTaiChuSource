@@ -8,6 +8,7 @@
 #include "SacraEnemy.generated.h"
 
 class USacraEnemyContextComponent;
+class USacraEnemyActivityComponent;
 class USacraEnemyConfigDataAsset;
 class USacraEnemyLoadoutComponent;
 class USacraEnemyStatusUIComponent;
@@ -22,6 +23,12 @@ public:
 	ASacraEnemy();
 	virtual void PostInitializeComponents() override;
 
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "AI|Loadout")
+	bool RebuildEnemyLoadoutInEditor();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "AI|Loadout")
+	bool RerollEnemyLoadoutInEditor();
+
 	UFUNCTION(BlueprintPure, Category = "AI|Config")
 	USacraEnemyConfigDataAsset* GetEnemyConfigDataAsset() const { return EnemyConfigDataAsset; }
 
@@ -30,6 +37,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "AI|Weapon")
 	USacraEnemyWeaponComponent* GetEnemyWeaponComponent() const { return EnemyWeaponComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "AI|Activity")
+	USacraEnemyActivityComponent* GetEnemyActivityComponent() const { return EnemyActivityComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "AI|Loadout")
 	USacraEnemyLoadoutComponent* GetEnemyLoadoutComponent() const { return EnemyLoadoutComponent; }
@@ -46,6 +56,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USacraEnemyContextComponent> EnemyContextComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USacraEnemyActivityComponent> EnemyActivityComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USacraEnemyStatusUIComponent> EnemyStatusUIComponent;

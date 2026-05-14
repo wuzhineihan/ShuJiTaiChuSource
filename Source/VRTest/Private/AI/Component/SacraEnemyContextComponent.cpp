@@ -2,6 +2,7 @@
 
 #include "AI/Component/SacraEnemyContextComponent.h"
 
+#include "AI/Component/SacraEnemyActivityComponent.h"
 #include "AI/Component/SacraBlackboardComponent.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
 #include "AI/Component/SacraEnemyWeaponComponent.h"
@@ -61,6 +62,13 @@ USacraEnemyWeaponComponent* USacraEnemyContextComponent::GetCachedWeaponComponen
 	USacraEnemyContextComponent* MutableThis = const_cast<USacraEnemyContextComponent*>(this);
 	MutableThis->ResolveWeaponComponent();
 	return CachedWeaponComponent.Get();
+}
+
+USacraEnemyActivityComponent* USacraEnemyContextComponent::GetCachedActivityComponent() const
+{
+	USacraEnemyContextComponent* MutableThis = const_cast<USacraEnemyContextComponent*>(this);
+	MutableThis->ResolveActivityComponent();
+	return CachedActivityComponent.Get();
 }
 
 UEnemyPatrolSplineComponent* USacraEnemyContextComponent::GetPatrolSplineComponent() const
@@ -171,6 +179,7 @@ void USacraEnemyContextComponent::ResolveSharedReferences()
 	ResolveBlackboardComponent();
 	ResolveHatredComponent();
 	ResolveWeaponComponent();
+	ResolveActivityComponent();
 	ResolvePatrolSplineComponent();
 }
 
@@ -242,6 +251,16 @@ void USacraEnemyContextComponent::ResolveWeaponComponent()
 	}
 
 	CachedWeaponComponent = GetOwner() ? GetOwner()->FindComponentByClass<USacraEnemyWeaponComponent>() : nullptr;
+}
+
+void USacraEnemyContextComponent::ResolveActivityComponent()
+{
+	if (IsValid(CachedActivityComponent))
+	{
+		return;
+	}
+
+	CachedActivityComponent = GetOwner() ? GetOwner()->FindComponentByClass<USacraEnemyActivityComponent>() : nullptr;
 }
 
 void USacraEnemyContextComponent::ResolvePatrolSplineComponent()

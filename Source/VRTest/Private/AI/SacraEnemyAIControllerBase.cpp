@@ -9,10 +9,12 @@
 #include "AI/Component/SacraEnemyStatusUIComponent.h"
 #include "AI/Component/SacraEnemyWeaponComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Game/Characters/SacraEnemy.h"
+#include "Game/MyGameplayTags.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "BrainComponent.h"
 
@@ -146,6 +148,10 @@ void ASacraEnemyAIControllerBase::ApplyConfigDataAsset(const USacraEnemyConfigDa
 			DefaultBehaviorTreeAsset = ConfigDataAsset->ControllerConfig.DefaultBehaviorTreeAsset;
 		}
 
+		IdleBehaviorSubtreeAsset = ConfigDataAsset->ControllerConfig.BehaviorSubtreeConfig.IdleSubtreeAsset;
+		WarningBehaviorSubtreeAsset = ConfigDataAsset->ControllerConfig.BehaviorSubtreeConfig.WarningSubtreeAsset;
+		FightBehaviorSubtreeAsset = ConfigDataAsset->ControllerConfig.BehaviorSubtreeConfig.FightSubtreeAsset;
+
 		NonFightRotationRateYaw = ConfigDataAsset->ControllerConfig.NonFightRotationRateYaw;
 		FightRotationRateYaw = ConfigDataAsset->ControllerConfig.FightRotationRateYaw;
 	}
@@ -155,6 +161,7 @@ void ASacraEnemyAIControllerBase::ApplyConfigDataAsset(const USacraEnemyConfigDa
 		EnemyHatredComponent->ApplyConfigData(ConfigDataAsset->HatredConfig);
 	}
 
+	ApplyBehaviorSubtreeConfig();
 	RefreshRotationMode();
 }
 
@@ -205,6 +212,8 @@ void ASacraEnemyAIControllerBase::TryStartBehaviorTree()
 	{
 		RunBehaviorTree(DefaultBehaviorTreeAsset);
 	}
+
+	ApplyBehaviorSubtreeConfig();
 }
 
 void ASacraEnemyAIControllerBase::ApplyPausedStateToControllerComponents()
@@ -222,6 +231,30 @@ void ASacraEnemyAIControllerBase::ApplyPausedStateToControllerComponents()
 	if (UAIPerceptionComponent* CachedPerceptionComponent = FindPerceptionComponent(this))
 	{
 		CachedPerceptionComponent->SetComponentTickEnabled(!bIsEnemyAIPaused);
+	}
+}
+
+void ASacraEnemyAIControllerBase::ApplyBehaviorSubtreeConfig()
+{
+	UBehaviorTreeComponent* BehaviorTreeComponent = Cast<UBehaviorTreeComponent>(BrainComponent);
+	if (!IsValid(BehaviorTreeComponent))
+	{
+		return;
+	}
+
+	if (IsValid(IdleBehaviorSubtreeAsset))
+	{
+		BehaviorTreeComponent->SetDynamicSubtree(MyProjectTags::TAG_AI_Behavior_Subtree_Idle, IdleBehaviorSubtreeAsset);
+	}
+
+	if (IsValid(WarningBehaviorSubtreeAsset))
+	{
+		BehaviorTreeComponent->SetDynamicSubtree(MyProjectTags::TAG_AI_Behavior_Subtree_Warning, WarningBehaviorSubtreeAsset);
+	}
+
+	if (IsValid(FightBehaviorSubtreeAsset))
+	{
+		BehaviorTreeComponent->SetDynamicSubtree(MyProjectTags::TAG_AI_Behavior_Subtree_Fight, FightBehaviorSubtreeAsset);
 	}
 }
 

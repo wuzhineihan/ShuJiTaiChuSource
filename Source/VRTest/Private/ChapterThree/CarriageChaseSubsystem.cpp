@@ -69,6 +69,7 @@ void UCarriageChaseSubsystem::RegisterCarriage(ACarriage* InCarriage)
 
 	CurrentCarriage = InCarriage;
 	BindToCarriage(InCarriage);
+	BroadcastStateChanged();
 }
 
 void UCarriageChaseSubsystem::UnregisterCarriage(ACarriage* InCarriage)
@@ -87,6 +88,10 @@ void UCarriageChaseSubsystem::UnregisterCarriage(ACarriage* InCarriage)
 	if (bBattleActive)
 	{
 		StopBattle(false);
+	}
+	else
+	{
+		BroadcastStateChanged();
 	}
 }
 
@@ -177,6 +182,7 @@ bool UCarriageChaseSubsystem::StartBattle()
 	}
 
 	OnBattleStarted.Broadcast();
+	BroadcastStateChanged();
 	return true;
 }
 
@@ -217,6 +223,7 @@ void UCarriageChaseSubsystem::StopBattle(bool bReachedDestination)
 	}
 	EnemyAssignedChasePoints.Reset();
 
+	BroadcastStateChanged();
 	OnBattleStopped.Broadcast(bReachedDestination);
 }
 
@@ -319,6 +326,11 @@ void UCarriageChaseSubsystem::ClearSpawnTimer()
 	}
 }
 
+void UCarriageChaseSubsystem::BroadcastStateChanged()
+{
+	OnStateChanged.Broadcast();
+}
+
 void UCarriageChaseSubsystem::RemoveInvalidSpawnPoints()
 {
 	RegisteredSpawnPoints.RemoveAll([](const TWeakObjectPtr<AHorseEnemySpawnManager>& RegisteredSpawnPoint)
@@ -329,6 +341,8 @@ void UCarriageChaseSubsystem::RemoveInvalidSpawnPoints()
 
 void UCarriageChaseSubsystem::RemoveInvalidActiveEnemies()
 {
+	const int32 PreviousAssignedPointCount = EnemyAssignedChasePoints.Num();
+	const int32 PreviousActiveEnemyCount = ActiveEnemies.Num();
 	TArray<TWeakObjectPtr<AActor>> KeysToRemove;
 	for (const TPair<TWeakObjectPtr<AActor>, TWeakObjectPtr<USceneComponent>>& Pair : EnemyAssignedChasePoints)
 	{
@@ -351,6 +365,11 @@ void UCarriageChaseSubsystem::RemoveInvalidActiveEnemies()
 	{
 		return !ActiveEnemy.IsValid();
 	});
+
+	if (EnemyAssignedChasePoints.Num() != PreviousAssignedPointCount || ActiveEnemies.Num() != PreviousActiveEnemyCount)
+	{
+		BroadcastStateChanged();
+	}
 }
 
 void UCarriageChaseSubsystem::RegisterSpawnedEnemy(AEnemyHorseBase* SpawnedEnemy, USceneComponent* AssignedChasePoint)
@@ -364,6 +383,7 @@ void UCarriageChaseSubsystem::RegisterSpawnedEnemy(AEnemyHorseBase* SpawnedEnemy
 	EnemyAssignedChasePoints.Add(TWeakObjectPtr<AActor>(SpawnedEnemy), AssignedChasePoint);
 	SpawnedEnemy->OnEnemyDead.AddDynamic(this, &UCarriageChaseSubsystem::HandleActiveEnemyDead);
 	SpawnedEnemy->OnDestroyed.AddDynamic(this, &UCarriageChaseSubsystem::HandleActiveEnemyDestroyed);
+	BroadcastStateChanged();
 }
 
 void UCarriageChaseSubsystem::UnregisterActiveEnemy(AActor* EnemyActor)
@@ -393,6 +413,8 @@ void UCarriageChaseSubsystem::UnregisterActiveEnemy(AActor* EnemyActor)
 	{
 		return !ActiveEnemy.IsValid() || ActiveEnemy.Get() == EnemyActor;
 	});
+
+	BroadcastStateChanged();
 }
 
 AHorseEnemySpawnManager* UCarriageChaseSubsystem::SelectNearestSpawnPoint() const

@@ -2,7 +2,9 @@
 
 #include "AI/Component/SacraEnemyWeaponComponent.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Game/MyGameplayTags.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 
 USacraEnemyWeaponComponent::USacraEnemyWeaponComponent()
@@ -191,6 +193,7 @@ void USacraEnemyWeaponComponent::SetWeaponEquippedState(bool bInEquipped)
 	}
 
 	bIsWeaponEquipped = bInEquipped;
+	ApplyWeaponAnimLayerState(bIsWeaponEquipped);
 	OnWeaponEquippedChanged.Broadcast(bIsWeaponEquipped);
 }
 
@@ -200,4 +203,39 @@ void USacraEnemyWeaponComponent::HandleWeaponPausedStateChanged()
 	{
 		FinishAttack(false);
 	}
+}
+
+void USacraEnemyWeaponComponent::ApplyWeaponAnimLayerState(bool bInEquipped) const
+{
+	USkeletalMeshComponent* OwnerMesh = ResolveOwnerMesh();
+	if (!IsValid(OwnerMesh))
+	{
+		return;
+	}
+
+	if (bInEquipped)
+	{
+		if (EquippedAnimLayerClass)
+		{
+			OwnerMesh->LinkAnimClassLayers(EquippedAnimLayerClass);
+		}
+
+		return;
+	}
+
+	if (EquippedAnimLayerClass)
+	{
+		OwnerMesh->UnlinkAnimClassLayers(EquippedAnimLayerClass);
+	}
+
+	if (UnequippedAnimLayerClass)
+	{
+		OwnerMesh->LinkAnimClassLayers(UnequippedAnimLayerClass);
+	}
+}
+
+USkeletalMeshComponent* USacraEnemyWeaponComponent::ResolveOwnerMesh() const
+{
+	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	return IsValid(OwnerCharacter) ? OwnerCharacter->GetMesh() : nullptr;
 }

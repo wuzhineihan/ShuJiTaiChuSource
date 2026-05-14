@@ -8,6 +8,7 @@
 
 class UAIPerceptionComponent;
 class UBehaviorTree;
+class UBehaviorTreeComponent;
 class USacraBlackboardComponent;
 class USacraEnemyConfigDataAsset;
 class USacraEnemyHatredComponent;
@@ -42,6 +43,7 @@ private:
 	void TryStartBehaviorTree();
 	void ApplyPausedStateToControllerComponents();
 	void ApplyPausedStateToPawnComponents();
+	void ApplyBehaviorSubtreeConfig();
 	void BindHatredDelegates();
 	void UnbindHatredDelegates();
 	void RefreshRotationMode();
@@ -57,6 +59,15 @@ private:
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|BehaviorTree", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UBehaviorTree> DefaultBehaviorTreeAsset = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|BehaviorTree", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBehaviorTree> IdleBehaviorSubtreeAsset = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|BehaviorTree", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBehaviorTree> WarningBehaviorSubtreeAsset = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|BehaviorTree", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UBehaviorTree> FightBehaviorSubtreeAsset = nullptr;
 
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = "AI|Runtime", meta = (AllowPrivateAccess = "true"))
 	bool bIsEnemyAIPaused = false;

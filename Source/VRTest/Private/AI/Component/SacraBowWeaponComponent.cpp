@@ -4,12 +4,14 @@
 
 #include "AI/Weapon/SacraEnemyArrowProjectile.h"
 #include "AI/Weapon/SacraEnemyBowActor.h"
+#include "AIController.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 USacraBowWeaponComponent::USacraBowWeaponComponent()
@@ -64,13 +66,10 @@ bool USacraBowWeaponComponent::InitWeapon()
 		return false;
 	}
 
-	AttachBowToOwner();
+	AttachBowToStowedSocket();
 	UpdateBowVisualPullState(0.0f);
 	RefreshVisualState();
-	if (IsValid(SpawnedBowActor))
-	{
-		SpawnedBowActor->SetActorHiddenInGame(false);
-	}
+	RefreshVisualState();
 	SetWeaponInitialized(true);
 	return true;
 }
@@ -87,12 +86,6 @@ bool USacraBowWeaponComponent::EquipWeapon()
 		return true;
 	}
 
-	AttachBowToOwner();
-	if (IsValid(SpawnedBowActor))
-	{
-		SpawnedBowActor->SetActorHiddenInGame(false);
-	}
-	ReloadArrowIfNeeded();
 	RefreshVisualState();
 
 	if (EquipMontage)
@@ -110,7 +103,7 @@ bool USacraBowWeaponComponent::EquipWeapon()
 		}
 	}
 
-	return CompleteEquipWeapon();
+	return NotifyCompleteEquip();
 }
 
 void USacraBowWeaponComponent::UnequipWeapon()
@@ -131,6 +124,10 @@ void USacraBowWeaponComponent::UnequipWeapon()
 	{
 		SpawnedBowActor->SetActorHiddenInGame(true);
 	}
+	else
+	{
+		AttachBowToStowedSocket();
+	}
 
 	Super::UnequipWeapon();
 }
@@ -138,11 +135,6 @@ void USacraBowWeaponComponent::UnequipWeapon()
 bool USacraBowWeaponComponent::StartAttack(AActor* InTargetActor)
 {
 	if (!CachedOwnerCharacter && !InitWeapon())
-	{
-		return false;
-	}
-
-	if (!ReloadArrowIfNeeded())
 	{
 		return false;
 	}
@@ -165,6 +157,16 @@ bool USacraBowWeaponComponent::StartAttack(AActor* InTargetActor)
 	bHasReceivedAttackReleaseNotify = false;
 	SetWeaponAimingState(true);
 	UpdateBowVisualPullState(1.0f);
+
+	if (AAIController* AIController = Cast<AAIController>(CachedOwnerCharacter ? CachedOwnerCharacter->GetController() : nullptr))
+	{
+		AIController->StopMovement();
+	}
+
+	if (UCharacterMovementComponent* CharacterMovement = CachedOwnerCharacter ? CachedOwnerCharacter->GetCharacterMovement() : nullptr)
+	{
+		CharacterMovement->StopMovementImmediately();
+	}
 
 	if (AttackMontage)
 	{
@@ -292,16 +294,6 @@ void USacraBowWeaponComponent::SetWeaponAiming(bool bInAiming, AActor* InTargetA
 		return;
 	}
 
-	if (!bInAiming && !bKeepArrowLoadedWhenNotAiming && IsValid(LoadedArrowProjectile) && !IsAttacking())
-	{
-		LoadedArrowProjectile->Destroy();
-		LoadedArrowProjectile = nullptr;
-	}
-	else if (bInAiming && !IsAttacking())
-	{
-		ReloadArrowIfNeeded();
-	}
-
 	SetWeaponAimingState(bInAiming);
 
 	if (!bInAiming && !IsAttacking())
@@ -310,7 +302,7 @@ void USacraBowWeaponComponent::SetWeaponAiming(bool bInAiming, AActor* InTargetA
 	}
 }
 
-void USacraBowWeaponComponent::AttachBowToOwner()
+void USacraBowWeaponComponent::AttachBowToEquippedSocket()
 {
 	if (!CachedOwnerCharacter && !InitWeapon())
 	{
@@ -326,6 +318,30 @@ void USacraBowWeaponComponent::AttachBowToOwner()
 		CachedOwnerMesh,
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		BowEquipSocketName);
+	SpawnedBowActor->SetActorHiddenInGame(false);
+	RefreshVisualState();
+}
+
+void USacraBowWeaponComponent::AttachBowToStowedSocket()
+{
+	if (!CachedOwnerCharacter && !InitWeapon())
+	{
+		return;
+	}
+
+	if (!SpawnBowIfNeeded() || !IsValid(CachedOwnerMesh))
+	{
+		return;
+	}
+
+	const FName TargetSocketName = BowStowedSocketName.IsNone() ? BowEquipSocketName : BowStowedSocketName;
+	SpawnedBowActor->AttachToComponent(
+		CachedOwnerMesh,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		TargetSocketName);
+
+	SpawnedBowActor->SetActorHiddenInGame(bHideBowWhenUnequipped);
+
 	RefreshVisualState();
 }
 
@@ -373,15 +389,15 @@ void USacraBowWeaponComponent::RefreshVisualState() const
 		return;
 	}
 
-	if (IsValid(LoadedArrowProjectile) && !IsAttacking())
+	if (IsValid(LoadedArrowProjectile))
 	{
 		SyncLoadedArrowToBow();
 	}
 
 	if (IsValid(SpawnedBowActor))
 	{
-		const FVector GrabLocation = CachedOwnerMesh->GetSocketLocation(PullStringSocketName);
 		const float PullAlpha = (IsWeaponAiming() || IsAttacking()) ? 1.0f : 0.0f;
+		const FVector GrabLocation = ComputeBowStringGrabLocation(PullAlpha);
 		SpawnedBowActor->SetStringPullState(PullAlpha, GrabLocation);
 	}
 }
@@ -447,6 +463,17 @@ bool USacraBowWeaponComponent::ReleaseCurrentArrowAtTarget(AActor* InTargetActor
 	return true;
 }
 
+bool USacraBowWeaponComponent::NotifyCompleteEquip()
+{
+	if (IsWeaponPaused())
+	{
+		return false;
+	}
+
+	AttachBowToEquippedSocket();
+	return CompleteEquipWeapon();
+}
+
 bool USacraBowWeaponComponent::NotifyAttackRelease()
 {
 	if (!IsAttacking() || bHasReceivedAttackReleaseNotify)
@@ -458,8 +485,22 @@ bool USacraBowWeaponComponent::NotifyAttackRelease()
 
 	const bool bReleased = ReleaseCurrentArrowAtTarget(PendingAttackTarget.Get());
 	PendingAttackTarget = nullptr;
-	FinishAttack(bReleased);
 	return bReleased;
+}
+
+bool USacraBowWeaponComponent::NotifyLoadArrow()
+{
+	if (IsWeaponPaused() || !IsWeaponEquipped())
+	{
+		return false;
+	}
+
+	if (!CachedOwnerCharacter && !InitWeapon())
+	{
+		return false;
+	}
+
+	return ReloadArrowIfNeeded();
 }
 
 FVector USacraBowWeaponComponent::GetTargetAimLocation(AActor* InTargetActor) const
@@ -520,8 +561,28 @@ void USacraBowWeaponComponent::UpdateBowVisualPullState(float PullAlpha)
 		return;
 	}
 
-	const FVector GrabLocation = CachedOwnerMesh->GetSocketLocation(PullStringSocketName);
+	const FVector GrabLocation = ComputeBowStringGrabLocation(PullAlpha);
 	SpawnedBowActor->SetStringPullState(PullAlpha, GrabLocation);
+}
+
+FVector USacraBowWeaponComponent::ComputeBowStringGrabLocation(float PullAlpha) const
+{
+	if (!IsValid(CachedOwnerMesh))
+	{
+		return FVector::ZeroVector;
+	}
+
+	const FVector RestLocation = CachedOwnerMesh->GetSocketLocation(PullStringSocketName);
+	if (PullAlpha <= KINDA_SMALL_NUMBER || BowStringPullDistance <= KINDA_SMALL_NUMBER)
+	{
+		return RestLocation;
+	}
+
+	const FVector PullDirection = IsValid(CachedOwnerCharacter)
+		? -CachedOwnerCharacter->GetActorForwardVector().GetSafeNormal()
+		: -CachedOwnerMesh->GetForwardVector().GetSafeNormal();
+
+	return RestLocation + PullDirection * BowStringPullDistance * FMath::Clamp(PullAlpha, 0.0f, 1.0f);
 }
 
 void USacraBowWeaponComponent::HandleEquipMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -537,7 +598,7 @@ void USacraBowWeaponComponent::HandleEquipMontageEnded(UAnimMontage* Montage, bo
 		return;
 	}
 
-	CompleteEquipWeapon();
+	NotifyCompleteEquip();
 }
 
 void USacraBowWeaponComponent::HandleAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -556,10 +617,12 @@ void USacraBowWeaponComponent::HandleAttackMontageEnded(UAnimMontage* Montage, b
 
 	if (!bHasReceivedAttackReleaseNotify)
 	{
-		const bool bReleased = ReleaseCurrentArrowAtTarget(PendingAttackTarget.Get());
 		PendingAttackTarget = nullptr;
-		FinishAttack(bReleased);
+		FinishAttack(false);
+		return;
 	}
+
+	FinishAttack(true);
 }
 
 void USacraBowWeaponComponent::HandleAttackCooldownFinished()

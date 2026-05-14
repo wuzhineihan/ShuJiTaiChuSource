@@ -3,9 +3,6 @@
 
 #include "ChapterThree/ChapterThreeManager.h"
 #include "ChapterThree/CarriageChaseSubsystem.h"
-#include "Kismet/GameplayStatics.h"
-#include "EngineUtils.h"
-#include "ChapterThree/CartBase.h"
 #include "ChapterThree/EnemyHorseBase.h"
 #include "ChapterThree/HorseEnemySpawnManager.h"
 #include "Components/BoxComponent.h"
@@ -13,8 +10,7 @@
 // Sets default values
 AChapterThreeManager::AChapterThreeManager()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	DefaultSceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneRoot"));
 	RootComponent = DefaultSceneRoot;
@@ -38,8 +34,8 @@ void AChapterThreeManager::BeginPlay()
 	CachedChaseSubsystem = UCarriageChaseSubsystem::Get(this);
 	if (CachedChaseSubsystem)
 	{
+		CachedChaseSubsystem->OnStateChanged.AddUObject(this, &AChapterThreeManager::HandleBattleStateChanged);
 		CachedChaseSubsystem->OnBattleStopped.AddUObject(this, &AChapterThreeManager::HandleBattleStopped);
-		CurrentCarriage = CachedChaseSubsystem->GetCurrentCarriage();
 	}
 
 	SyncBattleState();
@@ -49,6 +45,7 @@ void AChapterThreeManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (CachedChaseSubsystem)
 	{
+		CachedChaseSubsystem->OnStateChanged.RemoveAll(this);
 		CachedChaseSubsystem->OnBattleStopped.RemoveAll(this);
 	}
 
@@ -58,13 +55,6 @@ void AChapterThreeManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 
 	Super::EndPlay(EndPlayReason);
-}
-
-// Called every frame
-void AChapterThreeManager::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	SyncBattleState();
 }
 
 void AChapterThreeManager::GenerateHorseEnemy()
@@ -107,19 +97,21 @@ void AChapterThreeManager::StartChapterThree()
 		return;
 	}
 
-	bStart = true;
 	bChaseOverNotified = false;
-	if (CachedChaseSubsystem)
+	FCarriageChaseBattleConfig BattleConfig;
+	BattleConfig.MaxActiveEnemies = MaxHorseEnemyNums;
+	BattleConfig.InitialSpawnCount = initHorseEnemyNums;
+	BattleConfig.SpawnInterval = SpawnInterval;
+	BattleConfig.bStartCarriageMovementOnBattleStart = true;
+	BattleConfig.bMarkActiveEnemiesOverOnBattleEnd = true;
+	CachedChaseSubsystem->ConfigureBattle(BattleConfig);
+	if (!CachedChaseSubsystem->StartBattle())
 	{
-		FCarriageChaseBattleConfig BattleConfig;
-		BattleConfig.MaxActiveEnemies = MaxHorseEnemyNums;
-		BattleConfig.InitialSpawnCount = initHorseEnemyNums;
-		BattleConfig.SpawnInterval = SpawnInterval;
-		BattleConfig.bStartCarriageMovementOnBattleStart = true;
-		BattleConfig.bMarkActiveEnemiesOverOnBattleEnd = true;
-		CachedChaseSubsystem->ConfigureBattle(BattleConfig);
-		CachedChaseSubsystem->StartBattle();
+		UE_LOG(LogTemp, Warning, TEXT("ChapterThreeManager Start failed: unable to start carriage chase battle."));
+		return;
 	}
+
+	bStart = true;
 
 	if (ChapterThreeStartBox)
 	{
@@ -194,6 +186,7 @@ void AChapterThreeManager::SyncBattleState()
 		return;
 	}
 
+	bStart = CachedChaseSubsystem->IsBattleActive();
 	CurrentCarriage = CachedChaseSubsystem->GetCurrentCarriage();
 	CurrentHorseEnemyNums = CachedChaseSubsystem->GetActiveEnemyCount();
 	CurrentEnemy.Reset();
@@ -206,6 +199,11 @@ void AChapterThreeManager::SyncBattleState()
 			CurrentEnemy.Add(ActiveHorseEnemy);
 		}
 	}
+}
+
+void AChapterThreeManager::HandleBattleStateChanged()
+{
+	SyncBattleState();
 }
 
 void AChapterThreeManager::HandleBattleStopped(bool bReachedDestination)

@@ -262,7 +262,7 @@ bool USacraEnemyStatusUIComponent::ShouldShowWidget() const
 		return false;
 	}
 
-	if (bHideWhenIdle && CachedHatredComponent->GetCurrentHatredState() == EHatredState::Idle)
+	if (bHideWhenIdle && CachedHatredComponent->GetCurrentHatredValue() <= KINDA_SMALL_NUMBER)
 	{
 		return false;
 	}

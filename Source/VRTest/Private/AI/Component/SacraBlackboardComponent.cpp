@@ -2,6 +2,8 @@
 
 #include "AI/Component/SacraBlackboardComponent.h"
 
+#include "AI/Component/SacraEnemyActivityComponent.h"
+#include "LevelSequenceActor.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"
@@ -49,6 +51,7 @@ void USacraBlackboardComponent::BeginPlay()
 void USacraBlackboardComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnbindHatredDelegates();
+	UnbindActivityDelegates();
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -62,10 +65,13 @@ void USacraBlackboardComponent::InitAutoCollect(USacraEnemyHatredComponent* InHa
 	}
 
 	UnbindHatredDelegates();
+	UnbindActivityDelegates();
 	CachedHatredComponent = InHatredComponent;
+	CachedActivityComponent = GetOwner() ? GetOwner()->FindComponentByClass<USacraEnemyActivityComponent>() : nullptr;
 	if (!bIsAutoCollectPaused)
 	{
 		BindHatredDelegates();
+		BindActivityDelegates();
 	}
 
 	RefreshAutoCollectedKeys();
@@ -81,6 +87,7 @@ void USacraBlackboardComponent::RefreshAutoCollectedKeys()
 	SyncHatredState();
 	SyncHatredValue();
 	SyncHatredTargets();
+	SyncActivityState();
 }
 
 void USacraBlackboardComponent::SetAutoCollectPaused(bool bInPaused)
@@ -95,11 +102,14 @@ void USacraBlackboardComponent::SetAutoCollectPaused(bool bInPaused)
 	if (bIsAutoCollectPaused)
 	{
 		UnbindHatredDelegates();
+		UnbindActivityDelegates();
 		return;
 	}
 
 	UnbindHatredDelegates();
+	UnbindActivityDelegates();
 	BindHatredDelegates();
+	BindActivityDelegates();
 	RefreshAutoCollectedKeys();
 }
 
@@ -123,6 +133,28 @@ void USacraBlackboardComponent::UnbindHatredDelegates()
 
 	CachedHatredComponent->OnHatredStateChanged.RemoveDynamic(this, &USacraBlackboardComponent::HandleHatredStateChanged);
 	CachedHatredComponent->OnHatredValueChanged.RemoveDynamic(this, &USacraBlackboardComponent::HandleHatredValueChanged);
+}
+
+void USacraBlackboardComponent::BindActivityDelegates()
+{
+	UnbindActivityDelegates();
+
+	if (!IsValid(CachedActivityComponent))
+	{
+		return;
+	}
+
+	CachedActivityComponent->OnSpecialActivityChanged.AddDynamic(this, &USacraBlackboardComponent::HandleSpecialActivityChanged);
+}
+
+void USacraBlackboardComponent::UnbindActivityDelegates()
+{
+	if (!IsValid(CachedActivityComponent))
+	{
+		return;
+	}
+
+	CachedActivityComponent->OnSpecialActivityChanged.RemoveDynamic(this, &USacraBlackboardComponent::HandleSpecialActivityChanged);
 }
 
 void USacraBlackboardComponent::SyncHatredState()
@@ -177,6 +209,28 @@ void USacraBlackboardComponent::SyncHatredTargets()
 	else
 	{
 		ClearValueIfKeyExists(FightTargetKeyName);
+	}
+}
+
+void USacraBlackboardComponent::SyncActivityState()
+{
+	const bool bHasSpecialActivity = IsValid(CachedActivityComponent) && CachedActivityComponent->IsSpecialActivityActive();
+	const bool bIsSpecialActivityPlaying = IsValid(CachedActivityComponent) && CachedActivityComponent->IsSpecialActivityPlaying();
+	const uint8 ActivityType = IsValid(CachedActivityComponent)
+		? static_cast<uint8>(CachedActivityComponent->GetCurrentActivityType())
+		: static_cast<uint8>(ESacraEnemySpecialActivityType::None);
+
+	SetBoolIfKeyExists(HasSpecialActivityKeyName, bHasSpecialActivity);
+	SetBoolIfKeyExists(IsSpecialActivityPlayingKeyName, bIsSpecialActivityPlaying);
+	SetEnumIfKeyExists(SpecialActivityTypeKeyName, ActivityType);
+
+	if (bHasSpecialActivity && CachedActivityComponent->GetCurrentActivityType() == ESacraEnemySpecialActivityType::Sequence)
+	{
+		SetObjectIfKeyExists(SpecialSequenceActorKeyName, CachedActivityComponent->GetCurrentSequenceActor());
+	}
+	else
+	{
+		ClearValueIfKeyExists(SpecialSequenceActorKeyName);
 	}
 }
 
@@ -263,4 +317,14 @@ void USacraBlackboardComponent::HandleHatredValueChanged(float NewValue)
 
 	SyncHatredValue();
 	SyncHatredTargets();
+}
+
+void USacraBlackboardComponent::HandleSpecialActivityChanged(ESacraEnemySpecialActivityType ActivityType, bool bIsPlaying)
+{
+	if (bIsAutoCollectPaused)
+	{
+		return;
+	}
+
+	SyncActivityState();
 }

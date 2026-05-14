@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimInstance.h"
 #include "Components/ActorComponent.h"
 
 #include "SacraEnemyWeaponComponent.generated.h"
 
 class AActor;
+class USkeletalMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyWeaponEquippedChanged, bool, bIsEquipped);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyWeaponAttackStarted, AActor*, TargetActor);
@@ -140,6 +142,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|Config")
 	bool bAutoInitOnBeginPlay = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|AnimLayer")
+	TSubclassOf<UAnimInstance> EquippedAnimLayerClass = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Weapon|AnimLayer")
+	TSubclassOf<UAnimInstance> UnequippedAnimLayerClass = nullptr;
+
 	// ==================== Internal Helpers ====================
 
 	void SetWeaponInitialized(bool bInInitialized);
@@ -147,6 +155,8 @@ protected:
 	void SetWeaponEquippedState(bool bInEquipped);
 	void BroadcastEquipFinishedMessage(bool bSuccess);
 	virtual void HandleWeaponPausedStateChanged();
+	void ApplyWeaponAnimLayerState(bool bInEquipped) const;
+	USkeletalMeshComponent* ResolveOwnerMesh() const;
 
 private:
 	// ==================== Runtime ====================

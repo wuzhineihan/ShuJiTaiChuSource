@@ -20,6 +20,9 @@ namespace MyProjectTags
 
 	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Behavior_Idle_Guard, "AI.Behavior.Idle.Guard");
 	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Behavior_Idle_Patrol, "AI.Behavior.Idle.Patrol");
+	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Behavior_Subtree_Idle, "AI.Behavior.Subtree.Idle");
+	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Behavior_Subtree_Warning, "AI.Behavior.Subtree.Warning");
+	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Behavior_Subtree_Fight, "AI.Behavior.Subtree.Fight");
 
 	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Message_Hatred, "AI.Message.Hatred");
 	UE_DEFINE_GAMEPLAY_TAG(TAG_AI_Message_Hatred_WarningExitToIdle, "AI.Message.Hatred.WarningExitToIdle");

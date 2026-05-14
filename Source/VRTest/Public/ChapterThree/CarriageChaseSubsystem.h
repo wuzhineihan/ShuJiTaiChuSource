@@ -13,6 +13,7 @@ class USceneComponent;
 
 DECLARE_MULTICAST_DELEGATE(FOnCarriageChaseStartedNative);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCarriageChaseStoppedNative, bool);
+DECLARE_MULTICAST_DELEGATE(FOnCarriageChaseStateChangedNative);
 
 USTRUCT(BlueprintType)
 struct FCarriageChaseBattleConfig
@@ -87,8 +88,10 @@ public:
 
 	FOnCarriageChaseStartedNative OnBattleStarted;
 	FOnCarriageChaseStoppedNative OnBattleStopped;
+	FOnCarriageChaseStateChangedNative OnStateChanged;
 
 private:
+	void BroadcastStateChanged();
 	void ClearSpawnTimer();
 	void RemoveInvalidSpawnPoints();
 	void RemoveInvalidActiveEnemies();

@@ -131,6 +131,21 @@ struct FSacraEnemyStatusUIConfig
 };
 
 USTRUCT(BlueprintType)
+struct FSacraEnemyBehaviorSubtreeConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller")
+	TObjectPtr<UBehaviorTree> IdleSubtreeAsset = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller")
+	TObjectPtr<UBehaviorTree> WarningSubtreeAsset = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller")
+	TObjectPtr<UBehaviorTree> FightSubtreeAsset = nullptr;
+};
+
+USTRUCT(BlueprintType)
 struct FSacraEnemyControllerConfig
 {
 	GENERATED_BODY()
@@ -140,6 +155,9 @@ struct FSacraEnemyControllerConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller", meta = (EditCondition = "bOverrideControllerConfig"))
 	TObjectPtr<UBehaviorTree> DefaultBehaviorTreeAsset = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller", meta = (EditCondition = "bOverrideControllerConfig"))
+	FSacraEnemyBehaviorSubtreeConfig BehaviorSubtreeConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Controller", meta = (EditCondition = "bOverrideControllerConfig", ClampMin = "0.0"))
 	float NonFightRotationRateYaw = 360.0f;

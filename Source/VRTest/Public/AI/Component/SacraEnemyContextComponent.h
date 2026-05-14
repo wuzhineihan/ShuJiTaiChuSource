@@ -11,6 +11,7 @@
 class AAIController;
 class UBlackboardComponent;
 class UEnemyPatrolSplineComponent;
+class USacraEnemyActivityComponent;
 class USacraBlackboardComponent;
 class USacraEnemyHatredComponent;
 class USacraEnemyWeaponComponent;
@@ -41,6 +42,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "AI|Context|Shared")
 	USacraEnemyWeaponComponent* GetCachedWeaponComponent() const;
+
+	UFUNCTION(BlueprintPure, Category = "AI|Context|Shared")
+	USacraEnemyActivityComponent* GetCachedActivityComponent() const;
 
 	UFUNCTION(BlueprintPure, Category = "AI|Context|Shared")
 	UEnemyPatrolSplineComponent* GetPatrolSplineComponent() const;
@@ -172,6 +176,7 @@ private:
 	void ResolveBlackboardComponent();
 	void ResolveHatredComponent();
 	void ResolveWeaponComponent();
+	void ResolveActivityComponent();
 	void ResolvePatrolSplineComponent();
 
 private:
@@ -197,6 +202,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<USacraEnemyWeaponComponent> CachedWeaponComponent = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USacraEnemyActivityComponent> CachedActivityComponent = nullptr;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UEnemyPatrolSplineComponent> CachedPatrolSplineComponent = nullptr;

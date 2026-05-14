@@ -18,13 +18,31 @@ void USacraAnimNotify_CompleteEquip::Notify(USkeletalMeshComponent* MeshComp, UA
 
 	if (USacraBowWeaponComponent* BowWeaponComponent = MeshComp->GetOwner()->FindComponentByClass<USacraBowWeaponComponent>())
 	{
-		BowWeaponComponent->CompleteEquipWeapon();
+		BowWeaponComponent->NotifyCompleteEquip();
 		return;
 	}
 
 	if (USacraMeleeWeaponComponent* MeleeWeaponComponent = MeshComp->GetOwner()->FindComponentByClass<USacraMeleeWeaponComponent>())
 	{
 		MeleeWeaponComponent->CompleteMeleeEquip();
+	}
+}
+
+FString USacraAnimNotify_BowLoadArrow::GetNotifyName_Implementation() const
+{
+	return TEXT("SacraBowLoadArrow");
+}
+
+void USacraAnimNotify_BowLoadArrow::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	if (!MeshComp || !MeshComp->GetOwner())
+	{
+		return;
+	}
+
+	if (USacraBowWeaponComponent* BowWeaponComponent = MeshComp->GetOwner()->FindComponentByClass<USacraBowWeaponComponent>())
+	{
+		BowWeaponComponent->NotifyLoadArrow();
 	}
 }
 

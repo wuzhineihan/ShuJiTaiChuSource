@@ -3,7 +3,6 @@
 
 #include "ChapterThree/HorseEnemySpawnManager.h"
 #include "ChapterThree/CarriageChaseSubsystem.h"
-#include "Kismet/GameplayStatics.h"
 #include "ChapterThree/EnemyHorseBase.h"
 
 // Sets default values

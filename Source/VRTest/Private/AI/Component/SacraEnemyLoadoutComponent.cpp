@@ -6,6 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Effect/EffectTypes.h"
 #include "GameFramework/Character.h"
+#include "UObject/Package.h"
 
 USacraEnemyLoadoutComponent::USacraEnemyLoadoutComponent()
 {
@@ -34,11 +35,17 @@ bool USacraEnemyLoadoutComponent::InitializeLoadout()
 		return false;
 	}
 
+	CaptureSourceMeshIfNeeded();
+
 	if (LoadoutDataAsset)
 	{
-		if (const FSacraEnemyAppearancePreset* AppearancePreset = SelectAppearanceOption())
+		if (IsValid(BakedMergedMesh))
 		{
-			ApplyMergedAppearance(*AppearancePreset);
+			CachedOwnerMesh->SetSkeletalMeshAsset(BakedMergedMesh);
+		}
+		else if (const FSacraEnemyAppearancePreset* AppearancePreset = SelectAppearanceOption(false))
+		{
+			ApplyMergedAppearance(*AppearancePreset, false);
 		}
 
 		if (LoadoutDataAsset->MeshPhysicsAsset)
@@ -50,6 +57,10 @@ bool USacraEnemyLoadoutComponent::InitializeLoadout()
 		{
 			CachedOwnerMesh->SetCollisionProfileName(LoadoutDataAsset->MeshCollisionProfileName);
 		}
+	}
+	else
+	{
+		RestoreSourceMeshIfPossible();
 	}
 
 	bLoadoutInitialized = true;
@@ -73,10 +84,32 @@ void USacraEnemyLoadoutComponent::ApplyConfigData(const FSacraEnemyLoadoutConfig
 		return;
 	}
 
+	const bool bLoadoutSelectionChanged =
+		LoadoutDataAsset != ConfigData.LoadoutDataAsset
+		|| bRandomizeAppearance != ConfigData.bRandomizeAppearance
+		|| AppearanceIndex != ConfigData.AppearanceIndex;
+
 	bAutoInitializeLoadoutOnBeginPlay = ConfigData.bAutoInitializeLoadoutOnBeginPlay;
 	LoadoutDataAsset = ConfigData.LoadoutDataAsset;
 	bRandomizeAppearance = ConfigData.bRandomizeAppearance;
 	AppearanceIndex = ConfigData.AppearanceIndex;
+	ResetLoadoutState(true, bLoadoutSelectionChanged);
+}
+
+void USacraEnemyLoadoutComponent::ResetLoadoutState(bool bClearBakedMesh, bool bClearResolvedAppearance)
+{
+	bLoadoutInitialized = false;
+
+	if (bClearBakedMesh)
+	{
+		BakedMergedMesh = nullptr;
+	}
+
+	if (bClearResolvedAppearance)
+	{
+		ResolvedAppearanceId = NAME_None;
+		ResolvedAppearanceIndex = INDEX_NONE;
+	}
 }
 
 bool USacraEnemyLoadoutComponent::ResolveOwnerMesh()
@@ -86,7 +119,45 @@ bool USacraEnemyLoadoutComponent::ResolveOwnerMesh()
 	return IsValid(CachedOwnerCharacter) && IsValid(CachedOwnerMesh);
 }
 
-const FSacraEnemyAppearancePreset* USacraEnemyLoadoutComponent::SelectAppearanceOption() const
+void USacraEnemyLoadoutComponent::CaptureSourceMeshIfNeeded()
+{
+	if (!IsValid(CachedOwnerMesh) || IsValid(SourceMeshAsset))
+	{
+		return;
+	}
+
+	SourceMeshAsset = CachedOwnerMesh->GetSkeletalMeshAsset();
+}
+
+void USacraEnemyLoadoutComponent::RestoreSourceMeshIfPossible() const
+{
+	if (!IsValid(CachedOwnerMesh) || !IsValid(SourceMeshAsset))
+	{
+		return;
+	}
+
+	CachedOwnerMesh->SetSkeletalMeshAsset(SourceMeshAsset);
+}
+
+const FSacraEnemyAppearancePreset* USacraEnemyLoadoutComponent::FindAppearanceOptionById(FName AppearanceId) const
+{
+	if (!LoadoutDataAsset || AppearanceId.IsNone())
+	{
+		return nullptr;
+	}
+
+	for (const FSacraEnemyAppearancePreset& AppearancePreset : LoadoutDataAsset->AppearancePresets)
+	{
+		if (AppearancePreset.AppearanceId == AppearanceId)
+		{
+			return &AppearancePreset;
+		}
+	}
+
+	return nullptr;
+}
+
+const FSacraEnemyAppearancePreset* USacraEnemyLoadoutComponent::SelectAppearanceOption(bool bForceReselectRandom)
 {
 	if (!LoadoutDataAsset || LoadoutDataAsset->AppearancePresets.IsEmpty())
 	{
@@ -95,15 +166,34 @@ const FSacraEnemyAppearancePreset* USacraEnemyLoadoutComponent::SelectAppearance
 
 	if (bRandomizeAppearance)
 	{
+		if (!bForceReselectRandom)
+		{
+			if (const FSacraEnemyAppearancePreset* ExistingAppearance = FindAppearanceOptionById(ResolvedAppearanceId))
+			{
+				return ExistingAppearance;
+			}
+
+			if (LoadoutDataAsset->AppearancePresets.IsValidIndex(ResolvedAppearanceIndex))
+			{
+				return &LoadoutDataAsset->AppearancePresets[ResolvedAppearanceIndex];
+			}
+		}
+
 		const int32 RandomIndex = FMath::RandRange(0, LoadoutDataAsset->AppearancePresets.Num() - 1);
-		return &LoadoutDataAsset->AppearancePresets[RandomIndex];
+		const FSacraEnemyAppearancePreset* SelectedAppearance = &LoadoutDataAsset->AppearancePresets[RandomIndex];
+		ResolvedAppearanceId = SelectedAppearance->AppearanceId;
+		ResolvedAppearanceIndex = RandomIndex;
+		return SelectedAppearance;
 	}
 
 	const int32 ClampedIndex = FMath::Clamp(AppearanceIndex, 0, LoadoutDataAsset->AppearancePresets.Num() - 1);
-	return &LoadoutDataAsset->AppearancePresets[ClampedIndex];
+	const FSacraEnemyAppearancePreset* SelectedAppearance = &LoadoutDataAsset->AppearancePresets[ClampedIndex];
+	ResolvedAppearanceId = SelectedAppearance->AppearanceId;
+	ResolvedAppearanceIndex = ClampedIndex;
+	return SelectedAppearance;
 }
 
-bool USacraEnemyLoadoutComponent::ApplyMergedAppearance(const FSacraEnemyAppearancePreset& AppearancePreset)
+bool USacraEnemyLoadoutComponent::ApplyMergedAppearance(const FSacraEnemyAppearancePreset& AppearancePreset, bool bPersistMergedMesh)
 {
 	if (!IsValid(CachedOwnerMesh))
 	{
@@ -127,7 +217,26 @@ bool USacraEnemyLoadoutComponent::ApplyMergedAppearance(const FSacraEnemyAppeara
 		return false;
 	}
 
-	CachedOwnerMesh->SetSkeletalMeshAsset(MergedMesh);
+	USkeletalMesh* MeshToApply = MergedMesh;
+
+#if WITH_EDITOR
+	if (bPersistMergedMesh)
+	{
+		const FName BakedMeshName = MakeUniqueObjectName(this, USkeletalMesh::StaticClass(), TEXT("BakedEnemyLoadoutMesh"));
+		MeshToApply = DuplicateObject<USkeletalMesh>(MergedMesh, this, BakedMeshName);
+		if (!IsValid(MeshToApply))
+		{
+			return false;
+		}
+
+		MeshToApply->SetFlags(RF_Transactional);
+		BakedMergedMesh = MeshToApply;
+		Modify();
+		MarkPackageDirty();
+	}
+#endif
+
+	CachedOwnerMesh->SetSkeletalMeshAsset(MeshToApply);
 	return true;
 }
 
@@ -135,3 +244,57 @@ bool USacraEnemyLoadoutComponent::EffectContainsFire(const FEffect& Effect) cons
 {
 	return Effect.EffectTypes.Contains(EEffectType::Fire);
 }
+
+#if WITH_EDITOR
+bool USacraEnemyLoadoutComponent::RebuildEditorLoadout()
+{
+	ResetLoadoutState(true, false);
+
+	if (!ResolveOwnerMesh())
+	{
+		return false;
+	}
+
+	CaptureSourceMeshIfNeeded();
+	RestoreSourceMeshIfPossible();
+
+	if (!LoadoutDataAsset)
+	{
+		Modify();
+		MarkPackageDirty();
+		return true;
+	}
+
+	const FSacraEnemyAppearancePreset* AppearancePreset = SelectAppearanceOption(false);
+	if (!AppearancePreset)
+	{
+		return false;
+	}
+
+	if (!ApplyMergedAppearance(*AppearancePreset, true))
+	{
+		return false;
+	}
+
+	if (LoadoutDataAsset->MeshPhysicsAsset)
+	{
+		CachedOwnerMesh->SetPhysicsAsset(LoadoutDataAsset->MeshPhysicsAsset);
+	}
+
+	if (!LoadoutDataAsset->MeshCollisionProfileName.IsNone())
+	{
+		CachedOwnerMesh->SetCollisionProfileName(LoadoutDataAsset->MeshCollisionProfileName);
+	}
+
+	Modify();
+	CachedOwnerMesh->Modify();
+	MarkPackageDirty();
+	return true;
+}
+
+bool USacraEnemyLoadoutComponent::RerollEditorLoadout()
+{
+	ResetLoadoutState(true, true);
+	return RebuildEditorLoadout();
+}
+#endif

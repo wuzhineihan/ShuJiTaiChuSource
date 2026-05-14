@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "AI/Component/SacraEnemyActivityComponent.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
 
 #include "SacraBlackboardComponent.generated.h"
@@ -61,15 +62,30 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Blackboard|Keys")
 	FName FightTargetKeyName = TEXT("FightTarget");
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Blackboard|Keys")
+	FName HasSpecialActivityKeyName = TEXT("HasSpecialActivity");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Blackboard|Keys")
+	FName IsSpecialActivityPlayingKeyName = TEXT("IsSpecialActivityPlaying");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Blackboard|Keys")
+	FName SpecialActivityTypeKeyName = TEXT("SpecialActivityType");
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Blackboard|Keys")
+	FName SpecialSequenceActorKeyName = TEXT("SpecialSequenceActor");
+
 private:
 	// ==================== Internal Helpers ====================
 
 	void BindHatredDelegates();
 	void UnbindHatredDelegates();
+	void BindActivityDelegates();
+	void UnbindActivityDelegates();
 
 	void SyncHatredState();
 	void SyncHatredValue();
 	void SyncHatredTargets();
+	void SyncActivityState();
 
 	void SetEnumIfKeyExists(const FName& KeyName, uint8 InValue);
 	void SetFloatIfKeyExists(const FName& KeyName, float InValue);
@@ -84,11 +100,17 @@ private:
 	UFUNCTION()
 	void HandleHatredValueChanged(float NewValue);
 
+	UFUNCTION()
+	void HandleSpecialActivityChanged(ESacraEnemySpecialActivityType ActivityType, bool bIsPlaying);
+
 private:
 	// ==================== Runtime ====================
 
 	UPROPERTY(Transient)
 	TObjectPtr<USacraEnemyHatredComponent> CachedHatredComponent = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USacraEnemyActivityComponent> CachedActivityComponent = nullptr;
 
 	UPROPERTY(Transient)
 	bool bIsAutoCollectPaused = false;
