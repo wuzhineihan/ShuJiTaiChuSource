@@ -3,6 +3,42 @@
 
 #include "EnemyPatrolSplineComponent.h"
 
+void UEnemyPatrolSplineComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	if (SavedPatrolPointLocalLocations.Num() > 0
+		&& (GetNumberOfSplinePoints() != SavedPatrolPointLocalLocations.Num() || !bSplineHasBeenEdited))
+	{
+		RestorePatrolPointsFromCache();
+	}
+}
+
+#if WITH_EDITOR
+void UEnemyPatrolSplineComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	if (bIsRestoringPatrolPoints)
+	{
+		return;
+	}
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
+	const bool bSplineEdited =
+		PropertyName == GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)
+		|| MemberPropertyName == GET_MEMBER_NAME_CHECKED(USplineComponent, SplineCurves)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(USplineComponent, bSplineHasBeenEdited)
+		|| MemberPropertyName == GET_MEMBER_NAME_CHECKED(USplineComponent, bSplineHasBeenEdited);
+
+	if (bSplineEdited)
+	{
+		BakePatrolPointsFromCurrentSpline();
+	}
+}
+#endif
+
 void UEnemyPatrolSplineComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -11,6 +47,44 @@ void UEnemyPatrolSplineComponent::BeginPlay()
 	{
 		DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
 	}
+}
+
+void UEnemyPatrolSplineComponent::BakePatrolPointsFromCurrentSpline()
+{
+	TArray<FVector> CurrentLocalPoints;
+	const int32 PointCount = GetNumberOfSplinePoints();
+	CurrentLocalPoints.Reserve(PointCount);
+
+	for (int32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+	{
+		CurrentLocalPoints.Add(GetLocationAtSplinePoint(PointIndex, ESplineCoordinateSpace::Local));
+	}
+
+	ApplyPatrolPointLocalLocations(CurrentLocalPoints, true);
+}
+
+void UEnemyPatrolSplineComponent::RestorePatrolPointsFromCache()
+{
+	ApplyPatrolPointLocalLocations(SavedPatrolPointLocalLocations, false);
+}
+
+void UEnemyPatrolSplineComponent::SetPatrolPointLocalLocations(const TArray<FVector>& InLocalPointLocations)
+{
+	ApplyPatrolPointLocalLocations(InLocalPointLocations, true);
+}
+
+void UEnemyPatrolSplineComponent::SetPatrolPointWorldLocations(const TArray<FVector>& InWorldPointLocations)
+{
+	TArray<FVector> LocalPoints;
+	LocalPoints.Reserve(InWorldPointLocations.Num());
+
+	const FTransform ComponentTransform = GetComponentTransform();
+	for (const FVector& WorldPoint : InWorldPointLocations)
+	{
+		LocalPoints.Add(ComponentTransform.InverseTransformPosition(WorldPoint));
+	}
+
+	ApplyPatrolPointLocalLocations(LocalPoints, true);
 }
 
 bool UEnemyPatrolSplineComponent::HasPatrolPoints() const
@@ -138,6 +212,32 @@ bool UEnemyPatrolSplineComponent::AdvancePatrolPoint()
 	}
 
 	return true;
+}
+
+void UEnemyPatrolSplineComponent::ApplyPatrolPointLocalLocations(const TArray<FVector>& InLocalPointLocations, bool bMarkDirty)
+{
+	SavedPatrolPointLocalLocations = InLocalPointLocations;
+
+	TGuardValue<bool> RestoreGuard(bIsRestoringPatrolPoints, true);
+
+	ClearSplinePoints(false);
+	for (const FVector& PointLocation : SavedPatrolPointLocalLocations)
+	{
+		AddSplinePoint(PointLocation, ESplineCoordinateSpace::Local, false);
+	}
+
+	UpdateSpline();
+
+	bSplineHasBeenEdited = SavedPatrolPointLocalLocations.Num() > 0;
+	bModifiedByConstructionScript = false;
+
+#if WITH_EDITOR
+	if (bMarkDirty)
+	{
+		Modify();
+		MarkPackageDirty();
+	}
+#endif
 }
 
 void UEnemyPatrolSplineComponent::ResetPatrolIndex(int32 InPatrolPointIndex)

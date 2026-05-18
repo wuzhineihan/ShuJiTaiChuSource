@@ -15,6 +15,11 @@ class VRTEST_API UEnemyPatrolSplineComponent : public USplineComponent
 	GENERATED_BODY()
 public:
 	virtual void BeginPlay() override;
+	virtual void OnRegister() override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
 
 	UFUNCTION(BlueprintPure, Category = "Patrol")
 	bool HasPatrolPoints() const;
@@ -37,9 +42,32 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Patrol")
 	void ResetPatrolIndex(int32 InPatrolPointIndex = 0);
 
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Patrol")
+	void BakePatrolPointsFromCurrentSpline();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Patrol")
+	void RestorePatrolPointsFromCache();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Patrol")
+	void SetPatrolPointLocalLocations(const TArray<FVector>& InLocalPointLocations);
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Patrol")
+	void SetPatrolPointWorldLocations(const TArray<FVector>& InWorldPointLocations);
+
+	UFUNCTION(BlueprintPure, Category = "Patrol")
+	const TArray<FVector>& GetPatrolPointLocalLocations() const { return SavedPatrolPointLocalLocations; }
+
 private:
+	void ApplyPatrolPointLocalLocations(const TArray<FVector>& InLocalPointLocations, bool bMarkDirty);
+
 	int PatrolPointIndex = 0;
+
+	UPROPERTY(EditInstanceOnly, Category = "Patrol")
+	TArray<FVector> SavedPatrolPointLocalLocations;
 
 	UPROPERTY(Transient)
 	bool bPatrolForward = true;
+
+	UPROPERTY(Transient)
+	bool bIsRestoringPatrolPoints = false;
 };
