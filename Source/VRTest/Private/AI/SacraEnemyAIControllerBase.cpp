@@ -10,6 +10,7 @@
 #include "AI/Component/SacraEnemyWeaponComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
@@ -191,6 +192,17 @@ void ASacraEnemyAIControllerBase::SetEnemyAIPaused(bool bInPaused)
 	ApplyPausedStateToPawnComponents();
 }
 
+void ASacraEnemyAIControllerBase::SetEnemyRenderingEnabled(bool bInEnabled)
+{
+	if (bIsEnemyRenderingEnabled == bInEnabled)
+	{
+		return;
+	}
+
+	bIsEnemyRenderingEnabled = bInEnabled;
+	ApplyPawnAnimationState();
+}
+
 void ASacraEnemyAIControllerBase::TryStartBehaviorTree()
 {
 	EnsureRuntimeComponents();
@@ -287,6 +299,8 @@ void ASacraEnemyAIControllerBase::ApplyPausedStateToPawnComponents()
 		}
 	}
 
+	ApplyPawnAnimationState();
+
 	USacraEnemyWeaponComponent* WeaponComponent = nullptr;
 	if (const ASacraEnemy* SacraEnemy = Cast<ASacraEnemy>(ControlledPawn))
 	{
@@ -302,6 +316,45 @@ void ASacraEnemyAIControllerBase::ApplyPausedStateToPawnComponents()
 	{
 		WeaponComponent->SetWeaponPaused(bIsEnemyAIPaused);
 	}
+}
+
+void ASacraEnemyAIControllerBase::ApplyPawnAnimationState()
+{
+	ACharacter* ControlledCharacter = Cast<ACharacter>(GetPawn());
+	if (!ControlledCharacter)
+	{
+		bCachedMeshAnimationState = false;
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = ControlledCharacter->GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		bCachedMeshAnimationState = false;
+		return;
+	}
+
+	const bool bShouldPauseAnimation = bIsEnemyAIPaused || !bIsEnemyRenderingEnabled;
+
+	if (!bCachedMeshAnimationState)
+	{
+		bCachedMeshPauseAnims = MeshComponent->bPauseAnims;
+		bCachedMeshNoSkeletonUpdate = MeshComponent->bNoSkeletonUpdate;
+		CachedVisibilityBasedAnimTickOption = static_cast<uint8>(MeshComponent->VisibilityBasedAnimTickOption);
+		bCachedMeshAnimationState = true;
+	}
+
+	if (bShouldPauseAnimation)
+	{
+		MeshComponent->bPauseAnims = true;
+		MeshComponent->bNoSkeletonUpdate = true;
+		MeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
+		return;
+	}
+
+	MeshComponent->bPauseAnims = bCachedMeshPauseAnims;
+	MeshComponent->bNoSkeletonUpdate = bCachedMeshNoSkeletonUpdate;
+	MeshComponent->VisibilityBasedAnimTickOption = static_cast<EVisibilityBasedAnimTickOption>(CachedVisibilityBasedAnimTickOption);
 }
 
 void ASacraEnemyAIControllerBase::BindHatredDelegates()

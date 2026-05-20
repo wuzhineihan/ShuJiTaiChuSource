@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Runtime")
 	void SetEnemyAIPaused(bool bInPaused);
 
+	UFUNCTION(BlueprintCallable, Category = "AI|Runtime")
+	void SetEnemyRenderingEnabled(bool bInEnabled);
+
 	UFUNCTION(BlueprintCallable, Category = "AI|Config")
 	void ApplyConfigDataAsset(const USacraEnemyConfigDataAsset* ConfigDataAsset);
 
@@ -43,6 +46,7 @@ private:
 	void TryStartBehaviorTree();
 	void ApplyPausedStateToControllerComponents();
 	void ApplyPausedStateToPawnComponents();
+	void ApplyPawnAnimationState();
 	void ApplyBehaviorSubtreeConfig();
 	void BindHatredDelegates();
 	void UnbindHatredDelegates();
@@ -71,7 +75,21 @@ private:
 
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = "AI|Runtime", meta = (AllowPrivateAccess = "true"))
 	bool bIsEnemyAIPaused = false;
-	
+
+	UPROPERTY(Transient, VisibleInstanceOnly, Category = "AI|Runtime", meta = (AllowPrivateAccess = "true"))
+	bool bIsEnemyRenderingEnabled = true;
+
+	UPROPERTY(Transient)
+	bool bCachedMeshAnimationState = false;
+
+	UPROPERTY(Transient)
+	bool bCachedMeshPauseAnims = false;
+
+	UPROPERTY(Transient)
+	bool bCachedMeshNoSkeletonUpdate = false;
+
+	UPROPERTY(Transient)
+	uint8 CachedVisibilityBasedAnimTickOption = 0;
 
 
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly, Category = "AI",meta = (AllowPrivateAccess = "true"))
