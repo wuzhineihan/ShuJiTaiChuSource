@@ -4,6 +4,7 @@
 
 #include "AI/SacraEnemyAIControllerBase.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
+#include "Components/ArrowComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/ShapeComponent.h"
 #include "Engine/World.h"
@@ -520,9 +521,9 @@ void USacraEnemySubsystem::SetEnemyRenderingEnabled(ABaseEnemy* EnemyActor, bool
 	EnemyActor->GetComponents(PrimitiveComponents);
 	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 	{
-		// Shape components are collision-only helpers and should not have their
-		// HiddenInGame state force-overridden by the enemy phase renderer.
-		if (PrimitiveComponent->IsA<UShapeComponent>())
+		// Collision helpers and debug arrows should preserve their own visibility
+		// state instead of being forced by the enemy phase renderer.
+		if (PrimitiveComponent->IsA<UShapeComponent>() || PrimitiveComponent->IsA<UArrowComponent>())
 		{
 			continue;
 		}
