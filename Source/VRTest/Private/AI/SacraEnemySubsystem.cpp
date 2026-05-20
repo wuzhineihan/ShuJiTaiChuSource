@@ -527,7 +527,7 @@ void USacraEnemySubsystem::SetEnemyRenderingEnabled(ABaseEnemy* EnemyActor, bool
 			continue;
 		}
 
-		PrimitiveComponent->SetVisibility(bEnabled, true);
-		PrimitiveComponent->SetHiddenInGame(!bEnabled, true);
+		PrimitiveComponent->SetVisibility(bEnabled, false);
+		PrimitiveComponent->SetHiddenInGame(!bEnabled, false);
 	}
 }
