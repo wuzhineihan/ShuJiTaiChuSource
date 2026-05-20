@@ -5,6 +5,7 @@
 #include "AI/SacraEnemyAIControllerBase.h"
 #include "AI/Component/SacraEnemyHatredComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/ShapeComponent.h"
 #include "Engine/World.h"
 #include "Game/Characters/BaseEnemy.h"
 #include "GameFramework/Controller.h"
@@ -508,12 +509,24 @@ void USacraEnemySubsystem::SetEnemyRenderingEnabled(ABaseEnemy* EnemyActor, bool
 		return;
 	}
 
+	if (ASacraEnemyAIControllerBase* SacraController = Cast<ASacraEnemyAIControllerBase>(EnemyActor->GetController()))
+	{
+		SacraController->SetEnemyRenderingEnabled(bEnabled);
+	}
+
 	EnemyActor->SetActorHiddenInGame(!bEnabled);
 
 	TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
 	EnemyActor->GetComponents(PrimitiveComponents);
 	for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
 	{
+		// Shape components are collision-only helpers and should not have their
+		// HiddenInGame state force-overridden by the enemy phase renderer.
+		if (PrimitiveComponent->IsA<UShapeComponent>())
+		{
+			continue;
+		}
+
 		PrimitiveComponent->SetVisibility(bEnabled, true);
 		PrimitiveComponent->SetHiddenInGame(!bEnabled, true);
 	}
