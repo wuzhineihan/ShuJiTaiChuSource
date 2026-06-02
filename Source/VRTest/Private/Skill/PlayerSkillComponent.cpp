@@ -80,6 +80,11 @@ bool UPlayerSkillComponent::AddEnergy(int32 Amount)
 	return true;
 }
 
+void UPlayerSkillComponent::SetEnergyPoints(int32 NewValue)
+{
+	CurrentEnergyPoints = FMath::Clamp(NewValue, 0, FMath::Max(0, MaxEnergyPoints));
+}
+
 bool UPlayerSkillComponent::StartStarDraw(USceneComponent* InputSource, bool bIsRight)
 {
 	if (bIsDrawing)
@@ -228,7 +233,7 @@ bool UPlayerSkillComponent::TryCastSkill(ESkillType SkillType, const FSkillConte
 
 bool UPlayerSkillComponent::CanStartDraw_PC_BowGate(const ABasePlayer* Player) const
 {
-	// 只有 PC 有“弓箭模式禁止绘制”的规则
+	// 只有 PC 有"弓箭模式禁止绘制"的规则
 	const ABasePCPlayer* PCPlayer = Cast<ABasePCPlayer>(Player);
 	if (!PCPlayer)
 	{
@@ -255,7 +260,6 @@ void UPlayerSkillComponent::DestroyStarDrawManager()
 {
 	if (StarDrawManager)
 	{
-		// 通过统一的 CleanupAndDestroy 接口完成清理；若不存在则直接销毁
 		StarDrawManager->CleanupAndDestroy();
 		StarDrawManager = nullptr;
 	}
@@ -263,10 +267,8 @@ void UPlayerSkillComponent::DestroyStarDrawManager()
 
 void UPlayerSkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// 清理绘制会话
 	DestroyStarDrawManager();
 
-	// 清理策略实例（Actor）
 	for (TPair<ESkillType, TObjectPtr<ASkillStrategyBase>>& Pair : StrategyInstanceCache)
 	{
 		if (Pair.Value)

@@ -98,9 +98,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Bow")
 	virtual bool GetBowArmed() const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Bow")
-	bool HasBow() const { return bHasBow; }
-
 	UFUNCTION(BlueprintCallable, Category = "Controller")
 	virtual void PlaySimpleForceFeedback(EControllerHand Hand);
 	UFUNCTION(BlueprintCallable, Category = "Climb")
@@ -121,27 +118,15 @@ public:
 	float GetCapsuleBottomZ() const;
 	
 	//===================== GrassHide ====================
-	UFUNCTION(BlueprintCallable, Category = "Skill")
-	void SetStarDrawEnabled(bool bEnabled);
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill")
-	bool IsStarDrawEnabled() const { return bStarDrawEnabled; }
-
 	UFUNCTION(BlueprintCallable, Category = "GrassHide")
 	void SetCameraInGrass(bool bInGrass);
 
 protected:
-	UPROPERTY(Transient)
-	bool bStarDrawEnabled = false;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")
 	APlayerController* PlayerController;
 
 	// ==================== 弓相�?====================
 	
-	/** 是否已获得弓（游戏流程中获得，永久持有） */
-	UPROPERTY(BlueprintReadOnly, Category = "Bow")
-	bool bHasBow = false;
-
 	/** 是否处于弓箭模式 */
 	UPROPERTY(BlueprintReadOnly, Category = "Bow")
 	bool bIsBowArmed = false;

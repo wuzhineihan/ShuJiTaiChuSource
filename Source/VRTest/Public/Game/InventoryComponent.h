@@ -69,6 +69,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Arrow")
 	int32 GetArrowCount() const { return ArrowCount; }
 
+	// ==================== 弓操作 ====================
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Bow")
+	bool HasBow() const { return bHasBow; }
+
+	/** 仅供测试用：直接设置玩家是否持有弓，不影响正常拾取逻辑 */
+	UFUNCTION(BlueprintCallable, Category = "Bow|Test")
+	void SetHasBowForTest(bool bInHasBow) { bHasBow = bInHasBow; }
+
 	// ==================== 直接设置（用于存档/初始化） ====================
 
 	UFUNCTION(BlueprintCallable, Category = "Arrow")
@@ -78,6 +87,9 @@ public:
 	void AddArrows(int32 Amount);
 
 protected:
+	/** 是否已获得弓 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	bool bHasBow = false;
 	/** 箭的类 - 用于生成 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	TSubclassOf<AGrabbeeObject> ArrowClass;

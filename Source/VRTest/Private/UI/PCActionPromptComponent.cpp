@@ -4,6 +4,7 @@
 
 #include "Game/Characters/BasePCPlayer.h"
 #include "Grabber/PCGrabHand.h"
+#include "Skill/PlayerSkillComponent.h"
 
 UPCActionPromptComponent::UPCActionPromptComponent()
 {
@@ -40,11 +41,11 @@ void UPCActionPromptComponent::RefreshPrompts()
 	TArray<EPCActionPromptType> Prompts;
 
 	// --- Global ---
-	if (OwnerPlayer->IsStarDrawEnabled())
+	if (OwnerPlayer->PlayerSkillComponent && OwnerPlayer->PlayerSkillComponent->IsStarDrawEnabled())
 	{
 		Prompts.Add(EPCActionPromptType::StarDraw);
 	}
-	if (OwnerPlayer->HasBow())
+	if (OwnerPlayer->InventoryComponent && OwnerPlayer->InventoryComponent->HasBow())
 	{
 		Prompts.Add(EPCActionPromptType::ToggleBow);
 	}

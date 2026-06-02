@@ -242,7 +242,7 @@ void ABasePCPlayer::HandleMoveInput(FVector2D MoveInput)
 
 void ABasePCPlayer::StartStarDraw()
 {
-	if (bActionLocked || !bStarDrawEnabled)
+	if (bActionLocked || !PlayerSkillComponent || !PlayerSkillComponent->IsStarDrawEnabled())
 	{
 		return;
 	}
@@ -258,7 +258,7 @@ void ABasePCPlayer::StartStarDraw()
 
 void ABasePCPlayer::StopStarDraw()
 {
-	if (bActionLocked || !bStarDrawEnabled)
+	if (bActionLocked || !PlayerSkillComponent || !PlayerSkillComponent->IsStarDrawEnabled())
 	{
 		return;
 	}
@@ -462,7 +462,7 @@ void ABasePCPlayer::StartAiming()
 		return;
 	}
 
-	if (!bIsBowArmed || !bHasBow)
+	if (!bIsBowArmed)
 	{
 		return;
 	}
@@ -492,9 +492,10 @@ void ABasePCPlayer::StopAiming()
 	PCLeftHand->InterpToDefaultTransform();
 
 	UnnockArrowToRightHand();
-}
+		EnsurePreparedArrowInRightHand();
+	}
 
-void ABasePCPlayer::StartDrawBow()
+	void ABasePCPlayer::StartDrawBow()
 {
 	if (bActionLocked)
 	{

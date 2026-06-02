@@ -90,12 +90,15 @@ USceneComponent* ABasePlayer::GetTrackOrigin() const
 
 bool ABasePlayer::CheckBowFirstPickedUp()
 {
-	if (bHasBow)
+	if (InventoryComponent && InventoryComponent->HasBow())
 	{
-		return false; // 已经有弓了
+		return false;
 	}
-	
-	bHasBow = true;
+
+	if (InventoryComponent)
+	{
+		InventoryComponent->SetHasBowForTest(true);
+	}
 	
 	// 首次拾取弓时自动进入弓箭模式
 	SetBowArmed(true);
@@ -104,7 +107,7 @@ bool ABasePlayer::CheckBowFirstPickedUp()
 
 void ABasePlayer::SetBowArmed(bool bArmed)
 {
-	if (!bHasBow || bIsBowArmed == bArmed)
+	if (!InventoryComponent || !InventoryComponent->HasBow() || bIsBowArmed == bArmed)
 	{
 		return;
 	}
@@ -151,11 +154,6 @@ void ABasePlayer::SetBowArmed(bool bArmed)
 bool ABasePlayer::GetBowArmed() const
 {
 	return bIsBowArmed;
-}
-
-void ABasePlayer::SetStarDrawEnabled(bool bEnabled)
-{
-	bStarDrawEnabled = bEnabled;
 }
 
 void ABasePlayer::PlaySimpleForceFeedback(EControllerHand Hand)

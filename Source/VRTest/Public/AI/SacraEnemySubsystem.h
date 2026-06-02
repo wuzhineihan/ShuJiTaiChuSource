@@ -87,7 +87,7 @@ private:
 	float HeavyRange = 5000.0f;
 
 	UPROPERTY(EditAnywhere, Config, Category = "AI|EnemySubsystem|Phase", meta = (ClampMin = "0.0"))
-	float LightRange = 2500.0f;
+	float LightRange = 3000.0f;
 
 private:
 	UPROPERTY(Transient)

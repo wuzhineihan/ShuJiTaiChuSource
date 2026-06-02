@@ -57,6 +57,7 @@
 #define CP_PLAYER_CAMERA_COLLISION FName(TEXT("Profile_PlayerCameraCollision"))
 #define CP_CLIMBABLE_VOLUME FName(TEXT("Profile_ClimbableVolume"))
 #define CP_WINDOW_VAULT FName(TEXT("Profile_WindowVault"))
+#define CP_ROPE FName(TEXT("Profile_Rope"))
 
 // Scene
 #define CP_HIT_NOISE_MAKER FName(TEXT("Profile_HitNoiseMaker"))

@@ -138,7 +138,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Context|Idle", meta = (EditCondition = "!bUseSpawnTransformAsStandTransform"))
 	FRotator StandRotation = FRotator::ZeroRotator;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Context|Idle")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Context|Idle")
 	bool bEnablePatrol = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI|Context|Idle", meta = (ClampMin = "0.0"))

@@ -8,6 +8,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "Game/CollisionConfig.h"
+#include "Scene/ArrowPassthrough.h"
 
 AArrow::AArrow()
 {
@@ -50,7 +51,7 @@ AArrow::AArrow()
 void AArrow::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	// 默认进入闲置状态
 	EnterIdleState();
 }
@@ -114,9 +115,9 @@ void AArrow::EnterIdleState()
 {
 	// 退出 Stuck 状态时不再关心旧目标
 	UnbindAttachedTarget();
-	
+
 	ArrowState = EArrowState::Idle;
-	
+
 	// 启用物理模拟
 	if (MeshComponent)
 	{
@@ -125,7 +126,7 @@ void AArrow::EnterIdleState()
 		{
 			DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		}
-		
+
 		MeshComponent->SetSimulatePhysics(true);
 		MeshComponent->SetCollisionProfileName(CP_GRABBABLE_PHYSICS);
 	}
@@ -180,13 +181,13 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 {
 	// 检查是否 attach 到其他 Actor
 	AActor* AttachParent = GetAttachParentActor();
-	
+
 	// 如果 attach 了，先 detach
 	if (AttachParent)
 	{
 		DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	}
-	
+
 	ArrowState = EArrowState::Flying;
 
 	// 禁用物理模拟（由 ProjectileMovement 控制）
@@ -204,17 +205,17 @@ void AArrow::EnterFlyingState(float LaunchSpeed)
 	{
 		// 1. 先设置 UpdatedComponent
 		ProjectileMovement->SetUpdatedComponent(MeshComponent);
-		
+
 		// 2. 配置参数
 		ProjectileMovement->InitialSpeed = LaunchSpeed;
 		ProjectileMovement->MaxSpeed = LaunchSpeed * 2.0f;
 		ProjectileMovement->bRotationFollowsVelocity = true;
 		ProjectileMovement->ProjectileGravityScale = 1.0f;
-		
+
 		// 3. 激活组件
 		ProjectileMovement->Activate(true);
 		ProjectileMovement->SetComponentTickEnabled(true);
-		
+
 		// 4. 最后设置速度（使用 SetVelocityInLocalSpace 强制设置）
 		ProjectileMovement->SetVelocityInLocalSpace(FVector(LaunchSpeed, 0, 0));
 	}
@@ -355,12 +356,12 @@ void AArrow::PerformFlightTrace(float DeltaTime)
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(this);
-	
+
 	// 忽略发射者（玩家）
 	if (OwningCharacter)
 	{
 		QueryParams.AddIgnoredActor(OwningCharacter);
-		
+
 		// 如果发射者有Owner（比如玩家控制器），也忽略
 		AActor* InstigatorOwner = OwningCharacter->GetOwner();
 		if (InstigatorOwner)
@@ -379,8 +380,17 @@ void AArrow::PerformFlightTrace(float DeltaTime)
 
 	if (bHit && HitResult.GetActor())
 	{
-		// 忽略弓
-		if (!HitResult.GetActor()->ActorHasTag(FName("Bow")))
+		UPrimitiveComponent* HitComp = HitResult.GetComponent();
+
+		// 穿透检测：命中带 ArrowPassthrough 标签的组件时，箭继续飞行
+		if (HitComp && HitComp->ComponentHasTag(FName(TEXT("ArrowPassthrough"))))
+		{
+			if (IArrowPassthrough* Passthrough = Cast<IArrowPassthrough>(HitResult.GetActor()))
+			{
+				IArrowPassthrough::Execute_OnArrowPassThrough(HitResult.GetActor(), this);
+			}
+		}
+		else if (!HitResult.GetActor()->ActorHasTag(FName("Bow")))
 		{
 			HandleHit(HitResult);
 		}
@@ -414,12 +424,12 @@ void AArrow::HandleHit(const FHitResult& HitResult)
 	{
 		bShouldApplyImpulse = true;
 		ImpulseDir = GetActorForwardVector();
-		
+
 		if (ProjectileMovement && ProjectileMovement->Velocity.SizeSquared() > 1.0f)
 		{
 			ImpulseDir = ProjectileMovement->Velocity.GetSafeNormal();
 			// 动量 = 质量 * 速度，这里简单模拟
-			ImpulseStrength = ProjectileMovement->Velocity.Size() * ImpulseStrengthMultiplier; 
+			ImpulseStrength = ProjectileMovement->Velocity.Size() * ImpulseStrengthMultiplier;
 		}
 	}
 
@@ -435,7 +445,7 @@ void AArrow::HandleHit(const FHitResult& HitResult)
 	{
 		HitComp->AddImpulseAtLocation(ImpulseDir * ImpulseStrength, HitResult.ImpactPoint, HitResult.BoneName);
 	}
-	
+
 	// 造成伤害
 	DealDamage(HitActor);
 }

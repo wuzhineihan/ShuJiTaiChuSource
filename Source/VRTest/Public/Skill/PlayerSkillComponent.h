@@ -42,6 +42,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill|Energy")
 	bool AddEnergy(int32 Amount = 1);
 
+	UFUNCTION(BlueprintCallable, Category = "Skill|Energy")
+	void SetEnergyPoints(int32 NewValue);
+
+	// ==================== StarDraw 启用 ====================
+
+	UFUNCTION(BlueprintCallable, Category = "Skill|StarDraw")
+	void SetStarDrawEnabled(bool bEnabled) { bStarDrawEnabled = bEnabled; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|StarDraw")
+	bool IsStarDrawEnabled() const { return bStarDrawEnabled; }
+
 	// ==================== StarDraw 入口 ====================
 
 	/**
@@ -136,5 +147,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Energy", meta=(ClampMin="0"))
 	int32 SkillCastEnergyCost = 1;
-	
+
+	UPROPERTY(Transient)
+	bool bStarDrawEnabled = false;
 };
