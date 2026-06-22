@@ -180,22 +180,30 @@ bool UAISense_Player::CheckTargetInRange(const ABasePlayer* InTarget, float& Out
 	return false;
 }
 
-bool UAISense_Player::PerformLineOfSightCheck(const ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength) const
+bool UAISense_Player::PerformLineOfSightCheck(ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength)
 {
 	if (!IsValid(TargetPlayer))
 	{
 		return false;
 	}
 
-	if (const IAISightTargetInterface* SightTarget = Cast<const IAISightTargetInterface>(TargetPlayer))
+	if (IAISightTargetInterface* SightTarget = Cast<IAISightTargetInterface>(TargetPlayer))
 	{
+		FCanBeSeenFromContext Context;
+		Context.ObserverLocation = Listener.CachedLocation;
+		Context.IgnoreActor = Listener.GetBodyActor();
+
 		int32 NumberOfLoSChecksPerformed = 0;
-		return SightTarget->CanBeSeenFrom(
-			Listener.CachedLocation,
+		int32 NumberOfAsyncLosCheckRequested = 0;
+
+		const UAISense_Sight::EVisibilityResult Result = SightTarget->CanBeSeenFrom(
+			Context,
 			OutSeenLocation,
 			NumberOfLoSChecksPerformed,
-			OutSightStrength,
-			Listener.GetBodyActor());
+			NumberOfAsyncLosCheckRequested,
+			OutSightStrength);
+
+		return Result == UAISense_Sight::EVisibilityResult::Visible;
 	}
 
 	const UCameraComponent* CameraComponent = TargetPlayer->FindComponentByClass<UCameraComponent>();

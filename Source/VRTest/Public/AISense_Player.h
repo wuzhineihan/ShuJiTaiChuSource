@@ -45,7 +45,7 @@ protected:
 private:
 	ABasePlayer* ResolvePlayerCharacter(const UWorld* World) const;
 	bool CheckTargetInRange(const ABasePlayer* InTarget, float& OutStrength, const FPerceptionListener& Listener) const;
-	bool PerformLineOfSightCheck(const ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength) const;
+	bool PerformLineOfSightCheck(ABasePlayer* TargetPlayer, const FPerceptionListener& Listener, FVector& OutSeenLocation, float& OutSightStrength);
 	void DrawDebugInfo(const FPerceptionListener& Listener, const ABasePlayer* TargetPlayer, bool bInRange, bool bHasLineOfSight, const FVector& SeenLocation) const;
 
 private:

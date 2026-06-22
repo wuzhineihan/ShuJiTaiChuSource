@@ -42,6 +42,6 @@ void AGrassHideVolume::OnBeginOverlap(class AActor* OverlappedActor, class AActo
 
 void AGrassHideVolume::OnEndOverlap(class AActor* OverlappedActor, class AActor* OtherActor)
 {
-	if (ABasePlayer* Player = Cast<ABasePlayer>(OverlappedActor))
+	if (ABasePlayer* Player = Cast<ABasePlayer>(OtherActor))
 		Player->SetCameraInGrass(false);
 }

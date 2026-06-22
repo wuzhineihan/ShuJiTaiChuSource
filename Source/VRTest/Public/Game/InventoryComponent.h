@@ -80,6 +80,9 @@ public:
 
 	// ==================== 直接设置（用于存档/初始化） ====================
 
+	UFUNCTION(BlueprintCallable, Category = "Bow")
+	void SetHasBow(bool bInHasBow) { bHasBow = bInHasBow; }
+
 	UFUNCTION(BlueprintCallable, Category = "Arrow")
 	void SetArrowCount(int32 NewCount);
 

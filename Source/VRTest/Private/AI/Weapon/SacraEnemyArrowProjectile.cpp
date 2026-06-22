@@ -138,6 +138,11 @@ void ASacraEnemyArrowProjectile::PerformFlightTrace()
 
 void ASacraEnemyArrowProjectile::HandleHit(const FHitResult& HitResult)
 {
+	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Arrow Hit Start Instigator=%s HitActor=%s Bone=%s"),
+		*GetNameSafe(InstigatorActor.Get()),
+		*GetNameSafe(HitResult.GetActor()),
+		*HitResult.BoneName.ToString());
+
 	if (bHasHit)
 	{
 		return;
@@ -177,6 +182,9 @@ void ASacraEnemyArrowProjectile::ApplyArrowEffect(AActor* HitActor) const
 {
 	if (!IsValid(HitActor) || HitActor == this || HitActor == InstigatorActor.Get() || HitActor == InstigatorOwnerActor.Get() || !HitActor->Implements<UEffectable>())
 	{
+		UE_LOG(LogTemp, Log, TEXT("SacraEnemy Arrow ApplyEffect Skipped Instigator=%s HitActor=%s (invalid/self/notEffectable)"),
+			*GetNameSafe(InstigatorActor.Get()),
+			*GetNameSafe(HitActor));
 		return;
 	}
 
@@ -186,6 +194,11 @@ void ASacraEnemyArrowProjectile::ApplyArrowEffect(AActor* HitActor) const
 	Effect.Causer = const_cast<ASacraEnemyArrowProjectile*>(this);
 	Effect.Instigator = Cast<ABaseCharacter>(InstigatorActor.Get());
 	Effect.Duration = 0.0f;
+
+	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Arrow ApplyEffect DealingDamage Instigator=%s HitActor=%s Damage=%.1f"),
+		*GetNameSafe(InstigatorActor.Get()),
+		*GetNameSafe(HitActor),
+		ArrowDamage);
 
 	IEffectable::Execute_ApplyEffect(HitActor, Effect);
 }

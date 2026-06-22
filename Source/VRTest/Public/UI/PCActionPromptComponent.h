@@ -22,7 +22,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnPCPromptsChanged OnPromptsChanged;
 
-	UFUNCTION(BlueprintCallable, Category = "UI|Prompts")
+	UFUNCTION(BlueprintPure, Category = "UI|Prompts")
 	TArray<EPCActionPromptType> GetCurrentPrompts() const { return CurrentPrompts; }
 
 protected:

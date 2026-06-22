@@ -28,8 +28,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnDead OnDead;
 
-private:
-	UPROPERTY(VisibleAnywhere, Category = "Health")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health")
 	float HP;
 
 public:

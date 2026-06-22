@@ -6,12 +6,9 @@
 #include "Engine/GameInstance.h"
 #include "ShujiGameInstance.generated.h"
 
-/**
- * 
- */
 UCLASS()
 class VRTEST_API UShujiGameInstance : public UGameInstance
 {
 	GENERATED_BODY()
-	
+
 };

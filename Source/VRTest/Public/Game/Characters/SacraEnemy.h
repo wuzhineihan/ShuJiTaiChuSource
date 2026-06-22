@@ -44,6 +44,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "AI|Loadout")
 	USacraEnemyLoadoutComponent* GetEnemyLoadoutComponent() const { return EnemyLoadoutComponent; }
 
+	// ==================== 存档 ====================
+
+	/** 敌人唯一标识（在蓝图中为每个 NPC 设置，用于存档/读档匹配） */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SaveGame")
+	FName EnemyID;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI|Config", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USacraEnemyConfigDataAsset> EnemyConfigDataAsset = nullptr;

@@ -5,6 +5,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "VectorTypes.h"
 #include "Enemy_Base.h"
+#include "Game/Characters/SacraEnemy.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "Engine/StaticMeshActor.h"
@@ -145,6 +146,36 @@ bool UMyFunctionLibrary::IsPositionReachable(UObject* WorldContextObject,FVector
 		return false;
 
 	return !NavPath->IsPartial();
+}
+
+void UMyFunctionLibrary::AutoAssignEnemyIDs(UObject* WorldContextObject)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (!World) return;
+
+	int32 Index = 0;
+	int32 Count = 0;
+	for (TActorIterator<ASacraEnemy> It(World); It; ++It)
+	{
+		ASacraEnemy* Enemy = *It;
+		if (Enemy->EnemyID.IsNone())
+		{
+			++Index;
+			FString IDStr = FString::Printf(TEXT("Enemy_%03d"), Index);
+			Enemy->EnemyID = FName(*IDStr);
+			UE_LOG(LogTemp, Log, TEXT("[AutoAssignID] %s -> EnemyID='%s'"), *Enemy->GetName(), *IDStr);
+			Count++;
+		}
+	}
+
+	if (Count == 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[AutoAssignID] No enemies needed ID assignment."));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[AutoAssignID] Assigned IDs to %d enemies."), Count);
+	}
 }
 
 void UMyFunctionLibrary::ReplaceStaticMeshActorsWithActor(UObject* WorldContextObject, UStaticMesh* TargetMesh, TSubclassOf<AActor> ReplacementClass)

@@ -81,6 +81,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Skill|Learn")
 	bool HasLearnedSkill(ESkillType SkillType) const;
 
+	/** 获取所有已学会的技能（存档用） */
+	UFUNCTION(BlueprintPure, Category = "Skill|Save")
+	const TSet<ESkillType>& GetLearnedSkills() const { return LearnedSkills; }
+
+	/** 清空所有已学会的技能（读档用） */
+	UFUNCTION(BlueprintCallable, Category = "Skill|Save")
+	void ClearLearnedSkills() { LearnedSkills.Empty(); }
+
 	// ==================== 技能触发 ====================
 
 	/** 直接触发技能（绕过绘制），通常用于调试/快捷键。 */

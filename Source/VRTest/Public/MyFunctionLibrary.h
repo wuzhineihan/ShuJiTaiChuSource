@@ -31,4 +31,8 @@ public:
 
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Editor Utility")
 	static void ReplaceStaticMeshActorsWithActor(UObject* WorldContextObject, UStaticMesh* TargetMesh, TSubclassOf<AActor> ReplacementClass);
+
+	/** 给场景中所有 EnemyID 为 None 的 ASacraEnemy 自动赋 ID */
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Editor Utility|SaveGame")
+	static void AutoAssignEnemyIDs(UObject* WorldContextObject);
 };

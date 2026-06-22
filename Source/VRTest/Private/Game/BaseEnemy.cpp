@@ -9,13 +9,19 @@
 #include "Grabber/PlayerGrabHand.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Game/CollisionConfig.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // ==================== IGrabbable 接口实现 ====================
 
 ABaseEnemy::ABaseEnemy()
 {
-	GetMesh()->SetCollisionProfileName("CharacterMesh");
+	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+	{
+		Capsule->SetCollisionProfileName(CP_ENEMY_CAPSULE);
+	}
+
+	GetMesh()->SetCollisionProfileName(CP_ENEMY_MESH_ALIVE);
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 }
 
@@ -51,13 +57,13 @@ void ABaseEnemy::OnDeath_Implementation()
 	// 1. 设置 Capsule 碰撞为 NoCollision
 	if (UCapsuleComponent* Capsule = GetCapsuleComponent())
 	{
-		Capsule->SetCollisionProfileName(FName("NoCollision"));
+		Capsule->SetCollisionProfileName(CP_NO_COLLISION);
 	}
 
 	// 2. 设置 Mesh 为 Ragdoll 并开启物理模拟
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
-		MeshComp->SetCollisionProfileName(FName("IgnoreOnlyPawn"));
+		MeshComp->SetCollisionProfileName(CP_ENEMY_MESH_RAGDOLL);
 		MeshComp->SetAllBodiesSimulatePhysics(true);
 	}
 

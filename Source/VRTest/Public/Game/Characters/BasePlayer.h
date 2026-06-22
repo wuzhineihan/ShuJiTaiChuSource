@@ -120,6 +120,9 @@ public:
 	//===================== GrassHide ====================
 	UFUNCTION(BlueprintCallable, Category = "GrassHide")
 	void SetCameraInGrass(bool bInGrass);
+	
+	UFUNCTION(BlueprintCallable, Category = "GrassHide")
+	bool GetCameraInGrass() const;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bow")

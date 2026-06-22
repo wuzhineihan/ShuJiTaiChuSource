@@ -2,6 +2,7 @@
 
 
 #include "Game/Characters/BaseCharacter.h"
+#include "Perception/AISense_Damage.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -49,6 +50,27 @@ void ABaseCharacter::ApplyEffect_Implementation(const FEffect& Effect)
 		switch (Type)
 		{
 		case EEffectType::Arrow:
+		case EEffectType::Smash:
+		case EEffectType::Melee:
+			UAISense_Damage::ReportDamageEvent(
+				GetWorld(),
+				this,
+				Effect.Instigator,
+				Effect.Amount,
+				Effect.Instigator ? Effect.Instigator->GetActorLocation() : GetActorLocation(),
+				GetActorLocation()
+			);
+			break;
+		default:
+			break;
+		}
+	}
+
+	for (const EEffectType& Type : Effect.EffectTypes)
+	{
+		switch (Type)
+		{
+		case EEffectType::Arrow:
 			TakeArrowEffect(Effect);
 			break;
 		case EEffectType::Smash:
@@ -81,8 +103,10 @@ void ABaseCharacter::TakeSmashEffect(const FEffect& Effect)
 
 void ABaseCharacter::TakeMeleeEffect(const FEffect& Effect)
 {
-	AliveComponent->DecreaseHP(Effect.Amount);
-	// Default implementation
+	if (AliveComponent)
+	{
+		AliveComponent->DecreaseHP(Effect.Amount);
+	}
 }
 
 void ABaseCharacter::TakeFireEffect(const FEffect& Effect)

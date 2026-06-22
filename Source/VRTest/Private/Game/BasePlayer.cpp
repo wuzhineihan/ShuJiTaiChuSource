@@ -166,6 +166,11 @@ void ABasePlayer::SetCameraInGrass(bool bInGrass)
 	bCameraInGrass = bInGrass;
 }
 
+bool ABasePlayer::GetCameraInGrass() const
+{
+	return bCameraInGrass;
+}
+
 void ABasePlayer::EnterClimbState()
 {
 	if (bInClimbState)

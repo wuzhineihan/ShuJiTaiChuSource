@@ -203,6 +203,12 @@ bool USacraMeleeWeaponComponent::EndAttackWindow()
 
 bool USacraMeleeWeaponComponent::ApplyAttackHit()
 {
+	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Melee ApplyAttackHit Start Owner=%s IsAttacking=%s WindowOpen=%s AlreadyApplied=%s"),
+		*GetNameSafe(GetOwner()),
+		IsAttacking() ? TEXT("true") : TEXT("false"),
+		bIsAttackWindowOpen ? TEXT("true") : TEXT("false"),
+		bHasAppliedAttackHit ? TEXT("true") : TEXT("false"));
+
 	if (!IsAttacking() || !bIsAttackWindowOpen || bHasAppliedAttackHit)
 	{
 		return false;
@@ -211,11 +217,16 @@ bool USacraMeleeWeaponComponent::ApplyAttackHit()
 	AActor* TargetActor = nullptr;
 	if (!TryResolveAttackTarget(TargetActor))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("SacraEnemy Melee ApplyAttackHit Failed NoValidTarget Owner=%s"),
+			*GetNameSafe(GetOwner()));
 		return false;
 	}
 
 	if (!TargetActor->Implements<UEffectable>())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("SacraEnemy Melee ApplyAttackHit Failed TargetNotEffectable Owner=%s Target=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(TargetActor));
 		return false;
 	}
 
@@ -225,6 +236,11 @@ bool USacraMeleeWeaponComponent::ApplyAttackHit()
 	Effect.Causer = GetOwner();
 	Effect.Instigator = Cast<ABaseCharacter>(CachedOwnerCharacter.Get());
 	Effect.Duration = 0.0f;
+
+	UE_LOG(LogTemp, Log, TEXT("SacraEnemy Melee ApplyAttackHit DealingDamage Owner=%s Target=%s Damage=%.1f"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(TargetActor),
+		AttackDamage);
 
 	IEffectable::Execute_ApplyEffect(TargetActor, Effect);
 	bHasAppliedAttackHit = true;

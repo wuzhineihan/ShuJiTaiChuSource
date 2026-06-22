@@ -14,7 +14,7 @@ public class VRTest : ModuleRules
 			"GeometryCollectionEngine", "AssetRegistry", "GameplayMessageRuntime", "SkeletalMerging", "LevelSequence", "MovieScene",
 			"Slate", "SlateCore" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayDebugger" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayDebugger", "EngineSettings" });
 		
 		bEnableUndefinedIdentifierWarnings = false;
 		// Uncomment if you are using Slate UI
